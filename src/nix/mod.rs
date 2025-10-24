@@ -7,7 +7,8 @@ pub fn run_nix_command(args: &[&str]) -> Result<String> {
 
     if !output.status.success() {
         anyhow::bail!(
-            "Nix command failed: {}",
+            "Nix command  nix {} failed: {}",
+            args.join(" "),
             String::from_utf8_lossy(&output.stderr)
         );
     }

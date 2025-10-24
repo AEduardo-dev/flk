@@ -1,6 +1,7 @@
 use anyhow::{Context, Result, bail};
 use colored::Colorize;
-use std::process::Command;
+
+use crate::nix::{check_nix_available, run_nix_command};
 
 pub async fn run_search(query: &str, limit: usize) -> Result<()> {
     println!(
@@ -10,20 +11,14 @@ pub async fn run_search(query: &str, limit: usize) -> Result<()> {
     );
     let search_query = format!("^{}", query);
 
+    if !check_nix_available() {
+        bail!("Nix command is not available, is it installed on the system?");
+    }
     // Use nix search command with JSON output
-    let output = Command::new("nix")
-        .args(&["search", "nixpkgs", &search_query, "--json"])
-        .output()
+    let output = run_nix_command(&["search", "nixpkgs", &search_query, "--json"])
         .context("Failed to execute nix search. Is nix installed?")?;
 
-    if !output.status.success() {
-        let error = String::from_utf8_lossy(&output.stderr);
-        bail!("Nix search failed: {}", error);
-    }
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-
-    if stdout.trim().is_empty() || stdout.trim() == "{}" {
+    if output.trim().is_empty() || output.trim() == "{}" {
         println!(
             "{} No packages found matching '{}'",
             "✗".red().bold(),
@@ -36,7 +31,7 @@ pub async fn run_search(query: &str, limit: usize) -> Result<()> {
     }
 
     let results: serde_json::Map<String, serde_json::Value> =
-        serde_json::from_str(&stdout).context("Failed to parse nix search output")?;
+        serde_json::from_str(&output).context("Failed to parse nix search output")?;
 
     let mut results_vec: Vec<_> = results.iter().collect();
     results_vec.truncate(limit);
@@ -108,19 +103,15 @@ pub async fn run_deep_search(package: &str, show_versions: bool) -> Result<()> {
         package.green()
     );
 
-    let output = Command::new("nix")
-        .args(&["search", "nixpkgs", package, "--json"])
-        .output()
-        .context("Failed to execute nix search. Is nix installed?")?;
-
-    if !output.status.success() {
-        let error = String::from_utf8_lossy(&output.stderr);
-        bail!("Nix search failed: {}", error);
+    if !check_nix_available() {
+        bail!("Nix is not available!")
     }
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
+    let output = run_nix_command(&["search", "nixpkgs", package, "--json"])
+        .context("Failed to execute nix search.");
+
     let results: serde_json::Map<String, serde_json::Value> =
-        serde_json::from_str(&stdout).context("Failed to parse nix search output")?;
+        serde_json::from_str(&output.unwrap()).context("Failed to parse nix search output")?;
 
     if results.is_empty() {
         println!("{} Package '{}' not found", "✗".red().bold(), package);

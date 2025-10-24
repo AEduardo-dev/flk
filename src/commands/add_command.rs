@@ -72,4 +72,3 @@ fn is_valid_command_name(name: &str) -> bool {
             .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
         && !name.starts_with('-')
 }
-
