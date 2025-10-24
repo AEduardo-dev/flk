@@ -3,6 +3,8 @@ use colored::Colorize;
 use std::fs;
 use std::path::Path;
 
+use crate::flake::parser;
+
 pub fn run(name: &str, command: &str, file: Option<String>) -> Result<()> {
     let flake_path = Path::new("flake.nix");
 
@@ -36,7 +38,7 @@ pub fn run(name: &str, command: &str, file: Option<String>) -> Result<()> {
     let flake_content = fs::read_to_string(flake_path).context("Failed to read flake.nix")?;
 
     // Check if command already exists
-    if flake_content.contains(&format!("# flk-command: {}", name)) {
+    if parser::command_exists(&flake_content, name) {
         bail!(
             "Command '{}' already exists. Remove it with: {}",
             name,
@@ -44,8 +46,9 @@ pub fn run(name: &str, command: &str, file: Option<String>) -> Result<()> {
         );
     }
 
-    // Find the shellHook section and add the command
-    let updated_content = add_to_shell_hook(&flake_content, name, &command_content)?;
+    // Add the command to shellHook
+    let updated_content =
+        parser::add_command_to_shell_hook(&flake_content, name, &command_content)?;
 
     // Write back to file
     fs::write(flake_path, updated_content).context("Failed to write flake.nix")?;
@@ -62,52 +65,6 @@ pub fn run(name: &str, command: &str, file: Option<String>) -> Result<()> {
     Ok(())
 }
 
-fn add_to_shell_hook(flake_content: &str, name: &str, command: &str) -> Result<String> {
-    // Find the shellHook section
-    let shell_hook_start = flake_content
-        .find("shellHook = ''")
-        .or_else(|| flake_content.find("shellHook=''"))
-        .context("Could not find 'shellHook' in flake.nix. Is this a valid flake?")?;
-
-    // Find the closing of shellHook
-    let search_start = shell_hook_start + "shellHook = ''".len();
-    let shell_hook_end = flake_content[search_start..]
-        .find("'';")
-        .context("Could not find closing \"'';\") for shellHook")?;
-
-    let insertion_point = search_start + shell_hook_end;
-
-    // Always create a function (cleaner and supports multiline)
-    let command_block = format!(
-        "\n            # flk-command: {}\n            {} () {{\n{}\n            }}\n",
-        name,
-        name,
-        indent_lines(command.trim(), 14)
-    );
-
-    // Insert the command before the closing ''
-    let mut result = String::new();
-    result.push_str(&flake_content[..insertion_point]);
-    result.push_str(&command_block);
-    result.push_str(&flake_content[insertion_point..]);
-
-    Ok(result)
-}
-
-fn indent_lines(text: &str, spaces: usize) -> String {
-    let indent = " ".repeat(spaces);
-    text.lines()
-        .map(|line| {
-            if line.trim().is_empty() {
-                String::new()
-            } else {
-                format!("{}{}", indent, line)
-            }
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
-}
-
 fn is_valid_command_name(name: &str) -> bool {
     !name.is_empty()
         && name
@@ -115,3 +72,4 @@ fn is_valid_command_name(name: &str) -> bool {
             .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
         && !name.starts_with('-')
 }
+
