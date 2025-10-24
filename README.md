@@ -1,93 +1,256 @@
-# Flk
+# flk 🚀
 
+> A CLI tool for managing `flake.nix` files as if they were Jetify Devbox environments
 
+[![Crates.io](https://img.shields.io/crates/v/flk.svg)](https://crates.io/crates/flk)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Getting started
+`flk` simplifies the management of Nix flakes for development environments, providing a user-friendly CLI similar to Devbox but for native `flake.nix` files.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## ✨ Features
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+- 🎯 **Easy Initialization**: Create project-specific flake templates with `flk init`
+- 🔍 **Package Search**: Search nixpkgs directly from the CLI
+- 📦 **Simple Package Management**: Add packages with optional version pinning
+- ⚡ **Custom Commands**: Add shell functions and scripts to your dev environment
+- 🎨 **Language Templates**: Pre-configured templates for Rust, Python, Node.js, Go, and more
 
-## Add your files
+## 📦 Installation
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+### From Source (Current)
+
+```bash
+git clone https://github.com/AEduardo-dev/flk.git
+cd flk
+cargo build --release
+sudo cp target/release/flk /usr/local/bin/
+```
+
+### From Cargo (Coming Soon)
+
+```bash
+cargo install flk
+```
+
+### With Nix
+
+```bash
+nix profile install github:AEduardo-dev/flk
+```
+
+## 🚀 Quick Start
+
+### 1. Initialize a new flake
+
+```bash
+# Auto-detect project type
+flk init
+
+# Or specify a template
+flk init --template rust
+flk init --template python
+flk init --template node
+```
+
+### 2. Search for packages
+
+```bash
+# Search nixpkgs
+flk search ripgrep
+
+# Get detailed package info
+flk deep-search ripgrep --versions
+```
+
+### 3. Add packages to your environment
+
+```bash
+# Add a package
+flk add ripgrep
+
+# Add with version pinning
+flk add python311 --version 3.11.6
+```
+
+### 4. Add custom commands
+
+```bash
+# Add a simple command
+flk add-command test "cargo test --all"
+
+# Source commands from a file
+flk add-command scripts --file ./scripts/dev.sh
+```
+
+### 5. Enter your dev environment
+
+```bash
+nix develop
+```
+
+## 📖 Commands
+
+### `flk init`
+
+Initialize a new `flake.nix` in the current directory.
+
+```bash
+flk init [OPTIONS]
+
+Options:
+  -t, --template <TYPE>  Project type (rust, python, node, go, generic)
+  -f, --force           Overwrite existing flake.nix
+```
+
+**Auto-detection:**
+
+- Detects `Cargo.toml` → Rust template
+- Detects `package.json` → Node.js template
+- Detects `pyproject.toml` or `requirements.txt` → Python template
+- Detects `go.mod` → Go template
+
+### `flk search`
+
+Search for packages in nixpkgs.
+
+```bash
+flk search <QUERY> [OPTIONS]
+
+Options:
+  -l, --limit <NUMBER>  Limit results (default: 10)
+```
+
+### `flk deep-search`
+
+Get detailed information about a specific package.
+
+```bash
+flk deep-search <PACKAGE> [OPTIONS]
+
+Options:
+  -v, --versions  Show version history for pinning
+```
+
+### `flk add`
+
+Add a package to your `flake.nix`.
+
+```bash
+flk add <PACKAGE> [OPTIONS]
+
+Options:
+  -v, --version <VERSION>  Pin to specific version
+```
+
+### `flk add-command`
+
+Add a custom command to your dev shell.
+
+```bash
+flk add-command <NAME> <COMMAND> [OPTIONS]
+
+Options:
+  -f, --file <PATH>  Source commands from a file
+```
+
+## 🏗️ Project Structure
 
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/aeduardo-dev-priv/flk.git
-git branch -M main
-git push -uf origin main
+flk/
+├── src/
+│   ├── main.rs           # CLI entry point
+│   ├── commands/         # Command implementations
+│   │   ├── init.rs
+│   │   ├── add.rs
+│   │   ├── search.rs
+│   │   └── add_command.rs
+│   ├── flake/            # Flake parsing and generation
+│   │   ├── parser.rs
+│   │   └── generator.rs
+│   └── nix/              # Nix command wrappers
+│       └── mod.rs
+└── templates/            # Flake templates
+    ├── default_flake.nix
+    ├── rust_flake.nix
+    ├── python_flake.nix
+    ├── node_flake.nix
+    └── go_flake.nix
 ```
 
-## Integrate with your tools
+## 🛣️ Roadmap
 
-- [ ] [Set up project integrations](https://gitlab.com/aeduardo-dev-priv/flk/-/settings/integrations)
+- [x] Project scaffolding and CLI structure (#1)
+- [ ] Implement `init` command (#2)
+- [ ] Implement `search` and `deep-search` commands (#3)
+- [ ] Implement `add` and `add-command` commands (#4)
+- [ ] Documentation and examples (#5)
+- [ ] CI/CD and releases
+- [ ] Package registry integration
+- [ ] Interactive TUI mode
+- [ ] Flake templates marketplace
 
-## Collaborate with your team
+## 🤝 Contributing
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+Contributions are welcome! Please check out our [issues](https://github.com/AEduardo-dev/flk/issues) to see what needs work.
 
-## Test and Deploy
+### Development Setup
 
-Use the built-in continuous integration in GitLab.
+```bash
+# Clone the repo
+git clone https://github.com/AEduardo-dev/flk.git
+cd flk
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+# Build
+cargo build
 
-***
+# Run tests
+cargo test
 
-# Editing this README
+# Install locally
+cargo install --path .
+```
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+## 📝 Examples
 
-## Suggestions for a good README
+### Python Data Science Environment
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+```bash
+flk init --template python
+flk add python311Packages.numpy
+flk add python311Packages.pandas
+flk add python311Packages.matplotlib
+flk add jupyter
+flk add-command notebook "jupyter notebook --port=8888"
+```
 
-## Name
-Choose a self-explaining name for your project.
+### Rust Web Development
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+```bash
+flk init --template rust
+flk add postgresql
+flk add redis
+flk add-command dev "cargo watch -x run"
+flk add-command migrate "sqlx migrate run"
+```
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+## 🔗 Inspiration
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+- [Devbox](https://github.com/jetify-com/devbox) - Instant, portable dev environments
+- [devenv](https://devenv.sh/) - Fast, declarative developer environments
+- [Flox](https://flox.dev/) - Developer environments you can take with you
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+## 📄 License
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+MIT License - see [LICENSE](LICENSE) for details
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+## 🙏 Acknowledgments
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+- The Nix community for the amazing ecosystem
+- Jetify for the Devbox inspiration
+- All contributors and users of flk
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+---
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+**Note:** This project is in early development (v0.1.0). Some features are still being implemented. See the [roadmap](#-roadmap) for current status.
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+Made with ❤️ by [AEduardo-dev](https://github.com/AEduardo-dev)
