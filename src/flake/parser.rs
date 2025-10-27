@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Ok, Result};
 use std::fs;
 
 /// Parse a flake.nix file and extract its components
@@ -115,6 +115,40 @@ pub fn add_package_inputs(flake_content: &str, package: &str) -> Result<String> 
     result.push_str(&flake_content[..list_end]);
     result.push_str(&package_entry);
     result.push_str(&flake_content[list_end..]);
+
+    Ok(result)
+}
+
+/// Remove a package from buildInputs
+pub fn remove_package_inputs(flake_content: &str, package: &str) -> Result<String> {
+    let (list_start, list_end, has_with_pkgs) = find_packages_inputs(flake_content)?;
+
+    // Get the content inside buildInputs
+    let build_inputs_content = &flake_content[list_start..list_end];
+
+    // Determine if file is empty. If it is, return nothing
+    let is_empty = build_inputs_content.trim().is_empty();
+    let mut result = String::new();
+    if is_empty {
+        return Ok(result);
+    }
+
+    let mut prefix = "";
+    if !has_with_pkgs {
+        prefix = "pkgs."
+    }
+
+    let pckg = format!("{}{}", prefix, package);
+
+    let pckg_start = build_inputs_content
+        .find(&pckg)
+        .context("Could not find package in the current list")?;
+
+    let pckg_end = pckg_start + pckg.len();
+
+    // Insert all content but removed package
+    result.push_str(&flake_content[..pckg_start]);
+    result.push_str(&flake_content[pckg_end..]);
 
     Ok(result)
 }
