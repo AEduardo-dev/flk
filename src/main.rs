@@ -7,7 +7,7 @@ mod nix;
 
 use commands::{add, add_command, init, remove_command, search};
 
-use crate::commands::remove;
+use crate::commands::{list, remove};
 
 #[derive(Parser)]
 #[command(name = "flk")]
@@ -52,6 +52,9 @@ enum Commands {
         versions: bool,
     },
 
+    /// List the packages of the flake.nix
+    List {},
+
     /// Add a package to the flake.nix
     Add {
         /// Package name to add
@@ -62,9 +65,8 @@ enum Commands {
         version: Option<String>,
     },
 
-    Remove {
-        package: String,
-    },
+    /// Remove a package from the flake.nix
+    Remove { package: String },
 
     /// Add a custom command to the dev shell
     AddCommand {
@@ -100,6 +102,9 @@ async fn main() -> Result<()> {
         }
         Commands::DeepSearch { package, versions } => {
             search::run_deep_search(&package, versions).await?;
+        }
+        Commands::List {} => {
+            list::run_list()?;
         }
         Commands::Add { package, version } => {
             add::run_add(&package, version)?;
