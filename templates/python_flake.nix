@@ -19,13 +19,16 @@
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [
             # Python and tools
+            poetry
+            poetryPlugins
             python
             python311Packages.pip
             python311Packages.virtualenv
 
             # Additional tools
-            ruff
             black
+            mypy
+            ruff
           ];
 
           shellHook = ''
