@@ -7,6 +7,8 @@ mod nix;
 
 use commands::{add, add_command, init, remove_command, search};
 
+use crate::commands::remove;
+
 #[derive(Parser)]
 #[command(name = "flk")]
 #[command(author = "AEduardo-dev")]
@@ -60,6 +62,10 @@ enum Commands {
         version: Option<String>,
     },
 
+    Remove {
+        package: String,
+    },
+
     /// Add a custom command to the dev shell
     AddCommand {
         /// Command name
@@ -98,6 +104,9 @@ async fn main() -> Result<()> {
         Commands::Add { package, version } => {
             add::run_add(&package, version)?;
         }
+        Commands::Remove { package } => {
+            remove::run_remove(&package)?;
+        }
         Commands::AddCommand {
             name,
             command,
@@ -113,4 +122,3 @@ async fn main() -> Result<()> {
 
     Ok(())
 }
-
