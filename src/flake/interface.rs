@@ -42,13 +42,6 @@ impl Package {
             version: None,
         }
     }
-
-    pub fn with_version(name: String, version: String) -> Self {
-        Self {
-            name,
-            version: Some(version),
-        }
-    }
 }
 
 impl fmt::Display for Package {
