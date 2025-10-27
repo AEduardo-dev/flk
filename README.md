@@ -1,11 +1,12 @@
 # flk 🚀
 
-> A CLI tool for managing `flake.nix` files as if they were Jetify Devbox environments
+A CLI tool for managing `flake.nix` files as if they were Jetify Devbox environments
 
 [![Crates.io](https://img.shields.io/crates/v/flk.svg)](https://crates.io/crates/flk)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 `flk` simplifies the management of Nix flakes for development environments, providing a user-friendly CLI similar to Devbox but for native `flake.nix` files.
+NOTE: This project is in early development and some features may not be fully implemented yet. All functionality described is planned or in progress. To follow development, check the issues and roadmap sections.
 
 ## ✨ Features
 
