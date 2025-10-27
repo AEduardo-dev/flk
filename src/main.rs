@@ -5,7 +5,7 @@ mod commands;
 mod flake;
 mod nix;
 
-use commands::{add, add_command, init, remove_command, search};
+use commands::{add, add_command, env, init, remove_command, search};
 
 use crate::commands::{list, remove, show, update};
 
@@ -100,6 +100,31 @@ enum Commands {
         #[arg(short, long)]
         show: bool,
     },
+
+    /// Manage environment variables in the dev shell
+    Env {
+        #[command(subcommand)]
+        action: EnvAction,
+    },
+}
+
+// Add this new enum after Commands
+#[derive(Subcommand)]
+enum EnvAction {
+    /// Add an environment variable
+    Add {
+        /// Variable name
+        name: String,
+        /// Variable value
+        value: String,
+    },
+    /// Remove an environment variable
+    Remove {
+        /// Variable name
+        name: String,
+    },
+    /// List all environment variables
+    List,
 }
 
 #[tokio::main]
@@ -142,6 +167,17 @@ async fn main() -> Result<()> {
         Commands::Update { packages, show } => {
             update::run_update(packages, show)?;
         }
+        Commands::Env { action } => match action {
+            EnvAction::Add { name, value } => {
+                env::add(&name, &value)?;
+            }
+            EnvAction::Remove { name } => {
+                env::remove(&name)?;
+            }
+            EnvAction::List => {
+                env::list()?;
+            }
+        },
     }
 
     Ok(())

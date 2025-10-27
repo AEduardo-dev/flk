@@ -6,6 +6,7 @@ pub struct FlakeConfig {
     pub description: String,
     pub inputs: Vec<String>,
     pub packages: Vec<Package>,
+    pub env_vars: Vec<EnvVar>,
     pub shell_hook: String,
 }
 /// Represents a package in the flake
@@ -13,6 +14,25 @@ pub struct FlakeConfig {
 pub struct Package {
     pub name: String,
     pub version: Option<String>, // For future version pinning support
+}
+
+/// Represents an environment variable in the flake
+#[derive(Debug, Clone, PartialEq)]
+pub struct EnvVar {
+    pub name: String,
+    pub value: String,
+}
+
+impl EnvVar {
+    pub fn new(name: String, value: String) -> Self {
+        Self { name, value }
+    }
+}
+
+impl fmt::Display for EnvVar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} = {}", self.name.cyan().bold(), self.value.green())
+    }
 }
 
 impl Package {
@@ -45,6 +65,7 @@ impl fmt::Display for Package {
         }
     }
 }
+
 impl FlakeConfig {
     /// Display just the packages list (for `flk list`)
     pub fn display_packages(&self) {
@@ -94,6 +115,20 @@ impl fmt::Display for FlakeConfig {
             )?;
             for package in &self.packages {
                 writeln!(f, "  {} {}", "•".green(), package)?;
+            }
+            writeln!(f)?;
+        }
+
+        // Add this section for environment variables
+        if !self.env_vars.is_empty() {
+            writeln!(
+                f,
+                "{} {}",
+                "Environment Variables:".bold().yellow(),
+                format!("({})", self.env_vars.len()).dimmed()
+            )?;
+            for env_var in &self.env_vars {
+                writeln!(f, "  {} {}", "•".green(), env_var)?;
             }
             writeln!(f)?;
         }
