@@ -36,7 +36,7 @@ fn show_update_preview() -> Result<()> {
     let current_lock = read_lock_file()?;
 
     // Create a temporary backup of the lock file
-    fs::copy("flake.lock", "flake.lock.backup")?;
+    fs::copy("flake.lock", "flake.lock.backup").context("Failed to create backup of flake.lock")?;
 
     // Run the update
     let (_, stderr, success) =
@@ -44,7 +44,8 @@ fn show_update_preview() -> Result<()> {
 
     if !success {
         // Restore backup if update failed
-        fs::rename("flake.lock.backup", "flake.lock")?;
+        fs::rename("flake.lock.backup", "flake.lock")
+            .context("Failed to restore flake.lock backup")?;
         anyhow::bail!("Failed to check for updates: {}", stderr);
     }
 
@@ -52,7 +53,7 @@ fn show_update_preview() -> Result<()> {
     let updated_lock = read_lock_file()?;
 
     // Restore the original lock file since this is just a preview
-    fs::rename("flake.lock.backup", "flake.lock")?;
+    fs::rename("flake.lock.backup", "flake.lock").context("Unable to restore flake.lock backup")?;
 
     // Compare and display differences
     display_update_diff(&current_lock, &updated_lock)?;
