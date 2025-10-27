@@ -153,6 +153,63 @@ Options:
   -f, --file <PATH>  Source commands from a file
 ```
 
+### `flk update`
+
+Update all packages in your `flake.nix` to their latest versions.
+
+```bash
+flk update [OPTIONS]
+
+Options:
+  --show   Preview updates without applying them
+```
+
+### `flk show`
+
+Display the contents and configuration of your current `flake.nix`.
+
+```bash
+flk show
+```
+
+### `flk list`
+
+List all packages currently included in your `flake.nix` environment.
+
+```bash
+flk list
+```
+
+### `flk remove`
+
+Remove a package from your `flake.nix` environment.
+
+```bash
+flk remove <PACKAGE>
+```
+
+### `flk remove-command`
+
+Remove a custom command from your dev shell configuration.
+
+```bash
+flk remove-command <NAME>
+```
+
+## 🛣️ Roadmap
+
+- [x] Project scaffolding and CLI structure (#1)
+- [x] Implement `init` command (#2)
+- [x] Implement `search` and `deep-search` commands (#3)
+- [x] Implement `add` and `add-command` commands (#4)
+- [x] Documentation and examples (#5)
+- [x] Implement `remove` and `remove-command` commands (#6)
+- [x] Implement `update`, `show`, and `list` commands (#7)
+- [ ] CI/CD and releases
+- [ ] Package registry integration
+- [ ] Interactive TUI mode
+- [ ] Flake templates marketplace
+
 ## 🏗️ Project Structure
 
 ```
@@ -176,18 +233,6 @@ flk/
     ├── node_flake.nix
     └── go_flake.nix
 ```
-
-## 🛣️ Roadmap
-
-- [x] Project scaffolding and CLI structure (#1)
-- [ ] Implement `init` command (#2)
-- [ ] Implement `search` and `deep-search` commands (#3)
-- [ ] Implement `add` and `add-command` commands (#4)
-- [ ] Documentation and examples (#5)
-- [ ] CI/CD and releases
-- [ ] Package registry integration
-- [ ] Interactive TUI mode
-- [ ] Flake templates marketplace
 
 ## 🤝 Contributing
 
