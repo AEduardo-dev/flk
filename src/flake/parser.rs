@@ -68,7 +68,7 @@ fn parse_packages(content: &str) -> Result<Vec<Package>> {
 
     // Use existing helper function to find packages section
     let (list_start, list_end, has_with_pkgs) = match find_packages_inputs(content) {
-        Result::Ok(result) => result,
+        Ok(result) => result,
         Err(_) => return Ok(packages), // Return empty if no packages section found
     };
 
