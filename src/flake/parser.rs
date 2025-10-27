@@ -88,14 +88,16 @@ pub fn add_package_inputs(flake_content: &str, package: &str) -> Result<String> 
     let build_inputs_content = &flake_content[list_start..list_end];
 
     // Determine indentation by looking at existing entries
-    let indent = if let Some(first_line) = build_inputs_content.lines().nth(1) {
+    let indent = if let Some(pckg_line) = build_inputs_content.lines().nth(2) {
         // Count leading spaces
-        first_line.len() - first_line.trim_start().len()
+        pckg_line.len() - pckg_line.trim_start().len()
     } else {
         12 // Default indentation
     };
+    println!("{}", indent);
 
     let indent_str = " ".repeat(indent);
+    let indent_bracket = " ".repeat(indent - 2);
 
     // Check if buildInputs is empty or has items
     let is_empty = build_inputs_content.trim().is_empty();
@@ -107,7 +109,7 @@ pub fn add_package_inputs(flake_content: &str, package: &str) -> Result<String> 
     let package_entry = if is_empty {
         format!("\n{}{}{}\n          ", indent_str, prefix, package)
     } else {
-        format!("\n{}{}{}", indent_str, prefix, package)
+        format!("  {}{}\n{}", prefix, package, indent_bracket)
     };
 
     // Insert before the closing bracket
@@ -126,6 +128,14 @@ pub fn remove_package_inputs(flake_content: &str, package: &str) -> Result<Strin
     // Get the content inside buildInputs
     let build_inputs_content = &flake_content[list_start..list_end];
 
+    // Determine indentation by looking at existing entries
+    let indent = if let Some(first_line) = build_inputs_content.lines().nth(1) {
+        // Count leading spaces
+        first_line.len() - first_line.trim_start().len()
+    } else {
+        12 // Default indentation
+    };
+
     // Determine if file is empty. If it is, return nothing
     let is_empty = build_inputs_content.trim().is_empty();
     let mut result = String::new();
@@ -139,16 +149,21 @@ pub fn remove_package_inputs(flake_content: &str, package: &str) -> Result<Strin
     }
 
     let pckg = format!("{}{}", prefix, package);
+    println!("{}", pckg);
 
     let pckg_start = build_inputs_content
         .find(&pckg)
+        .map(|pos| pos)
         .context("Could not find package in the current list")?;
 
     let pckg_end = pckg_start + pckg.len();
 
     // Insert all content but removed package
-    result.push_str(&flake_content[..pckg_start]);
-    result.push_str(&flake_content[pckg_end..]);
+    let absolute_pckg_start = list_start + pckg_start - (indent + 1);
+    let absolute_pckg_end = list_start + pckg_end;
+
+    result.push_str(&flake_content[..absolute_pckg_start]);
+    result.push_str(&flake_content[absolute_pckg_end..]);
 
     Ok(result)
 }
