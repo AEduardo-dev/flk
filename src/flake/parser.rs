@@ -1,7 +1,7 @@
 use anyhow::{Context, Ok, Result};
 use std::fs;
 
-use crate::flake::interface::{FlakeConfig, Package};
+use crate::flake::interface::{EnvVar, FlakeConfig, Package};
 
 /// Parse a flake.nix file and extract its components
 pub fn parse_flake(path: &str) -> Result<FlakeConfig> {
@@ -17,6 +17,9 @@ pub fn parse_flake(path: &str) -> Result<FlakeConfig> {
 
     // Parse packages from buildInputs
     config.packages = parse_packages(&content)?;
+
+    // Parse environment variables
+    config.env_vars = parse_env_vars_as_structs(&content)?;
 
     // Parse shellHook content
     config.shell_hook = parse_shell_hook_content(&content)?;
@@ -337,4 +340,131 @@ fn indent_lines(text: &str, spaces: usize) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+/// Check if an environment variable exists in the shellHook
+pub fn env_var_exists(flake_content: &str, name: &str) -> Result<bool> {
+    let (shell_hook_start, shell_hook_end) = match find_shell_hook(flake_content) {
+        Result::Ok(result) => result,
+        Err(_) => return Ok(false),
+    };
+
+    let hook_start = shell_hook_start + "shellHook = ''".len();
+    let hook_content = &flake_content[hook_start..shell_hook_end];
+
+    // Look for export NAME= pattern
+    let export_pattern = format!("export {}=", name);
+    Ok(hook_content.contains(&export_pattern))
+}
+
+/// Parse all environment variables from the shellHook
+pub fn parse_env_vars(flake_content: &str) -> Result<Vec<(String, String)>> {
+    let mut env_vars = Vec::new();
+
+    let (shell_hook_start, shell_hook_end) = match find_shell_hook(flake_content) {
+        Result::Ok(result) => result,
+        Err(_) => return Ok(env_vars),
+    };
+
+    let hook_start = shell_hook_start + "shellHook = ''".len();
+    let hook_content = &flake_content[hook_start..shell_hook_end];
+
+    // Parse export statements
+    for line in hook_content.lines() {
+        let trimmed = line.trim();
+
+        // Look for export NAME="VALUE" or export NAME=VALUE
+        if trimmed.starts_with("export ") && !trimmed.contains("# flk-") {
+            let without_export = trimmed.strip_prefix("export ").unwrap();
+
+            if let Some(eq_pos) = without_export.find('=') {
+                let name = without_export[..eq_pos].trim();
+                let value_part = without_export[eq_pos + 1..].trim();
+
+                // Remove quotes if present
+                let value = value_part
+                    .trim_start_matches('"')
+                    .trim_end_matches('"')
+                    .trim_start_matches('\'')
+                    .trim_end_matches('\'');
+
+                env_vars.push((name.to_string(), value.to_string()));
+            }
+        }
+    }
+
+    Ok(env_vars)
+}
+
+/// Add an environment variable to the shellHook
+pub fn add_env_var(flake_content: &str, name: &str, value: &str) -> Result<String> {
+    let (_, insertion_point) = find_shell_hook(flake_content)?;
+
+    // Escape quotes in value
+    let escaped_value = value.replace('"', "\\\"");
+
+    // Create export statement with proper formatting
+    let env_block = format!(
+        "\n            # flk-env: {}\n            export {}=\"{}\"\n",
+        name, name, escaped_value
+    );
+
+    // Insert the variable before the closing ''
+    let mut result = String::new();
+    result.push_str(&flake_content[..insertion_point]);
+    result.push_str(&env_block);
+    result.push_str(&flake_content[insertion_point..]);
+
+    Ok(result)
+}
+
+/// Remove an environment variable from the shellHook
+pub fn remove_env_var(flake_content: &str, name: &str) -> Result<String> {
+    let marker = format!("# flk-env: {}", name);
+
+    // Find the marker
+    let marker_start = flake_content
+        .find(&marker)
+        .context("Environment variable marker not found")?;
+
+    // Find the start of the line - include the preceding newline if it exists
+    let line_start = if marker_start > 0 {
+        flake_content[..marker_start].rfind('\n').unwrap_or(0)
+    } else {
+        0
+    };
+
+    // Find the end of the marker line (first newline after marker)
+    let search_start = marker_start + marker.len();
+    let marker_line_end = flake_content[search_start..]
+        .find('\n')
+        .context("Could not find end of marker line")?;
+
+    // Now we're at the start of the export line
+    let export_line_start = search_start + marker_line_end + 1;
+
+    // Find the end of the export line
+    let export_line_end = flake_content[export_line_start..]
+        .find('\n')
+        .context("Could not find end of export line")?;
+
+    // Calculate the full range to delete (from line_start to end of export line, including newline)
+    let end_point = export_line_start + export_line_end + 1;
+
+    // Remove the entire variable block (marker comment + export statement)
+    let mut result = String::new();
+    result.push_str(&flake_content[..line_start]);
+    result.push_str(&flake_content[end_point..]);
+
+    Ok(result)
+}
+
+/// Parse environment variables as EnvVar structs
+fn parse_env_vars_as_structs(content: &str) -> Result<Vec<EnvVar>> {
+    let env_tuples = parse_env_vars(content)?;
+
+    Ok(env_tuples
+        .into_iter()
+        .map(|(name, value)| EnvVar::new(name, value))
+        .collect())
 }
