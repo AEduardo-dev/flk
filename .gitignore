@@ -21,3 +21,6 @@ result-*
 
 # Testing
 *.profraw
+
+# flk backup directory
+.flk/

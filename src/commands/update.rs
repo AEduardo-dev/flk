@@ -1,13 +1,14 @@
+// src/commands/update.rs
 use anyhow::{Context, Result};
 use colored::Colorize;
 use serde_json::Value;
 use std::fs;
 
 use crate::nix::run_nix_command;
+use crate::utils::backup;
 
 pub fn run_update(packages: Vec<String>, show: bool) -> Result<()> {
     if !packages.is_empty() {
-        // For now, error on specific packages
         anyhow::bail!(
             "Updating specific packages requires version pinning (see issue #7). Use 'flk update' to update all packages."
         );
@@ -35,17 +36,16 @@ fn show_update_preview() -> Result<()> {
     // Get current lock file
     let current_lock = read_lock_file()?;
 
-    // Create a temporary backup of the lock file
-    fs::copy("flake.lock", "flake.lock.backup").context("Failed to create backup of flake.lock")?;
+    // Create a temporary backup
+    fs::copy("flake.lock", "flake.lock.tmp")?;
 
     // Run the update
     let (_, stderr, success) =
         run_nix_command(&["flake", "update"]).context("Failed to check for updates")?;
 
     if !success {
-        // Restore backup if update failed
-        fs::rename("flake.lock.backup", "flake.lock")
-            .context("Failed to restore flake.lock backup")?;
+        // Restore from temp backup if update failed
+        fs::rename("flake.lock.tmp", "flake.lock")?;
         anyhow::bail!("Failed to check for updates: {}", stderr);
     }
 
@@ -53,7 +53,7 @@ fn show_update_preview() -> Result<()> {
     let updated_lock = read_lock_file()?;
 
     // Restore the original lock file since this is just a preview
-    fs::rename("flake.lock.backup", "flake.lock").context("Unable to restore flake.lock backup")?;
+    fs::rename("flake.lock.tmp", "flake.lock")?;
 
     // Compare and display differences
     display_update_diff(&current_lock, &updated_lock)?;
@@ -71,6 +71,20 @@ fn show_update_preview() -> Result<()> {
 fn perform_update() -> Result<()> {
     println!("{}", "Updating flake inputs...".bold().cyan());
 
+    // Ensure .flk directory exists
+    backup::ensure_flk_dir()?;
+
+    // Create a backup of the current lock file BEFORE updating
+    if std::path::Path::new("flake.lock").exists() {
+        let backup_path = backup::create_backup(std::path::Path::new("flake.lock"))?;
+        println!(
+            "{} Created backup: {}",
+            "→".blue().bold(),
+            backup_path.file_name().unwrap().to_string_lossy().dimmed()
+        );
+    }
+
+    // Run the update
     let (stdout, stderr, success) =
         run_nix_command(&["flake", "update"]).context("Failed to execute nix flake update")?;
 
@@ -83,7 +97,19 @@ fn perform_update() -> Result<()> {
     }
 
     println!("{}", "✓ Flake updated successfully!".green().bold());
-    println!("\nRun {} to see what changed.", "flk show".bold());
+    println!("\n{}", "Next steps:".bold());
+    println!(
+        "  • Run {} to see the updated configuration",
+        "flk show".cyan()
+    );
+    println!(
+        "  • Run {} to see lock file details",
+        "flk lock show".cyan()
+    );
+    println!(
+        "  • Run {} if you need to rollback",
+        "flk lock restore latest".cyan()
+    );
 
     Ok(())
 }
@@ -197,3 +223,4 @@ fn display_input_change(name: &str, current: &Value, updated: &Value) {
 
     println!();
 }
+
