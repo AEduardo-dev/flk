@@ -85,6 +85,25 @@ impl FlakeConfig {
             println!("  {}. {}", (i + 1).to_string().dimmed(), package);
         }
     }
+
+    /// Display just the environment variables list (for `flk env list`)
+    pub fn display_env_vars(&self) {
+        if self.env_vars.is_empty() {
+            println!("{}", "No environment variables set".yellow());
+            return;
+        }
+
+        println!(
+            "{} {}",
+            "Environment Variables:".bold().cyan(),
+            format!("({})", self.env_vars.len()).dimmed()
+        );
+        println!();
+
+        for (i, env_var) in self.env_vars.iter().enumerate() {
+            println!("  {}. {}", (i + 1).to_string().dimmed(), env_var);
+        }
+    }
 }
 
 impl fmt::Display for FlakeConfig {

@@ -115,33 +115,9 @@ pub fn list() -> Result<()> {
         );
     }
 
-    // Read the current flake.nix
-    let flake_content = fs::read_to_string(flake_path).context("Failed to read flake.nix")?;
+    let flake_info = parser::parse_flake(flake_path.to_str().unwrap())?;
 
-    // Parse environment variables
-    let env_vars = parser::parse_env_vars(&flake_content)?;
-
-    if env_vars.is_empty() {
-        println!("{}", "No environment variables found.".yellow());
-        println!("\nAdd one with: {}", "flk env add <NAME> <VALUE>".cyan());
-        return Ok(());
-    }
-
-    println!("{}", "═══════════════════════════════════════".cyan());
-    println!(
-        "{} {}",
-        "Environment Variables".bold().cyan(),
-        format!("({})", env_vars.len()).dimmed()
-    );
-    println!("{}", "═══════════════════════════════════════".cyan());
-    println!();
-
-    for (name, value) in env_vars {
-        println!("  {} = {}", name.cyan().bold(), value.green());
-    }
-
-    println!();
-    println!("{}", "═══════════════════════════════════════".cyan());
+    flake_info.display_env_vars();
 
     Ok(())
 }
