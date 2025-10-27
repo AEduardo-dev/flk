@@ -95,6 +95,10 @@ enum Commands {
     Update {
         /// Specific packages to update
         packages: Vec<String>,
+
+        /// Show what would be updated without actually updating
+        #[arg(short, long)]
+        show: bool,
     },
 }
 
@@ -135,8 +139,8 @@ async fn main() -> Result<()> {
         Commands::RemoveCommand { name } => {
             remove_command::run(&name)?;
         }
-        Commands::Update { packages } => {
-            update::run_update(packages)?;
+        Commands::Update { packages, show } => {
+            update::run_update(packages, show)?;
         }
     }
 
