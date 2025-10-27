@@ -196,6 +196,30 @@ Remove a custom command from your dev shell configuration.
 flk remove-command <NAME>
 ```
 
+### `flk env add`
+
+Add an environment variable to your dev shell.
+
+```bash
+flk env add <NAME> <VALUE>
+```
+
+### `flk env remove`
+
+Remove an environment variable from your dev shell.
+
+```bash
+flk env remove <NAME>
+```
+
+### `flk env list`
+
+List all environment variables in your dev shell.
+
+```bash
+flk env list
+```
+
 ## 🛣️ Roadmap
 
 - [x] Project scaffolding and CLI structure (#1)
