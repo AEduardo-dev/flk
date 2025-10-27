@@ -6,3 +6,4 @@ pub mod remove;
 pub mod remove_command;
 pub mod search;
 pub mod show;
+pub mod update;
