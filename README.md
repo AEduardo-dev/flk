@@ -1,24 +1,50 @@
-# flk 🚀
+# flk
 
-A CLI tool for managing `flake.nix` files as if they were Jetify Devbox environments
+[![crates.io](https://img.shields.io/crates/v/flk.svg)](https://crates.io/crates/flk)  
+[![docs.rs](https://docs.rs/flk/badge.svg)](https://docs.rs/flk)  
+[![build](https://github.com/AEduardo-dev/flk/actions/workflows/ci.yml/badge.svg)](https://github.com/AEduardo-dev/flk/actions)  
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-[![Crates.io](https://img.shields.io/crates/v/flk.svg)](https://crates.io/crates/flk)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+**Flk** — Manage your [Nix flakes](https://nixos.org/manual/nix/stable/command-ref/new-cli/nix3-flake/)-based development environments with a friendly CLI.
 
-`flk` simplifies the management of Nix flakes for development environments, providing a user-friendly CLI similar to Devbox but for native `flake.nix` files.
-NOTE: This project is in early development and some features may not be fully implemented yet. All functionality described is planned or in progress. To follow development, check the issues and roadmap sections.
+> ⚠️ **Note:** Flk is under active development. Expect rapid changes and new features in upcoming releases.
+
+---
+
+## ✨ Why Flk?
+
+When using Nix flakes for dev environments, you often write `flake.nix` templates from scratch or copy boilerplate.  
+**Flk** makes it easy to initialise, search, add packages, manage commands, and configure environments — all from a single tool.
+
+---
+
+## Prerequisites
+
+- [Nix](https://nixos.org/download.html) with flakes enabled
+- Basic familiarity with Nix and flakes
+- Rust toolchain (for building from source)
+
+---
 
 ## ✨ Features
 
 - 🎯 **Easy Initialization**: Create project-specific flake templates with `flk init`
 - 🔍 **Package Search**: Search nixpkgs directly from the CLI
-- 📦 **Simple Package Management**: Add packages with optional version pinning
+- 📦 **Simple Package Management**: Add packages with optional version pinning (Future feature)
 - ⚡ **Custom Commands**: Add shell functions and scripts to your dev environment
 - 🎨 **Language Templates**: Pre-configured templates for Rust, Python, Node.js, Go, and more
 
-## 📦 Installation
+---
 
-### From Source (Current)
+## 🧩 Installation
+
+### From crates.io
+
+```bash
+cargo install flk
+```
+
+### From source
 
 ```bash
 git clone https://github.com/AEduardo-dev/flk.git
@@ -27,21 +53,17 @@ cargo build --release
 sudo cp target/release/flk /usr/local/bin/
 ```
 
-### From Cargo (Coming Soon)
-
-```bash
-cargo install flk
-```
-
-### With Nix
+### Using Nix
 
 ```bash
 nix profile install github:AEduardo-dev/flk
 ```
 
-## 🚀 Quick Start
+---
 
-### 1. Initialize a new flake
+## ⚡ Getting Started
+
+### 1. Initialise a new flake
 
 ```bash
 # Auto-detect project type
@@ -50,176 +72,61 @@ flk init
 # Or specify a template
 flk init --template rust
 flk init --template python
-flk init --template node
 ```
 
 ### 2. Search for packages
 
 ```bash
-# Search nixpkgs
 flk search ripgrep
-
-# Get detailed package info
 flk deep-search ripgrep --versions
 ```
 
-### 3. Add packages to your environment
+### 3. Add packages
 
 ```bash
-# Add a package
 flk add ripgrep
-
-# Add with version pinning
 flk add python311 --version 3.11.6
 ```
 
 ### 4. Add custom commands
 
 ```bash
-# Add a simple command
 flk add-command test "cargo test --all"
-
-# Source commands from a file
 flk add-command scripts --file ./scripts/dev.sh
 ```
 
-### 5. Enter your dev environment
+### 5. Enter the development environment
 
 ```bash
 nix develop
 ```
 
-## 📖 Commands
+---
 
-### `flk init`
+## 💡 Examples
 
-Initialize a new `flake.nix` in the current directory.
-
-```bash
-flk init [OPTIONS]
-
-Options:
-  -t, --template <TYPE>  Project type (rust, python, node, go, generic)
-  -f, --force           Overwrite existing flake.nix
-```
-
-**Auto-detection:**
-
-- Detects `Cargo.toml` → Rust template
-- Detects `package.json` → Node.js template
-- Detects `pyproject.toml` or `requirements.txt` → Python template
-- Detects `go.mod` → Go template
-
-### `flk search`
-
-Search for packages in nixpkgs.
+### Python — Data Science Environment
 
 ```bash
-flk search <QUERY> [OPTIONS]
-
-Options:
-  -l, --limit <NUMBER>  Limit results (default: 10)
+flk init --template python
+flk add python311Packages.numpy
+flk add python311Packages.pandas
+flk add python311Packages.matplotlib
+flk add jupyter
+flk add-command notebook "jupyter notebook --port=8888"
 ```
 
-### `flk deep-search`
-
-Get detailed information about a specific package.
+### Rust — Web Development
 
 ```bash
-flk deep-search <PACKAGE> [OPTIONS]
-
-Options:
-  -v, --versions  Show version history for pinning
+flk init --template rust
+flk add postgresql
+flk add redis
+flk add-command dev "cargo watch -x run"
+flk add-command migrate "sqlx migrate run"
 ```
 
-### `flk add`
-
-Add a package to your `flake.nix`.
-
-```bash
-flk add <PACKAGE> [OPTIONS]
-
-Options:
-  -v, --version <VERSION>  Pin to specific version
-```
-
-### `flk add-command`
-
-Add a custom command to your dev shell.
-
-```bash
-flk add-command <NAME> <COMMAND> [OPTIONS]
-
-Options:
-  -f, --file <PATH>  Source commands from a file
-```
-
-### `flk update`
-
-Update all packages in your `flake.nix` to their latest versions.
-
-```bash
-flk update [OPTIONS]
-
-Options:
-  --show   Preview updates without applying them
-```
-
-### `flk show`
-
-Display the contents and configuration of your current `flake.nix`.
-
-```bash
-flk show
-```
-
-### `flk list`
-
-List all packages currently included in your `flake.nix` environment.
-
-```bash
-flk list
-```
-
-### `flk remove`
-
-Remove a package from your `flake.nix` environment.
-
-```bash
-flk remove <PACKAGE>
-```
-
-### `flk remove-command`
-
-Remove a custom command from your dev shell configuration.
-
-```bash
-flk remove-command <NAME>
-```
-
-### `flk env add`
-
-Add an environment variable to your dev shell.
-
-```bash
-flk env add <NAME> <VALUE>
-```
-
-### `flk env remove`
-
-Remove an environment variable from your dev shell.
-
-```bash
-flk env remove <NAME>
-```
-
-### `flk env list`
-
-List all environment variables in your dev shell.
-
-```bash
-flk env list
-```
+---
 
 ## 🛣️ Roadmap
 
@@ -235,35 +142,25 @@ flk env list
 - [ ] Interactive TUI mode
 - [ ] Flake templates marketplace
 
-## 🏗️ Project Structure
-
-```
-flk/
-├── src/
-│   ├── main.rs           # CLI entry point
-│   ├── commands/         # Command implementations
-│   │   ├── init.rs
-│   │   ├── add.rs
-│   │   ├── search.rs
-│   │   └── add_command.rs
-│   ├── flake/            # Flake parsing and generation
-│   │   ├── parser.rs
-│   │   └── generator.rs
-│   └── nix/              # Nix command wrappers
-│       └── mod.rs
-└── templates/            # Flake templates
-    ├── default_flake.nix
-    ├── rust_flake.nix
-    ├── python_flake.nix
-    ├── node_flake.nix
-    └── go_flake.nix
-```
+---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please check out our [issues](https://github.com/AEduardo-dev/flk/issues) to see what needs work.
+Contributions are **very welcome**!
 
-### Development Setup
+To get started:
+
+```bash
+git clone https://github.com/AEduardo-dev/flk.git
+cd flk
+cargo build
+cargo test
+```
+
+Please read `CONTRIBUTING.md` (if present) for guidelines on coding style, testing, and pull requests.  
+You can also browse [open issues](https://github.com/AEduardo-dev/flk/issues) for ideas or to help others.
+
+### 🛠️ Development Setup
 
 ```bash
 # Clone the repo
@@ -279,6 +176,8 @@ cargo test
 # Install locally
 cargo install --path .
 ```
+
+---
 
 ## 📝 Examples
 
@@ -303,6 +202,8 @@ flk add-command dev "cargo watch -x run"
 flk add-command migrate "sqlx migrate run"
 ```
 
+---
+
 ## 🔗 Inspiration
 
 - [Devbox](https://github.com/jetify-com/devbox) - Instant, portable dev environments
@@ -320,7 +221,5 @@ MIT License - see [LICENSE](LICENSE) for details
 - All contributors and users of flk
 
 ---
-
-**Note:** This project is in early development (v0.1.0). Some features are still being implemented. See the [roadmap](#-roadmap) for current status.
 
 Made with ❤️ by [AEduardo-dev](https://github.com/AEduardo-dev)
