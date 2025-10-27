@@ -7,7 +7,7 @@ mod nix;
 
 use commands::{add, add_command, init, remove_command, search};
 
-use crate::commands::{list, remove, show};
+use crate::commands::{list, remove, show, update};
 
 #[derive(Parser)]
 #[command(name = "flk")]
@@ -89,6 +89,13 @@ enum Commands {
         /// Command name to remove
         name: String,
     },
+
+    /// Update packages to latest version
+    /// TODO: manage version pinning after implementing #7
+    Update {
+        /// Specific packages to update
+        packages: Vec<String>,
+    },
 }
 
 #[tokio::main]
@@ -127,6 +134,9 @@ async fn main() -> Result<()> {
         }
         Commands::RemoveCommand { name } => {
             remove_command::run(&name)?;
+        }
+        Commands::Update { packages } => {
+            update::run_update(packages)?;
         }
     }
 
