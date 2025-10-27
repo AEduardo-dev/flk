@@ -1,13 +1,7 @@
 use anyhow::{Context, Ok, Result};
 use std::fs;
 
-#[derive(Debug, Default)]
-pub struct FlakeConfig {
-    pub description: String,
-    pub inputs: Vec<String>,
-    pub packages: Vec<String>,
-    pub shell_hook: String,
-}
+use crate::flake::interface::{FlakeConfig, Package};
 
 /// Parse a flake.nix file and extract its components
 pub fn parse_flake(path: &str) -> Result<FlakeConfig> {
@@ -69,7 +63,7 @@ fn parse_inputs(content: &str) -> Vec<String> {
 }
 
 /// Extract packages from the packages list
-fn parse_packages(content: &str) -> Result<Vec<String>> {
+fn parse_packages(content: &str) -> Result<Vec<Package>> {
     let mut packages = Vec::new();
 
     // Use existing helper function to find packages section
@@ -95,7 +89,7 @@ fn parse_packages(content: &str) -> Result<Vec<String>> {
         };
 
         if !package_name.is_empty() {
-            packages.push(package_name.to_string());
+            packages.push(Package::new(package_name.to_string()));
         }
     }
 
