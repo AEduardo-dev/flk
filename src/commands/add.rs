@@ -10,7 +10,10 @@ pub fn run_add(package: &str, version: Option<String>) -> Result<()> {
     let flake_path = Path::new("flake.nix");
 
     if !flake_path.exists() {
-        bail!("No flake.nix found. Run {} first.", "flk init".yellow());
+        bail!(
+            "No flake.nix found in current directory. Run {} first if not initialized yet.",
+            "flk init".yellow()
+        );
     }
 
     // Validate package name
