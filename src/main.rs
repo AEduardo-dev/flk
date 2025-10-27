@@ -7,7 +7,7 @@ mod nix;
 
 use commands::{add, add_command, init, remove_command, search};
 
-use crate::commands::{list, remove};
+use crate::commands::{list, remove, show};
 
 #[derive(Parser)]
 #[command(name = "flk")]
@@ -54,6 +54,8 @@ enum Commands {
 
     /// List the packages of the flake.nix
     List {},
+    /// Show flake.nix content in pretty print format
+    Show {},
 
     /// Add a package to the flake.nix
     Add {
@@ -105,6 +107,9 @@ async fn main() -> Result<()> {
         }
         Commands::List {} => {
             list::run_list()?;
+        }
+        Commands::Show {} => {
+            show::run_show()?;
         }
         Commands::Add { package, version } => {
             add::run_add(&package, version)?;
