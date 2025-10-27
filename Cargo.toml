@@ -1,11 +1,14 @@
 [package]
 name = "flk"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"                                                           # ⚠️ CHANGE: "2024" is not valid - use "2021" (latest stable)
 authors = ["AEduardo-dev"]
 description = "A CLI tool for managing flake.nix files like Jetify Devbox"
 license = "MIT"
 repository = "https://github.com/AEduardo-dev/flk"
+readme = "README.md"                                                       # ✅ ADD: Path to your README file
+homepage = "https://github.com/AEduardo-dev/flk"                           # ✅ ADD (optional but recommended)
+documentation = "https://docs.rs/flk"                                      # ✅ ADD (optional, auto-generated)
 keywords = ["nix", "flake", "devbox", "cli"]
 categories = ["command-line-utilities", "development-tools"]
 
