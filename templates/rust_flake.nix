@@ -33,6 +33,8 @@
             # Additional tools
             cargo-watch
             cargo-edit
+
+            # User packages
           ];
 
           shellHook = ''

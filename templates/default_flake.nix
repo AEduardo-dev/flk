@@ -20,6 +20,8 @@
             # Add your packages here
             git
             curl
+
+            # User packages
           ];
 
           shellHook = ''

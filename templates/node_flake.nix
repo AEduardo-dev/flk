@@ -27,6 +27,8 @@
             nodePackages.typescript
             nodePackages.eslint
             nodePackages.prettier
+
+            # User packages
           ];
 
           shellHook = ''

@@ -29,6 +29,8 @@
             black
             mypy
             ruff
+
+            # User packages
           ];
 
           shellHook = ''

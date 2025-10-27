@@ -26,6 +26,8 @@
             # Additional tools
             delve
             golangci-lint
+
+            # User packages
           ];
 
           shellHook = ''
