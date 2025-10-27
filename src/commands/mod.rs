@@ -3,6 +3,7 @@ pub mod add_command;
 pub mod env;
 pub mod init;
 pub mod list;
+pub mod lock;
 pub mod remove;
 pub mod remove_command;
 pub mod search;

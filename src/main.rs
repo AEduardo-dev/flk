@@ -4,10 +4,11 @@ use clap::{Parser, Subcommand};
 mod commands;
 mod flake;
 mod nix;
+mod utils;
 
-use commands::{add, add_command, env, init, remove_command, search};
-
-use crate::commands::{list, remove, show, update};
+use crate::commands::{
+    add, add_command, env, init, list, lock, remove, remove_command, search, show, update,
+};
 
 #[derive(Parser)]
 #[command(name = "flk")]
@@ -106,9 +107,14 @@ enum Commands {
         #[command(subcommand)]
         action: EnvAction,
     },
+
+    /// Manage flake.lock file
+    Lock {
+        #[command(subcommand)]
+        action: LockAction,
+    },
 }
 
-// Add this new enum after Commands
 #[derive(Subcommand)]
 enum EnvAction {
     /// Add an environment variable
@@ -125,6 +131,20 @@ enum EnvAction {
     },
     /// List all environment variables
     List,
+}
+#[derive(Subcommand)]
+enum LockAction {
+    /// Show detailed lock file information
+    Show,
+
+    /// Show lock file backup history
+    History,
+
+    /// Restore lock file from a backup
+    Restore {
+        /// Backup timestamp or identifier (e.g., "2025-01-27_14-30-00" or "latest")
+        backup: String,
+    },
 }
 
 #[tokio::main]
@@ -176,6 +196,17 @@ async fn main() -> Result<()> {
             }
             EnvAction::List => {
                 env::list()?;
+            }
+        },
+        Commands::Lock { action } => match action {
+            LockAction::Show => {
+                lock::show()?;
+            }
+            LockAction::History => {
+                lock::history()?;
+            }
+            LockAction::Restore { backup } => {
+                lock::restore(&backup)?;
             }
         },
     }
