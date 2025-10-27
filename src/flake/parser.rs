@@ -1,21 +1,120 @@
 use anyhow::{Context, Ok, Result};
 use std::fs;
 
-/// Parse a flake.nix file and extract its components
-pub fn parse_flake(path: &str) -> Result<FlakeConfig> {
-    let content = fs::read_to_string(path)?;
-    // let (start_hook, end_hook) = find_shell_hook(&content);
-    // let (start_pkgs, end_pkgs, _) = find_packages_inputs(&content);
-
-    Ok(FlakeConfig::default())
-}
-
 #[derive(Debug, Default)]
 pub struct FlakeConfig {
     pub description: String,
     pub inputs: Vec<String>,
     pub packages: Vec<String>,
     pub shell_hook: String,
+}
+
+/// Parse a flake.nix file and extract its components
+pub fn parse_flake(path: &str) -> Result<FlakeConfig> {
+    let content = fs::read_to_string(path).context("Failed to read flake.nix file")?;
+
+    let mut config = FlakeConfig::default();
+
+    // Parse description
+    config.description = parse_description(&content);
+
+    // Parse inputs (flake inputs/dependencies)
+    config.inputs = parse_inputs(&content);
+
+    // Parse packages from buildInputs
+    config.packages = parse_packages(&content)?;
+
+    // Parse shellHook content
+    config.shell_hook = parse_shell_hook_content(&content)?;
+
+    Ok(config)
+}
+
+/// Extract the description from the flake
+fn parse_description(content: &str) -> String {
+    // Look for description = "..."; pattern
+    if let Some(start) = content.find("description = \"") {
+        let search_start = start + "description = \"".len();
+        if let Some(end) = content[search_start..].find("\";") {
+            return content[search_start..search_start + end].to_string();
+        }
+    }
+    String::new()
+}
+
+/// Extract flake inputs (dependencies like nixpkgs)
+fn parse_inputs(content: &str) -> Vec<String> {
+    let mut inputs = Vec::new();
+
+    // Find the inputs section
+    if let Some(inputs_start) = content.find("inputs = {") {
+        let search_start = inputs_start + "inputs = {".len();
+        if let Some(inputs_end) = content[search_start..].find("};") {
+            let inputs_section = &content[search_start..search_start + inputs_end];
+
+            // Parse each input (look for patterns like "nixpkgs.url = ...")
+            for line in inputs_section.lines() {
+                let trimmed = line.trim();
+                if let Some(dot_pos) = trimmed.find('.') {
+                    let input_name = trimmed[..dot_pos].trim();
+                    if !input_name.is_empty() && !inputs.contains(&input_name.to_string()) {
+                        inputs.push(input_name.to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    inputs
+}
+
+/// Extract packages from the packages list
+fn parse_packages(content: &str) -> Result<Vec<String>> {
+    let mut packages = Vec::new();
+
+    // Use existing helper function to find packages section
+    let (list_start, list_end, has_with_pkgs) = match find_packages_inputs(content) {
+        Result::Ok(result) => result,
+        Err(_) => return Ok(packages), // Return empty if no packages section found
+    };
+
+    let packages_content = &content[list_start..list_end];
+
+    // Parse each package line
+    for line in packages_content.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+
+        // Remove "pkgs." prefix if it exists and not using "with pkgs;"
+        let package_name = if !has_with_pkgs && trimmed.starts_with("pkgs.") {
+            trimmed.strip_prefix("pkgs.").unwrap_or(trimmed)
+        } else {
+            trimmed
+        };
+
+        if !package_name.is_empty() {
+            packages.push(package_name.to_string());
+        }
+    }
+
+    Ok(packages)
+}
+
+/// Extract the shellHook content
+fn parse_shell_hook_content(content: &str) -> Result<String> {
+    // Use existing helper function to find shellHook section
+    let (shell_hook_start, shell_hook_end) = match find_shell_hook(content) {
+        Result::Ok(result) => result,
+        Err(_) => return Ok(String::new()), // Return empty if no shellHook found
+    };
+
+    // Extract the content between shellHook = '' and '';
+    let hook_start = shell_hook_start + "shellHook = ''".len();
+    let hook_content = &content[hook_start..shell_hook_end];
+
+    Ok(hook_content.trim().to_string())
 }
 
 /// Find the shellHook section in a flake.nix content
