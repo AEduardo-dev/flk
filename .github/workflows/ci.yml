@@ -38,8 +38,8 @@ jobs:
       - name: Install Nix
         uses: cachix/install-nix-action@v25
         with:
+          install_url: https://nixos.org/releases/nix/nix-2.32.2/install
           nix_path: nixpkgs=channel:nixos-unstable
-          nix_url: https://nixos.org/releases/nix/nix-2.32.2/install
           extra_nix_config: |
             experimental-features = nix-command flakes
       - name: Run tests
