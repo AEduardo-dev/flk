@@ -1,0 +1,11 @@
+[workspace]
+# Use conventional commits for version determination
+changelog_update = true
+git_tag_enable = true
+git_release_enable = true
+
+
+[[package]]
+name = "flk"
+# Automatically detect version changes from commits
+semver_check = true
