@@ -213,7 +213,7 @@ fn test_invalid_command_name() {
     let mut cmd = Command::cargo_bin("flk").unwrap();
     cmd.current_dir(temp_dir.path())
         .arg("add-command")
-        .arg("-invalid-name")
+        .arg("\"-invalid-name\"")
         .arg("echo test")
         .assert()
         .failure()
