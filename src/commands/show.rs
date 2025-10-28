@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
 
 use crate::flake::parser;
 

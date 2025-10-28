@@ -223,4 +223,3 @@ fn display_input_change(name: &str, current: &Value, updated: &Value) {
 
     println!();
 }
-
