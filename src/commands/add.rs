@@ -74,7 +74,7 @@ fn validate_package_exists(package: &str) -> Result<()> {
     let (_, stderr, success) =
         run_nix_command(&["eval", &query, "--json"]).context("Failed to execute nix eval")?;
 
-    if !success || stderr.find("error") != None {
+    if !success || stderr.find("error").is_some() {
         bail!(
             "Package {} does not exist or is marked as insecure. Aborting",
             package

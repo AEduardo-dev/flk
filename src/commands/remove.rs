@@ -21,7 +21,7 @@ pub fn run_remove(package: &str) -> Result<()> {
 
     let flake_content = fs::read_to_string(flake_path).context("Failed to read flake.nix")?;
 
-    if !parser::package_exists(&flake_content, &package)? {
+    if !parser::package_exists(&flake_content, package)? {
         bail!(
             "Package '{}' is not present in the packages declaration",
             package
