@@ -7,22 +7,13 @@ use crate::flake::interface::{EnvVar, FlakeConfig, Package};
 pub fn parse_flake(path: &str) -> Result<FlakeConfig> {
     let content = fs::read_to_string(path).context("Failed to read flake.nix file")?;
 
-    let mut config = FlakeConfig::default();
-
-    // Parse description
-    config.description = parse_description(&content);
-
-    // Parse inputs (flake inputs/dependencies)
-    config.inputs = parse_inputs(&content);
-
-    // Parse packages from buildInputs
-    config.packages = parse_packages(&content)?;
-
-    // Parse environment variables
-    config.env_vars = parse_env_vars_as_structs(&content)?;
-
-    // Parse shellHook content
-    config.shell_hook = parse_shell_hook_content(&content)?;
+    let config = FlakeConfig {
+        description: parse_description(&content),
+        inputs: parse_inputs(&content),
+        packages: parse_packages(&content)?,
+        env_vars: parse_env_vars_as_structs(&content)?,
+        shell_hook: parse_shell_hook_content(&content)?,
+    };
 
     Ok(config)
 }
