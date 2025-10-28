@@ -25,6 +25,7 @@
             # Rust toolchain
             rust-bin.stable.latest.default
             rust-analyzer
+            rustup
 
             # Build tools
             pkg-config
@@ -33,7 +34,8 @@
             # Additional tools
             cargo-watch
             cargo-edit
-
+            cargo-dist
+            release-plz
             # User packages
           ];
 
