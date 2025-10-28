@@ -12,6 +12,12 @@ documentation = "https://docs.rs/flk"
 keywords = ["nix", "flake", "devbox", "cli"]
 categories = ["command-line-utilities", "development-tools"]
 
+[package.metadata.wix]
+upgrade-guid = "27E5842B-50B1-4D19-A316-40A70A78AEA3"
+path-guid = "3BB30D48-1F9B-4DA8-89F4-898D51FDD0EB"
+license = false
+eula = false
+
 [dependencies]
 clap = { version = "4.5", features = ["derive", "cargo"] }
 anyhow = "1.0"
@@ -39,3 +45,8 @@ predicates = "3.0"
 [[bin]]
 name = "flk"
 path = "src/main.rs"
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
