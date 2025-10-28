@@ -90,7 +90,7 @@ pub async fn run_search(query: &str, limit: usize) -> Result<bool> {
     println!(
         "\n{} Add a package with: {}",
         "💡".bold(),
-        format!("flk add <package-name>").cyan()
+        "flk add <package-name>".to_string().cyan()
     );
 
     Ok(true)
@@ -146,7 +146,7 @@ pub async fn run_deep_search(package: &str, show_versions: bool) -> Result<()> {
     }
 
     if show_versions {
-        let pkg_name = attr_name.split('.').last().unwrap_or(package);
+        let pkg_name = attr_name.split('.').next_back().unwrap_or(package);
 
         println!("\n{}", "Version Pinning:".bold());
         println!(

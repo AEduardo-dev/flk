@@ -17,7 +17,7 @@ pub fn run(template: Option<String>, force: bool) -> Result<()> {
     }
 
     // Detect project type if not specified
-    let project_type = template.unwrap_or_else(|| detect_project_type());
+    let project_type = template.unwrap_or_else(detect_project_type);
 
     println!(
         "{} Initializing flake for {} project...",

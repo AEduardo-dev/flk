@@ -249,7 +249,6 @@ pub fn remove_package_inputs(flake_content: &str, package: &str) -> Result<Strin
 
     let pckg_start = build_inputs_content
         .find(&pckg)
-        .map(|pos| pos)
         .context("Could not find package in the current list")?;
 
     let pckg_end = pckg_start + pckg.len();
