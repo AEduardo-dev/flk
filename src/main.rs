@@ -7,7 +7,8 @@ mod nix;
 mod utils;
 
 use crate::commands::{
-    add, add_command, env, init, list, lock, remove, remove_command, search, show, update,
+    add, add_command, completions, env, init, list, lock, remove, remove_command, search, show,
+    update,
 };
 
 #[derive(Parser)]
@@ -113,6 +114,17 @@ enum Commands {
         #[command(subcommand)]
         action: LockAction,
     },
+
+    /// Generate and install shell completions
+    Completions {
+        /// Install the completions automatically
+        #[arg(long)]
+        install: bool,
+
+        /// Manually specify shell (if not auto-detected)
+        #[arg(value_enum)]
+        shell: Option<clap_complete::shells::Shell>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -209,6 +221,9 @@ async fn main() -> Result<()> {
                 lock::restore(&backup)?;
             }
         },
+        Commands::Completions { install, shell } => {
+            completions::handle_completions(install, shell)?;
+        }
     }
 
     Ok(())
