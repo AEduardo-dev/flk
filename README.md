@@ -116,6 +116,18 @@ nix develop
 
 Your custom commands and environment variables will be automatically available!
 
+### 6. Generate completions
+
+```bash
+# Generates the completion file and prints it
+flk completions
+
+# Install the generated completions to the detected shell
+flk completions --install
+```
+
+Follow the instructions after the command to make the completions available for you.
+
 ## 📖 Command Reference
 
 ### Project Management
