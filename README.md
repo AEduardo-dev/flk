@@ -486,21 +486,7 @@ flk/
 
 ## 🗺️ Roadmap
 
-- [x] Project scaffolding and CLI structure
-- [x] Implement `init` command with auto-detection
-- [x] Implement `search` and `deep-search` commands
-- [x] Implement `add` and `remove` commands
-- [x] Implement `add-command` and `remove-command`
-- [x] Implement `env` subcommands
-- [x] Implement `lock` file management
-- [x] Implement `update`, `show`, and `list` commands
-- [x] Documentation and examples
-- [ ] Package version pinning ([#5](https://github.com/AEduardo-dev/flk/issues/5))
-- [ ] CI/CD and releases
-- [ ] Publish to crates.io
-- [ ] Interactive TUI mode
-- [ ] Flake templates marketplace
-- [ ] Plugin system
+[Roadmap](https://github.com/AEduardo-dev/flk/issues/6)
 
 ## 🤝 Contributing
 
