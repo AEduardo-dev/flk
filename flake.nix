@@ -36,6 +36,7 @@
             cargo-edit
             cargo-dist
             release-plz
+            git-cliff
           ];
 
           shellHook = ''
