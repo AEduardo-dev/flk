@@ -1,100 +1,87 @@
-# Changelog
+## [unreleased]
 
-All notable changes to this project will be documented in this file.
+### ⚙️ Miscellaneous Tasks
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+- Update issue templates
+- Remove previous templates
 
-## [Unreleased]
+## [0.1.2] - 2025-10-29
 
-## [0.1.2](https://github.com/AEduardo-dev/flk/compare/v0.1.1...v0.1.2) - 2025-10-29
+### 🚀 Features
 
-### Added
+- Add completions command
+- Add clap_complete for autogeneration of completions
+- Add tests for completions generation
 
-- add tests for completions generation
-- add clap_complete for autogeneration of completions
-- add completions command
+### ⚙️ Miscellaneous Tasks
 
-### Other
+- Add issue template
+- Add code of conduct
+- Add contributing guidelines
+- Add issue templates
+- Update readme
+- Release v0.1.2
 
-- update readme
-- add issue templates
-- add contributing guidelines
-- add code of conduct
-- add issue template
+## [0.1.1] - 2025-10-28
 
-## [0.1.1](https://github.com/AEduardo-dev/flk/compare/v0.1.0...v0.1.1) - 2025-10-28
+### 🐛 Bug Fixes
 
-### Fixed
+- Correct typo for actions input
+- Add clippy suggestions
+- Apply clippy suggestions for struct initialization
 
-- apply clippy suggestions for struct initialization
-- add clippy suggestions
-- correct typo for actions input
+### ⚙️ Miscellaneous Tasks
 
-### Other
+- Update version of nix installer
+- Insert escape chars to make command name be parsed
+- Fix token permissions for release management
+- Release v0.1.1
 
-- fix token permissions for release management
-- insert escape chars to make command name be parsed
-- update version of nix installer
+## [0.1.0] - 2025-10-28
 
-### Planned
+### 🚀 Features
 
-- Version pinning support for packages
-- Interactive TUI mode
-- Plugin system
-- Flake templates marketplace
+- Add remove pckg command functionality
+- Add parsers for package deletion
+- Improve python template
+- Add list command implementation
+- Optimize parsers for flake info extraction
+- Improve parsing and printing of flake information
+- Add show command
+- Utilize flake_info helper methods for printing of info
+- Add update command
+- Add environment variables related commands
+- Add lockfile operations and backup
+- Add cargo dist configuration
+- Add release-plz configuration
 
-## [0.1.0] - 2025-01-28
+### 🐛 Bug Fixes
 
-### Added
+- Correct format flake after insertions
+- Add context to errors
 
-- Initial release of flk
-- Project initialization with `flk init`
-  - Auto-detection for Rust, Python, Node.js, and Go projects
-  - Manual template selection with `--template` flag
-  - Force overwrite with `--force` flag
-- Package management
-  - `flk search` - Search nixpkgs packages
-  - `flk deep-search` - Get detailed package information
-  - `flk add` - Add packages to flake.nix
-  - `flk remove` - Remove packages from flake.nix
-  - `flk list` - List all installed packages
-- Custom command management
-  - `flk add-command` - Add custom shell commands
-  - `flk remove-command` - Remove custom commands
-  - Support for inline commands and file sourcing
-- Environment variable management
-  - `flk env add` - Add environment variables
-  - `flk env remove` - Remove environment variables
-  - `flk env list` - List all environment variables
-- Lock file management
-  - `flk lock show` - Display lock file information
-  - `flk lock history` - Show backup history
-  - `flk lock restore` - Restore from backups
-  - Automatic backup creation on updates
-- Update functionality
-  - `flk update` - Update all flake inputs
-  - `flk update --show` - Preview updates without applying
-- Display commands
-  - `flk show` - Display flake configuration
-- Pre-configured templates for multiple languages
-  - Generic/default template
-  - Rust template with rust-overlay
-  - Python template with poetry
-  - Node.js template with npm/pnpm/yarn
-  - Go template with standard toolchain
-- Comprehensive error handling and user-friendly messages
-- Colored terminal output for better UX
-- Backup system in `.flk/backups` directory
-- Automatic `.gitignore` management for backup directory
+### 💼 Other
 
-### Technical
+- Use standard method for env vars print out
+- Remove folder
+- Cargo format issues
 
-- Built with Clap for CLI parsing
-- Async runtime with Tokio
-- Nix command integration
-- Flake.nix parsing and manipulation
-- Package validation through nix eval
+### ⚙️ Miscellaneous Tasks
 
-[Unreleased]: https://github.com/AEduardo-dev/flk/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/AEduardo-dev/flk/releases/tag/v0.1.0
+- Improve logging for errors
+- Add comment to isolate user packages section
+- Update README
+- Update documentation
+- Update dev flake lockfile
+- Update documentation
+- Add missing fields
+- Add missing fields
+- Remove dead code
+- Add tests
+- Update documentation for release
+- Improve writing of README
+- Add workflows for test release and automated release
+- Add base changelog
+- Add unit tests
+- Update development environment
+- Update template for rust lang
