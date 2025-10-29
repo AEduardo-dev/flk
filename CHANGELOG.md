@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2](https://github.com/AEduardo-dev/flk/compare/v0.1.1...v0.1.2) - 2025-10-29
+
+### Added
+
+- add tests for completions generation
+- add clap_complete for autogeneration of completions
+- add completions command
+
+### Other
+
+- update readme
+- add issue templates
+- add contributing guidelines
+- add code of conduct
+- add issue template
+
 ## [0.1.1](https://github.com/AEduardo-dev/flk/compare/v0.1.0...v0.1.1) - 2025-10-28
 
 ### Fixed
