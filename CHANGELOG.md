@@ -1,3 +1,35 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+## [0.1.3] - 2025-10-29
+
+### 🚀 Features
+
+- Add visual spinner for command or method wrapping
+- Wrap long running nix commands with spinner output
+
+### 🐛 Bug Fixes
+
+- Make release-plz create only tags
+
+### 💼 Other
+
+- Remove release override in workspace config
+
+### ⚙️ Miscellaneous Tasks
+
+- Update issue templates
+- Remove previous templates
+- Add git cliff tool for changelog management
+- Update release-plz configuration to use git-cliff
+- Point roadmap to roadmap issue
+- Make changelog follow git-cliff format
+- Update lockfile
 ## [unreleased]
 
 ### ⚙️ Miscellaneous Tasks
