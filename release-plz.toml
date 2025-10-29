@@ -1,9 +1,18 @@
 [workspace]
 # Use conventional commits for version determination
+changelog_config = "cliff.toml"
 changelog_update = true
 git_tag_enable = true
 git_release_enable = true
-
+git_release_body = """
+{{ changelog }}
+{% if remote.contributors %}
+### Contributors
+{% for contributor in remote.contributors %}
+* @{{ contributor.username }}
+{% endfor %}
+{% endif %}
+"""
 
 [[package]]
 name = "flk"
