@@ -1,6 +1,6 @@
 [package]
 name = "flk"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 authors = ["AEduardo-dev"]
 description = "A CLI tool for managing flake.nix files like Jetify Devbox"
