@@ -6,6 +6,7 @@ use std::fs;
 
 use crate::nix::run_nix_command;
 use crate::utils::backup;
+use crate::utils::visual::with_spinner;
 
 pub fn run_update(packages: Vec<String>, show: bool) -> Result<()> {
     if !packages.is_empty() {
@@ -85,8 +86,9 @@ fn perform_update() -> Result<()> {
     }
 
     // Run the update
-    let (stdout, stderr, success) =
-        run_nix_command(&["flake", "update"]).context("Failed to execute nix flake update")?;
+    let (stdout, stderr, success) = with_spinner("Updating flake...", || {
+        run_nix_command(&["flake", "update"]).context("Failed to execute nix flake update")
+    })?;
 
     if !success {
         anyhow::bail!("Failed to update flake: {}", stderr);

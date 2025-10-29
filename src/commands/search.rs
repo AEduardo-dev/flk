@@ -1,7 +1,10 @@
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 
-use crate::nix::{check_nix_available, run_nix_command};
+use crate::{
+    nix::{check_nix_available, run_nix_command},
+    utils::visual::with_spinner,
+};
 
 pub async fn run_search(query: &str, limit: usize) -> Result<bool> {
     println!(
@@ -14,9 +17,12 @@ pub async fn run_search(query: &str, limit: usize) -> Result<bool> {
     if !check_nix_available() {
         bail!("Nix command is not available, is it installed on the system?");
     }
+
     // Use nix search command with JSON output
-    let (stdout, _, _) = run_nix_command(&["search", "nixpkgs", &search_query, "--json"])
-        .context("Failed to execute nix search. Is nix installed?")?;
+    let (stdout, _, _) = with_spinner("Searching packages...", || {
+        run_nix_command(&["search", "nixpkgs", &search_query, "--json"])
+            .context("Failed to execute nix search. Is nix installed?")
+    })?;
 
     if stdout.trim().is_empty() || stdout.trim() == "{}" {
         println!(
@@ -106,9 +112,10 @@ pub async fn run_deep_search(package: &str, show_versions: bool) -> Result<()> {
     if !check_nix_available() {
         bail!("Nix is not available!")
     }
-
-    let (stdout, _, _) = run_nix_command(&["search", "nixpkgs", package, "--json"])
-        .context("Failed to execute nix search.")?;
+    let (stdout, _, _) = with_spinner("Searching packages...", || {
+        run_nix_command(&["search", "nixpkgs", package, "--json"])
+            .context("Failed to execute nix search. Is nix installed?")
+    })?;
 
     let results: serde_json::Map<String, serde_json::Value> =
         serde_json::from_str(&stdout).context("Failed to parse nix search output")?;
