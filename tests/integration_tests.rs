@@ -1,5 +1,6 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
+use predicates::str::contains;
 use std::fs;
 use tempfile::TempDir;
 
@@ -308,4 +309,31 @@ fn test_auto_detect_go_project() {
     let flake_path = temp_dir.path().join("flake.nix");
     let content = fs::read_to_string(flake_path).unwrap();
     assert!(content.contains("Go development environment"));
+}
+
+#[test]
+fn test_completions_prints_bash_script() {
+    let mut cmd = Command::cargo_bin("flk").unwrap();
+    cmd.args(["completions", "bash"])
+        .assert()
+        .success()
+        .stdout(contains("_flk()"));
+}
+
+#[test]
+fn test_completions_install_creates_file() {
+    let temp = tempfile::tempdir().unwrap();
+    std::env::set_var("HOME", temp.path()); // redirect install location
+
+    let mut cmd = Command::cargo_bin("flk").unwrap();
+    cmd.args(["completions", "--install", "zsh"])
+        .assert()
+        .success();
+
+    let installed = temp.path().join(".zsh/completions/_flk");
+    assert!(
+        installed.exists(),
+        "Expected completion file at {:?}",
+        installed
+    );
 }
