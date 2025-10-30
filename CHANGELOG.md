@@ -31,6 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make changelog follow git-cliff format
 - Update lockfile
 ## [unreleased]
+## [0.1.4] - 2025-10-30
+
+### 🐛 Bug Fixes
+
+- Update to python313 and remove poetry plugins ([#43](https://github.com/AEduardo-dev/flk/pull/43))
+- Make version command report cargo information ([#44](https://github.com/AEduardo-dev/flk/pull/44))
 
 ### ⚙️ Miscellaneous Tasks
 
