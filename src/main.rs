@@ -14,7 +14,7 @@ use crate::commands::{
 #[derive(Parser)]
 #[command(name = "flk")]
 #[command(author = "AEduardo-dev")]
-#[command(version = "0.1.0")]
+#[command(version)]
 #[command(about = "A CLI tool for managing flake.nix files like Jetify Devbox", long_about = None)]
 struct Cli {
     #[command(subcommand)]
