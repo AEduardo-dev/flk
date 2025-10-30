@@ -81,7 +81,7 @@ fn test_init_with_python_template() {
     let flake_path = temp_dir.path().join("flake.nix");
     let content = fs::read_to_string(flake_path).unwrap();
     assert!(content.contains("Python development environment"));
-    assert!(content.contains("python311"));
+    assert!(content.contains("python313"));
 }
 
 #[test]

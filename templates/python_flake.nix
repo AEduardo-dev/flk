@@ -14,19 +14,18 @@
     flake-utils.lib.eachDefaultSystem (
       system: let
         pkgs = nixpkgs.legacyPackages.${system};
-        python = pkgs.python311;
       in {
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [
             # Python and tools
             poetry
-            poetryPlugins
-            python
-            python311Packages.pip
-            python311Packages.virtualenv
+            python313
+            python313Packages.pip
+            python313Packages.virtualenv
 
             # Additional tools
             black
+            pyright
             mypy
             ruff
 
