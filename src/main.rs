@@ -7,8 +7,9 @@ mod nix;
 mod utils;
 
 use crate::commands::{
-    activate, add, add_command, completions, env, init, list, lock, remove, remove_command, search,
-    show, update,
+    activate, add, add_command, completions, env,
+    export::{self, ExportType},
+    init, list, lock, remove, remove_command, search, show, update,
 };
 
 #[derive(Parser)]
@@ -16,6 +17,7 @@ use crate::commands::{
 #[command(author = "AEduardo-dev")]
 #[command(version)]
 #[command(about = "A CLI tool for managing flake.nix files like Jetify Devbox", long_about = None)]
+
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -128,6 +130,12 @@ enum Commands {
 
     /// Reload the current shell environment
     Activate {},
+
+    /// Export flake configurations (Docker, JSON, etc.)
+    Export {
+        #[arg(short, long)]
+        format: ExportType,
+    },
 }
 
 #[derive(Subcommand)]
@@ -229,6 +237,9 @@ async fn main() -> Result<()> {
         }
         Commands::Activate {} => {
             activate::run_activate()?;
+        }
+        Commands::Export { format } => {
+            export::run_export(&format)?;
         }
     }
 
