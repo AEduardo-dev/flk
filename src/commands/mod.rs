@@ -3,6 +3,7 @@ pub mod add;
 pub mod add_command;
 pub mod completions;
 pub mod env;
+pub mod export;
 pub mod init;
 pub mod list;
 pub mod lock;
