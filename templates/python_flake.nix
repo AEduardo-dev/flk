@@ -54,11 +54,11 @@
           LC_ALL = "en_US.UTF-8";
         };
       in {
-        devShells.default = pkgs.mkShell {
-          packages = devPackages;
-          shellHook = shellHook;
-          inherit devEnv;
-        };
+        devShells.default = pkgs.mkShell ({
+            packages = devPackages;
+            shellHook = shellHook;
+          }
+          // devEnv);
         packages.docker = pkgs.dockerTools.buildLayeredImage {
           name = "python-dev";
           tag = "latest";

@@ -47,7 +47,7 @@
         devEnv = {
           LANG = "en_US.UTF-8";
           LC_ALL = "en_US.UTF-8";
-	  RUST_BACKTRACE = "1";
+          RUST_BACKTRACE = "1";
         };
         shellHook = ''
           echo "🦀 Rust development environment ready!"
@@ -57,11 +57,11 @@
           # Custom commands will be added here
         '';
       in {
-        devShells.default = pkgs.mkShell {
-          packages = devPackages;
-          shellHook = shellHook;
-          inherit devEnv;
-        };
+        devShells.default = pkgs.mkShell ({
+            packages = devPackages;
+            shellHook = shellHook;
+          }
+          // devEnv);
         packages.docker = pkgs.dockerTools.buildLayeredImage {
           name = "rust-dev";
           tag = "latest";

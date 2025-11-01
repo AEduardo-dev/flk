@@ -39,11 +39,11 @@
           # Custom commands will be added here
         '';
       in {
-        devShells.default = pkgs.mkShell {
-          packages = devPackages;
-          shellHook = shellHook;
-          inherit devEnv;
-        };
+        devShells.default = pkgs.mkShell ({
+            packages = devPackages;
+            shellHook = shellHook;
+          }
+          // devEnv);
         packages.docker = pkgs.dockerTools.buildLayeredImage {
           name = "dev-environment";
           tag = "latest";
