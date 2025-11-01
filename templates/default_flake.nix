@@ -10,27 +10,49 @@
     self,
     nixpkgs,
     flake-utils,
+    ...
   }:
     flake-utils.lib.eachDefaultSystem (
       system: let
         pkgs = nixpkgs.legacyPackages.${system};
+        devPackages = with pkgs; [
+          # Default packages can be added here
+          git
+          curl
+          # User packages
+        ];
+        containerPackages = with pkgs; [
+          bashInteractive
+          coreutils
+          findutils
+          gnugrep
+          git
+        ];
+        devEnv = {
+          LANG = "en_US.UTF-8";
+          LC_ALL = "en_US.UTF-8";
+        };
+        shellHook = ''
+          echo "Welcome to your flk development environment!"
+          echo "Packages managed by: flk"
+	  source .flk/hooks.sh
+          # Custom commands will be added here
+        '';
       in {
         devShells.default = pkgs.mkShell {
-          packages = with pkgs; [
-            # Add your packages here
-            git
-            curl
-
-            # User packages
-          ];
-
-          shellHook = ''
-            echo "Welcome to your flk development environment!"
-            echo "Packages managed by: flk"
-            source .flk/hooks.sh
-
-            # Custom commands will be added here
-          '';
+          packages = devPackages;
+          shellHook = shellHook;
+          inherit devEnv;
+        };
+        packages.docker = pkgs.dockerTools.buildLayeredImage {
+          name = "dev-environment";
+          tag = "latest";
+          contents = devPackages ++ containerPackages;
+          config = {
+            Cmd = ["${pkgs.bashInteractive}/bin/bash"];
+            Env = pkgs.lib.mapAttrsToList (name: value: "${name}=${value}") devEnv;
+            WorkingDir = "/workspace";
+          };
         };
       }
     );
