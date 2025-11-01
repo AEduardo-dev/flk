@@ -23,7 +23,7 @@
 ### Prerequisites
 
 - [Nix](https://nixos.org/download.html) with flakes enabled
-- Rust 1.70+ (if building from source)
+- Rust 1.83+ (if building from source)
 
 ### From Source
 
@@ -43,7 +43,7 @@ cargo install flk
 ### With Nix
 
 ```bash
-nix profile install github:AEduardo-dev/flk
+nix profil install github:AEduardo-dev/flk
 ```
 
 ## 🚀 Quick Start
