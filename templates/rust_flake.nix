@@ -19,36 +19,58 @@
         pkgs = import nixpkgs {
           inherit system overlays;
         };
+        devPackages = with pkgs; [
+          # Rust toolchain
+          rust-bin.stable.latest.default
+          rust-analyzer
+          rustup
+
+          # Build tools
+          pkg-config
+          openssl
+
+          # Additional tools
+          cargo-watch
+          cargo-edit
+          cargo-dist
+          release-plz
+
+          # User packages
+        ];
+        containerPackages = with pkgs; [
+          bashInteractive
+          coreutils
+          findutils
+          gnugrep
+          git
+        ];
+        devEnv = {
+          LANG = "en_US.UTF-8";
+          LC_ALL = "en_US.UTF-8";
+	  RUST_BACKTRACE = "1";
+        };
+        shellHook = ''
+          echo "🦀 Rust development environment ready!"
+          echo "Rust version: $(rustc --version)"
+	  source .flk/hooks.sh
+
+          # Custom commands will be added here
+        '';
       in {
         devShells.default = pkgs.mkShell {
-          packages = with pkgs; [
-            # Rust toolchain
-            rust-bin.stable.latest.default
-            rust-analyzer
-            rustup
-
-            # Build tools
-            pkg-config
-            openssl
-
-            # Additional tools
-            cargo-watch
-            cargo-edit
-            cargo-dist
-            release-plz
-            # User packages
-          ];
-
-          shellHook = ''
-            echo "🦀 Rust development environment ready!"
-            echo "Rust version: $(rustc --version)"
-            source .flk/hooks.sh
-
-            # Custom commands will be added here
-          '';
-
-          # Environment variables
-          RUST_BACKTRACE = "1";
+          packages = devPackages;
+          shellHook = shellHook;
+          inherit devEnv;
+        };
+        packages.docker = pkgs.dockerTools.buildLayeredImage {
+          name = "rust-dev";
+          tag = "latest";
+          contents = devPackages ++ containerPackages;
+          config = {
+            Cmd = ["${pkgs.bashInteractive}/bin/bash"];
+            Env = pkgs.lib.mapAttrsToList (name: value: "${name}=${value}") devEnv;
+            WorkingDir = "/workspace";
+          };
         };
       }
     );
