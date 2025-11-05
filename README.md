@@ -4,7 +4,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/flk.svg)](https://crates.io/crates/flk)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Rust](https://img.shields.io/badge/rust-1.70%2B-blue.svg)](https://www.rust-lang.org)
+[![Rust](https://img.shields.io/badge/rust-1.83%2B-blue.svg)](https://www.rust-lang.org)
 
 **flk** makes managing Nix flakes feel like using a package manager. No more manually editing `flake.nix` files—just use simple commands to add packages, create custom shell commands, and manage your development environment.
 
