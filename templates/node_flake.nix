@@ -35,6 +35,7 @@
             echo "📦 Node.js development environment ready!"
             echo "Node version: $(node --version)"
             echo "npm version: $(npm --version)"
+            source .flk/hooks.sh
 
             # Custom commands will be added here
           '';

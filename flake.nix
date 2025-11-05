@@ -36,12 +36,13 @@
             cargo-edit
             cargo-dist
             release-plz
-            git-cliff
+            # User packages
           ];
 
           shellHook = ''
             echo "🦀 Rust development environment ready!"
             echo "Rust version: $(rustc --version)"
+            source .flk/hooks.sh
 
             # Custom commands will be added here
           '';

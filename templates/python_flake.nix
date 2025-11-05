@@ -35,6 +35,7 @@
           shellHook = ''
             echo "🐍 Python development environment ready!"
             echo "Python version: $(python --version)"
+            source .flk/hooks.sh
 
             # Create virtual environment if it doesn't exist
             if [ ! -d .venv ]; then
