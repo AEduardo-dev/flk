@@ -1,21 +1,20 @@
-use assert_cmd::Command;
+use assert_cmd::{cargo, Command};
 use predicates::prelude::*;
 use predicates::str::contains;
 use std::fs;
 use tempfile::TempDir;
 
 /// Helper to create a test command in a temporary directory
-fn flk_command() -> (Command, TempDir) {
+fn flk_command() -> (&mut Command, TempDir) {
     let temp_dir = TempDir::new().unwrap();
-    let mut cmd = Command::cargo_bin("flk").unwrap();
-    cmd.current_dir(temp_dir.path());
+    let mut cmd = cargo::cargo_bin_cmd!("flk").current_dir(temp_dir.path());
     (cmd, temp_dir)
 }
 
 #[test]
 fn test_version() {
-    let mut cmd = Command::cargo_bin("flk").unwrap();
-    cmd.arg("--version")
+    cargo::cargo_bin_cmd!("flk")
+        .arg("--version")
         .assert()
         .success()
         .stdout(predicate::str::contains(env!("CARGO_PKG_VERSION")));
@@ -23,8 +22,8 @@ fn test_version() {
 
 #[test]
 fn test_help() {
-    let mut cmd = Command::cargo_bin("flk").unwrap();
-    cmd.arg("--help")
+    cargo::cargo_bin_cmd!("flk")
+        .arg("--help")
         .assert()
         .success()
         .stdout(predicate::str::contains(
@@ -92,16 +91,16 @@ fn test_init_force_overwrite() {
     cmd.arg("init").assert().success();
 
     // Try to create again without force - should fail
-    let mut cmd2 = Command::cargo_bin("flk").unwrap();
-    cmd2.current_dir(temp_dir.path())
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
         .arg("init")
         .assert()
         .failure()
         .stderr(predicate::str::contains("already exists"));
 
     // Try with force - should succeed
-    let mut cmd3 = Command::cargo_bin("flk").unwrap();
-    cmd3.current_dir(temp_dir.path())
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
         .arg("init")
         .arg("--force")
         .assert()
@@ -211,8 +210,8 @@ fn test_invalid_command_name() {
     let (mut init_cmd, temp_dir) = flk_command();
     init_cmd.arg("init").assert().success();
 
-    let mut cmd = Command::cargo_bin("flk").unwrap();
-    cmd.current_dir(temp_dir.path())
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
         .arg("add-command")
         .arg("\"-invalid-name\"")
         .arg("echo test")
@@ -226,8 +225,8 @@ fn test_env_add_invalid_name() {
     let (mut init_cmd, temp_dir) = flk_command();
     init_cmd.arg("init").assert().success();
 
-    let mut cmd = Command::cargo_bin("flk").unwrap();
-    cmd.current_dir(temp_dir.path())
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
         .arg("env")
         .arg("add")
         .arg("123INVALID")
@@ -313,8 +312,8 @@ fn test_auto_detect_go_project() {
 
 #[test]
 fn test_completions_prints_bash_script() {
-    let mut cmd = Command::cargo_bin("flk").unwrap();
-    cmd.args(["completions", "bash"])
+    cargo::cargo_bin_cmd!("flk")
+        .args(["completions", "bash"])
         .assert()
         .success()
         .stdout(contains("_flk()"));
@@ -325,8 +324,8 @@ fn test_completions_install_creates_file() {
     let temp = tempfile::tempdir().unwrap();
     std::env::set_var("HOME", temp.path()); // redirect install location
 
-    let mut cmd = Command::cargo_bin("flk").unwrap();
-    cmd.args(["completions", "--install", "zsh"])
+    cargo::cargo_bin_cmd!("flk")
+        .args(["completions", "--install", "zsh"])
         .assert()
         .success();
 
