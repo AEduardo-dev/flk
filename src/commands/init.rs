@@ -27,9 +27,13 @@ pub fn run(template: Option<String>, force: bool) -> Result<()> {
 
     // Generate flake.nix content
     let flake_content = generator::generate_flake(&project_type)?;
+    let hook_content = generator::generate_hooks();
 
     // Write to file
     fs::write(flake_path, flake_content).context("Failed to write flake.nix")?;
+
+    fs::create_dir_all(".flk").context("Failed to create .flk directory")?;
+    fs::write(".flk/hooks.sh", hook_content).context("Failed to write hook script")?;
 
     println!("{} Created flake.nix successfully!", "✓".green().bold());
     println!("\n{}", "Next steps:".bold());
