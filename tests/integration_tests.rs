@@ -1,15 +1,8 @@
-use assert_cmd::{cargo, Command};
+use assert_cmd::cargo;
 use predicates::prelude::*;
 use predicates::str::contains;
 use std::fs;
 use tempfile::TempDir;
-
-/// Helper to create a test command in a temporary directory
-fn flk_command() -> (&mut Command, TempDir) {
-    let temp_dir = TempDir::new().unwrap();
-    let mut cmd = cargo::cargo_bin_cmd!("flk").current_dir(temp_dir.path());
-    (cmd, temp_dir)
-}
 
 #[test]
 fn test_version() {
@@ -33,9 +26,10 @@ fn test_help() {
 
 #[test]
 fn test_init_without_template() {
-    let (mut cmd, temp_dir) = flk_command();
-
-    cmd.arg("init")
+    let temp_dir = TempDir::new().unwrap();
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
         .assert()
         .success()
         .stdout(predicate::str::contains("Created flake.nix successfully!"));
@@ -50,9 +44,10 @@ fn test_init_without_template() {
 
 #[test]
 fn test_init_with_rust_template() {
-    let (mut cmd, temp_dir) = flk_command();
-
-    cmd.arg("init")
+    let temp_dir = TempDir::new().unwrap();
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
         .arg("--template")
         .arg("rust")
         .assert()
@@ -69,9 +64,10 @@ fn test_init_with_rust_template() {
 
 #[test]
 fn test_init_with_python_template() {
-    let (mut cmd, temp_dir) = flk_command();
-
-    cmd.arg("init")
+    let temp_dir = TempDir::new().unwrap();
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
         .arg("--template")
         .arg("python")
         .assert()
@@ -85,10 +81,12 @@ fn test_init_with_python_template() {
 
 #[test]
 fn test_init_force_overwrite() {
-    let (mut cmd, temp_dir) = flk_command();
-
-    // Create initial flake
-    cmd.arg("init").assert().success();
+    let temp_dir = TempDir::new().unwrap();
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
 
     // Try to create again without force - should fail
     cargo::cargo_bin_cmd!("flk")
@@ -109,11 +107,14 @@ fn test_init_force_overwrite() {
 
 #[test]
 fn test_list_empty_flake() {
-    let (mut init_cmd, temp_dir) = flk_command();
-    init_cmd.arg("init").assert().success();
+    let temp_dir = TempDir::new().unwrap();
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
 
-    let mut list_cmd = Command::cargo_bin("flk").unwrap();
-    list_cmd
+    cargo::cargo_bin_cmd!("flk")
         .current_dir(temp_dir.path())
         .arg("list")
         .assert()
@@ -123,11 +124,14 @@ fn test_list_empty_flake() {
 
 #[test]
 fn test_show_flake() {
-    let (mut init_cmd, temp_dir) = flk_command();
-    init_cmd.arg("init").assert().success();
+    let temp_dir = TempDir::new().unwrap();
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
 
-    let mut show_cmd = Command::cargo_bin("flk").unwrap();
-    show_cmd
+    cargo::cargo_bin_cmd!("flk")
         .current_dir(temp_dir.path())
         .arg("show")
         .assert()
@@ -138,9 +142,10 @@ fn test_show_flake() {
 
 #[test]
 fn test_add_package_without_init() {
-    let (mut cmd, _temp_dir) = flk_command();
-
-    cmd.arg("add")
+    let temp_dir = TempDir::new().unwrap();
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("add")
         .arg("ripgrep")
         .assert()
         .failure()
@@ -149,9 +154,10 @@ fn test_add_package_without_init() {
 
 #[test]
 fn test_remove_package_without_init() {
-    let (mut cmd, _temp_dir) = flk_command();
-
-    cmd.arg("remove")
+    let temp_dir = TempDir::new().unwrap();
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("remove")
         .arg("ripgrep")
         .assert()
         .failure()
@@ -160,9 +166,10 @@ fn test_remove_package_without_init() {
 
 #[test]
 fn test_add_command_without_init() {
-    let (mut cmd, _temp_dir) = flk_command();
-
-    cmd.arg("add-command")
+    let temp_dir = TempDir::new().unwrap();
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("add-command")
         .arg("test")
         .arg("echo hello")
         .assert()
@@ -172,9 +179,10 @@ fn test_add_command_without_init() {
 
 #[test]
 fn test_env_add_without_init() {
-    let (mut cmd, _temp_dir) = flk_command();
-
-    cmd.arg("env")
+    let temp_dir = TempDir::new().unwrap();
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("env")
         .arg("add")
         .arg("TEST_VAR")
         .arg("test_value")
@@ -185,9 +193,10 @@ fn test_env_add_without_init() {
 
 #[test]
 fn test_env_list_without_init() {
-    let (mut cmd, _temp_dir) = flk_command();
-
-    cmd.arg("env")
+    let temp_dir = TempDir::new().unwrap();
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("env")
         .arg("list")
         .assert()
         .failure()
@@ -196,9 +205,10 @@ fn test_env_list_without_init() {
 
 #[test]
 fn test_remove_command_without_init() {
-    let (mut cmd, _temp_dir) = flk_command();
-
-    cmd.arg("remove-command")
+    let temp_dir = TempDir::new().unwrap();
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("remove-command")
         .arg("test")
         .assert()
         .failure()
@@ -207,8 +217,12 @@ fn test_remove_command_without_init() {
 
 #[test]
 fn test_invalid_command_name() {
-    let (mut init_cmd, temp_dir) = flk_command();
-    init_cmd.arg("init").assert().success();
+    let temp_dir = TempDir::new().unwrap();
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
 
     cargo::cargo_bin_cmd!("flk")
         .current_dir(temp_dir.path())
@@ -222,8 +236,12 @@ fn test_invalid_command_name() {
 
 #[test]
 fn test_env_add_invalid_name() {
-    let (mut init_cmd, temp_dir) = flk_command();
-    init_cmd.arg("init").assert().success();
+    let temp_dir = TempDir::new().unwrap();
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
 
     cargo::cargo_bin_cmd!("flk")
         .current_dir(temp_dir.path())
@@ -240,7 +258,7 @@ fn test_env_add_invalid_name() {
 
 #[test]
 fn test_auto_detect_rust_project() {
-    let (mut cmd, temp_dir) = flk_command();
+    let temp_dir = TempDir::new().unwrap();
 
     // Create a Cargo.toml to trigger Rust detection
     fs::write(
@@ -249,7 +267,9 @@ fn test_auto_detect_rust_project() {
     )
     .unwrap();
 
-    cmd.arg("init")
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
         .assert()
         .success()
         .stdout(predicate::str::contains("Detected Rust project"));
@@ -261,12 +281,14 @@ fn test_auto_detect_rust_project() {
 
 #[test]
 fn test_auto_detect_python_project() {
-    let (mut cmd, temp_dir) = flk_command();
+    let temp_dir = TempDir::new().unwrap();
 
     // Create a pyproject.toml to trigger Python detection
     fs::write(temp_dir.path().join("pyproject.toml"), "[tool.poetry]").unwrap();
 
-    cmd.arg("init")
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
         .assert()
         .success()
         .stdout(predicate::str::contains("Detected Python project"));
@@ -278,12 +300,14 @@ fn test_auto_detect_python_project() {
 
 #[test]
 fn test_auto_detect_node_project() {
-    let (mut cmd, temp_dir) = flk_command();
+    let temp_dir = TempDir::new().unwrap();
 
     // Create a package.json to trigger Node.js detection
     fs::write(temp_dir.path().join("package.json"), "{}").unwrap();
 
-    cmd.arg("init")
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
         .assert()
         .success()
         .stdout(predicate::str::contains("Detected Node.js project"));
@@ -295,12 +319,14 @@ fn test_auto_detect_node_project() {
 
 #[test]
 fn test_auto_detect_go_project() {
-    let (mut cmd, temp_dir) = flk_command();
+    let temp_dir = TempDir::new().unwrap();
 
     // Create a go.mod to trigger Go detection
     fs::write(temp_dir.path().join("go.mod"), "module test").unwrap();
 
-    cmd.arg("init")
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
         .assert()
         .success()
         .stdout(predicate::str::contains("Detected Go project"));
