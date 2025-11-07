@@ -7,8 +7,8 @@ mod nix;
 mod utils;
 
 use crate::commands::{
-    add, add_command, completions, env, init, list, lock, remove, remove_command, search, show,
-    update,
+    activate, add, add_command, completions, env, init, list, lock, remove, remove_command, search,
+    show, update,
 };
 
 #[derive(Parser)]
@@ -125,6 +125,9 @@ enum Commands {
         #[arg(value_enum)]
         shell: Option<clap_complete::shells::Shell>,
     },
+
+    /// Reload the current shell environment
+    Activate {},
 }
 
 #[derive(Subcommand)]
@@ -223,6 +226,9 @@ async fn main() -> Result<()> {
         },
         Commands::Completions { install, shell } => {
             completions::handle_completions(install, shell)?;
+        }
+        Commands::Activate {} => {
+            activate::run_activate()?;
         }
     }
 

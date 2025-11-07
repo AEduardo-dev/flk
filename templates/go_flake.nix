@@ -33,6 +33,7 @@
           shellHook = ''
             echo "🐹 Go development environment ready!"
             echo "Go version: $(go version)"
+            source .flk/hooks.sh
 
             # Custom commands will be added here
           '';

@@ -3,6 +3,7 @@
 
 #[cfg(test)]
 mod parser_tests {
+    use flk::flake;
     use std::fs;
     use tempfile::NamedTempFile;
 
@@ -23,13 +24,10 @@ mod parser_tests {
 "#;
         let file = create_test_flake(content);
 
-        // You would need to make parse_flake public or create a test module
-        // For now, this is a template showing how to test
         let path = file.path().to_str().unwrap();
 
-        // Example assertion (you'll need to import your parser module)
-        // let config = flake::parser::parse_flake(path).unwrap();
-        // assert_eq!(config.description, "Test flake description");
+        let config = flake::parser::parse_flake(path).unwrap();
+        assert_eq!(config.description, "Test flake description");
     }
 
     #[test]
@@ -46,11 +44,11 @@ mod parser_tests {
 }
 "#;
         // Test that package_exists correctly identifies packages
-        // let exists = flake::parser::package_exists(content, "ripgrep").unwrap();
-        // assert!(exists);
+        let exists = flake::parser::package_exists(content, "ripgrep").unwrap();
+        assert!(exists);
 
-        // let not_exists = flake::parser::package_exists(content, "nonexistent").unwrap();
-        // assert!(!not_exists);
+        let not_exists = flake::parser::package_exists(content, "nonexistent").unwrap();
+        assert!(!not_exists);
     }
 
     #[test]
@@ -64,8 +62,8 @@ mod parser_tests {
 }
 "#;
         // Test adding a package to empty list
-        // let result = flake::parser::add_package_inputs(content, "ripgrep").unwrap();
-        // assert!(result.contains("ripgrep"));
+        let result = flake::parser::add_package_inputs(content, "ripgrep").unwrap();
+        assert!(result.contains("ripgrep"));
     }
 
     #[test]
@@ -81,10 +79,10 @@ mod parser_tests {
 }
 "#;
         // Test adding a package to existing list
-        // let result = flake::parser::add_package_inputs(content, "ripgrep").unwrap();
-        // assert!(result.contains("ripgrep"));
-        // assert!(result.contains("git"));
-        // assert!(result.contains("curl"));
+        let result = flake::parser::add_package_inputs(content, "ripgrep").unwrap();
+        assert!(result.contains("ripgrep"));
+        assert!(result.contains("git"));
+        assert!(result.contains("curl"));
     }
 
     #[test]
@@ -101,10 +99,10 @@ mod parser_tests {
 }
 "#;
         // Test removing a package
-        // let result = flake::parser::remove_package_inputs(content, "ripgrep").unwrap();
-        // assert!(!result.contains("ripgrep"));
-        // assert!(result.contains("git"));
-        // assert!(result.contains("curl"));
+        let result = flake::parser::remove_package_inputs(content, "ripgrep").unwrap();
+        assert!(!result.contains("ripgrep"));
+        assert!(result.contains("git"));
+        assert!(result.contains("curl"));
     }
 
     #[test]
@@ -120,11 +118,11 @@ shellHook = ''
 '';
 "#;
         // Test command detection
-        // let exists = flake::parser::command_exists(content, "test");
-        // assert!(exists);
+        let exists = flake::parser::command_exists(content, "test");
+        assert!(exists);
 
-        // let not_exists = flake::parser::command_exists(content, "nonexistent");
-        // assert!(!not_exists);
+        let not_exists = flake::parser::command_exists(content, "nonexistent");
+        assert!(!not_exists);
     }
 
     #[test]
@@ -139,13 +137,11 @@ shellHook = ''
 }
 "#;
         // Test adding a command
-        // let result = flake::parser::add_command_to_shell_hook(
-        //     content,
-        //     "test",
-        //     "echo 'test command'"
-        // ).unwrap();
-        // assert!(result.contains("# flk-command: test"));
-        // assert!(result.contains("test ()"));
+        let result =
+            flake::parser::add_command_to_shell_hook(content, "test", "echo 'test command'")
+                .unwrap();
+        assert!(result.contains("# flk-command: test"));
+        assert!(result.contains("test ()"));
     }
 
     #[test]
@@ -155,19 +151,19 @@ shellHook = ''
   devShells.default = pkgs.mkShell {
     shellHook = ''
       echo "Welcome"
-      
+
       # flk-command: test
-      test () {
-        echo "Test command"
-      }
+            test () {
+              echo test
+            }
     '';
   };
 }
 "#;
         // Test removing a command
-        // let result = flake::parser::remove_command_from_shell_hook(content, "test").unwrap();
-        // assert!(!result.contains("# flk-command: test"));
-        // assert!(!result.contains("test ()"));
+        let result = flake::parser::remove_command_from_shell_hook(content, "test").unwrap();
+        assert!(!result.contains("# flk-command: test"));
+        assert!(!result.contains("test ()"));
     }
 
     #[test]
@@ -179,11 +175,11 @@ shellHook = ''
 '';
 "#;
         // Test env var detection
-        // let exists = flake::parser::env_var_exists(content, "MY_VAR").unwrap();
-        // assert!(exists);
+        let exists = flake::parser::env_var_exists(content, "MY_VAR").unwrap();
+        assert!(exists);
 
-        // let not_exists = flake::parser::env_var_exists(content, "NONEXISTENT").unwrap();
-        // assert!(!not_exists);
+        let not_exists = flake::parser::env_var_exists(content, "NONEXISTENT").unwrap();
+        assert!(!not_exists);
     }
 
     #[test]
@@ -198,9 +194,9 @@ shellHook = ''
 }
 "#;
         // Test adding an environment variable
-        // let result = flake::parser::add_env_var(content, "MY_VAR", "test_value").unwrap();
-        // assert!(result.contains("# flk-env: MY_VAR"));
-        // assert!(result.contains("export MY_VAR=\"test_value\""));
+        let result = flake::parser::add_env_var(content, "MY_VAR", "test_value").unwrap();
+        assert!(result.contains("# flk-env: MY_VAR"));
+        assert!(result.contains("export MY_VAR=\"test_value\""));
     }
 
     #[test]
@@ -216,9 +212,9 @@ shellHook = ''
 }
 "#;
         // Test removing an environment variable
-        // let result = flake::parser::remove_env_var(content, "MY_VAR").unwrap();
-        // assert!(!result.contains("# flk-env: MY_VAR"));
-        // assert!(!result.contains("export MY_VAR"));
+        let result = flake::parser::remove_env_var(content, "MY_VAR").unwrap();
+        assert!(!result.contains("# flk-env: MY_VAR"));
+        assert!(!result.contains("export MY_VAR"));
     }
 
     #[test]
@@ -232,96 +228,91 @@ shellHook = ''
 '';
 "#;
         // Test parsing all environment variables
-        // let vars = flake::parser::parse_env_vars(content).unwrap();
-        // assert_eq!(vars.len(), 3);
-        // assert!(vars.contains(&("VAR1".to_string(), "value1".to_string())));
-        // assert!(vars.contains(&("VAR2".to_string(), "value2".to_string())));
-        // assert!(vars.contains(&("VAR3".to_string(), "value3".to_string())));
+        let vars = flake::parser::parse_env_vars(content).unwrap();
+        assert_eq!(vars.len(), 3);
+        assert!(vars.contains(&("VAR1".to_string(), "value1".to_string())));
+        assert!(vars.contains(&("VAR2".to_string(), "value2".to_string())));
+        assert!(vars.contains(&("VAR3".to_string(), "value3".to_string())));
     }
 }
 
 #[cfg(test)]
 mod generator_tests {
+    use flk::flake;
+
     #[test]
     fn test_generate_generic_flake() {
         // Test generating a generic flake
-        // let flake = flake::generator::generate_flake("generic").unwrap();
-        // assert!(flake.contains("Development environment managed by flk"));
-        // assert!(flake.contains("nixpkgs"));
+        let flake = flake::generator::generate_flake("generic").unwrap();
+        assert!(flake.contains("Development environment managed by flk"));
+        assert!(flake.contains("nixpkgs"));
     }
 
     #[test]
     fn test_generate_rust_flake() {
         // Test generating a Rust flake
-        // let flake = flake::generator::generate_flake("rust").unwrap();
-        // assert!(flake.contains("Rust development environment"));
-        // assert!(flake.contains("rust-bin.stable.latest.default"));
+        let flake = flake::generator::generate_flake("rust").unwrap();
+        assert!(flake.contains("Rust development environment"));
+        assert!(flake.contains("rust-bin.stable.latest.default"));
     }
 
     #[test]
     fn test_generate_python_flake() {
         // Test generating a Python flake
-        // let flake = flake::generator::generate_flake("python").unwrap();
-        // assert!(flake.contains("Python development environment"));
-        // assert!(flake.contains("python311"));
+        let flake = flake::generator::generate_flake("python").unwrap();
+        assert!(flake.contains("Python development environment"));
+        assert!(flake.contains("python313"));
     }
 
     #[test]
     fn test_generate_node_flake() {
         // Test generating a Node.js flake
-        // let flake = flake::generator::generate_flake("node").unwrap();
-        // assert!(flake.contains("Node.js development environment"));
-        // assert!(flake.contains("nodejs"));
+        let flake = flake::generator::generate_flake("node").unwrap();
+        assert!(flake.contains("Node.js development environment"));
+        assert!(flake.contains("nodejs"));
     }
 
     #[test]
     fn test_generate_go_flake() {
         // Test generating a Go flake
-        // let flake = flake::generator::generate_flake("go").unwrap();
-        // assert!(flake.contains("Go development environment"));
-        // assert!(flake.contains("go"));
+        let flake = flake::generator::generate_flake("go").unwrap();
+        assert!(flake.contains("Go development environment"));
+        assert!(flake.contains("go"));
     }
 
     #[test]
     fn test_unknown_template_defaults_to_generic() {
         // Test that unknown templates fall back to generic
-        // let flake = flake::generator::generate_flake("unknown").unwrap();
-        // assert!(flake.contains("Development environment managed by flk"));
+        let flake = flake::generator::generate_flake("unknown").unwrap();
+        assert!(flake.contains("Development environment managed by flk"));
     }
 }
 
 #[cfg(test)]
 mod interface_tests {
-    // use flake::interface::{Package, EnvVar, FlakeConfig};
+    use flk::flake::interface::{EnvVar, FlakeConfig, Package};
 
     #[test]
     fn test_package_creation() {
-        // let pkg = Package::new("ripgrep".to_string());
-        // assert_eq!(pkg.name, "ripgrep");
-        // assert_eq!(pkg.version, None);
-    }
-
-    #[test]
-    fn test_package_with_version() {
-        // let pkg = Package::with_version("ripgrep".to_string(), "13.0.0".to_string());
-        // assert_eq!(pkg.name, "ripgrep");
-        // assert_eq!(pkg.version, Some("13.0.0".to_string()));
+        let pkg = Package::new("ripgrep".to_string());
+        assert_eq!(pkg.name, "ripgrep");
+        assert_eq!(pkg.version, None);
     }
 
     #[test]
     fn test_env_var_creation() {
-        // let env = EnvVar::new("TEST_VAR".to_string(), "test_value".to_string());
-        // assert_eq!(env.name, "TEST_VAR");
-        // assert_eq!(env.value, "test_value");
+        let env = EnvVar::new("TEST_VAR".to_string(), "test_value".to_string());
+        assert_eq!(env.name, "TEST_VAR");
+        assert_eq!(env.value, "test_value");
     }
 
     #[test]
     fn test_flake_config_default() {
-        // let config = FlakeConfig::default();
-        // assert!(config.description.is_empty());
-        // assert!(config.inputs.is_empty());
-        // assert!(config.packages.is_empty());
-        // assert!(config.env_vars.is_empty());
-        // assert!(config.shell_hook.is_empty());
+        let config = FlakeConfig::default();
+        assert!(config.description.is_empty());
+        assert!(config.inputs.is_empty());
+        assert!(config.packages.is_empty());
+        assert!(config.env_vars.is_empty());
+        assert!(config.shell_hook.is_empty());
     }
 }

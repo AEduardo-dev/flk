@@ -27,6 +27,7 @@
           shellHook = ''
             echo "Welcome to your flk development environment!"
             echo "Packages managed by: flk"
+            source .flk/hooks.sh
 
             # Custom commands will be added here
           '';

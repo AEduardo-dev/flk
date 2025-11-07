@@ -4,7 +4,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/flk.svg)](https://crates.io/crates/flk)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Rust](https://img.shields.io/badge/rust-1.70%2B-blue.svg)](https://www.rust-lang.org)
+[![Rust](https://img.shields.io/badge/rust-1.83%2B-blue.svg)](https://www.rust-lang.org)
 
 **flk** makes managing Nix flakes feel like using a package manager. No more manually editing `flake.nix` files—just use simple commands to add packages, create custom shell commands, and manage your development environment.
 
@@ -148,6 +148,11 @@ flk init                    # Auto-detect project type
 flk init --template rust    # Use Rust template
 flk init --force            # Overwrite existing flake.nix
 ```
+
+#### `flk activate`
+
+Activate the nix shell for the current shell session. This command sets up the necessary environment for your
+project based on the `flake.nix` configuration. It also installs some convenience features, such as a shell hook to refresh.
 
 #### `flk show`
 
@@ -454,25 +459,31 @@ flk/
 ├── src/
 │   ├── main.rs              # CLI entry point
 │   ├── commands/            # Command implementations
-│   │   ├── init.rs          # Initialize flake
+│   │   ├── activate.rs      # Activate dev shell
 │   │   ├── add.rs           # Add packages
-│   │   ├── remove.rs        # Remove packages
-│   │   ├── search.rs        # Search packages
 │   │   ├── add_command.rs   # Add custom commands
-│   │   ├── remove_command.rs
+│   │   ├── completions.rs   # Shell completions
 │   │   ├── env.rs           # Environment variable management
+│   │   ├── init.rs          # Initialize flake
+│   │   ├── list.rs          # List packages
 │   │   ├── lock.rs          # Lock file management
-│   │   ├── update.rs        # Update flake inputs
+│   │   ├── mod.rs
+│   │   ├── remove.rs        # Remove packages
+│   │   ├── remove_command.rs
+│   │   ├── search.rs        # Search packages
 │   │   ├── show.rs          # Display flake config
-│   │   └── list.rs          # List packages
+│   │   └── update.rs        # Update flake inputs
 │   ├── flake/               # Flake parsing and generation
-│   │   ├── parser.rs        # Parse flake.nix
 │   │   ├── generator.rs     # Generate flake.nix
-│   │   └── interface.rs     # Data structures
+│   │   ├── interface.rs     # Data structures
+│   │   ├── mod.rs
+│   │   └── parser.rs        # Parse flake.nix
 │   ├── nix/                 # Nix command wrappers
 │   │   └── mod.rs
 │   └── utils/               # Utility functions
-│       └── backup.rs        # Backup management
+│       ├── backup.rs        # Backup management
+│       ├── mod.rs
+│       └── visual.rs        # Visual enhancements
 ├── templates/               # Flake templates
 │   ├── default_flake.nix
 │   ├── rust_flake.nix
