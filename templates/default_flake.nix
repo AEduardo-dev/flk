@@ -16,9 +16,6 @@
       system: let
         pkgs = nixpkgs.legacyPackages.${system};
         devPackages = with pkgs; [
-          # Default packages can be added here
-          git
-          curl
           # User packages
         ];
         containerPackages = with pkgs; [
@@ -35,7 +32,7 @@
         shellHook = ''
           echo "Welcome to your flk development environment!"
           echo "Packages managed by: flk"
-	  source .flk/hooks.sh
+          source .flk/hooks.sh
           # Custom commands will be added here
         '';
       in {

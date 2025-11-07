@@ -16,8 +16,6 @@ pub fn parse_flake(path: &str) -> Result<FlakeConfig> {
     let shell_hook =
         parse_shell_hook_content(&content).context("Failed to parse shellHook content")?;
 
-    println!("Debug - Parsed {} env vars", env_vars.len());
-
     let config = FlakeConfig {
         description: parse_description(&content),
         inputs: parse_inputs(&content),
@@ -158,23 +156,29 @@ pub fn find_env_vars(flake_content: &str) -> Result<(usize, usize)> {
 /// Find buildInputs section in a flake.nix content
 pub fn find_packages_inputs(flake_content: &str) -> Result<(usize, usize, bool)> {
     // Try devPackages first (with pkgs; [ or [)
-    if let Some((build_inputs_start, has_with_pkgs)) =
-        flake_content.find("devPackages = with pkgs; [").map(|pos| (pos, true))
-        .or_else(|| flake_content.find("devPackages = [").map(|pos| (pos, false)))
+    if let Some((build_inputs_start, has_with_pkgs)) = flake_content
+        .find("devPackages = with pkgs; [")
+        .map(|pos| (pos, true))
+        .or_else(|| {
+            flake_content
+                .find("devPackages = [")
+                .map(|pos| (pos, false))
+        })
     {
         let bracket_pos = flake_content[build_inputs_start..]
             .find('[')
             .context("Could not find opening bracket for devPackages section")?;
         let list_start = build_inputs_start + bracket_pos + 1;
         let closing_bracket = flake_content[list_start..]
-            .find("];\")
+            .find("];")
             .context("Could not find closing bracket for devPackages section")?;
         let list_end = list_start + closing_bracket;
         return Ok((list_start, list_end, has_with_pkgs));
     }
     // Fallback to Packages (legacy)
-    if let Some((build_inputs_start, has_with_pkgs)) =
-        flake_content.find("Packages = with pkgs; [").map(|pos| (pos, true))
+    if let Some((build_inputs_start, has_with_pkgs)) = flake_content
+        .find("Packages = with pkgs; [")
+        .map(|pos| (pos, true))
         .or_else(|| flake_content.find("Packages = [").map(|pos| (pos, false)))
     {
         let bracket_pos = flake_content[build_inputs_start..]
@@ -182,12 +186,14 @@ pub fn find_packages_inputs(flake_content: &str) -> Result<(usize, usize, bool)>
             .context("Could not find opening bracket for Packages section")?;
         let list_start = build_inputs_start + bracket_pos + 1;
         let closing_bracket = flake_content[list_start..]
-            .find("];\")
+            .find("];")
             .context("Could not find closing bracket for Packages section")?;
         let list_end = list_start + closing_bracket;
         return Ok((list_start, list_end, has_with_pkgs));
     }
-    Err(anyhow::anyhow!("Could not find 'devPackages' or 'Packages' in flake.nix"))
+    Err(anyhow::anyhow!(
+        "Could not find 'devPackages' or 'Packages' in flake.nix"
+    ))
 }
 
 /// Check if a package exists in buildInputs
@@ -413,9 +419,6 @@ pub fn parse_env_vars(flake_content: &str) -> Result<Vec<(String, String)>> {
 
             env_vars.push((name.to_string(), value.to_string()));
         }
-    }
-    for (name, value) in &env_vars {
-        println!("Debug - Found env var: {}={}", name, value);
     }
 
     Ok(env_vars)
