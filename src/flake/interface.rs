@@ -1,7 +1,8 @@
 use colored::Colorize;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct FlakeConfig {
     pub description: String,
     pub inputs: Vec<String>,
@@ -10,14 +11,14 @@ pub struct FlakeConfig {
     pub shell_hook: String,
 }
 /// Represents a package in the flake
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Package {
     pub name: String,
     pub version: Option<String>, // For future version pinning support
 }
 
 /// Represents an environment variable in the flake
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EnvVar {
     pub name: String,
     pub value: String,
@@ -39,7 +40,7 @@ impl Package {
     pub fn new(name: String) -> Self {
         Self {
             name,
-            version: None,
+            version: "latest".to_string().into(),
         }
     }
 }
