@@ -30,7 +30,7 @@ pub fn parse_flake(path: &str) -> Result<FlakeConfig> {
 }
 
 /// Extract the description from the flake
-fn parse_description(content: &str) -> String {
+pub fn parse_description(content: &str) -> String {
     // Look for description = "..."; pattern
     if let Some(start) = content.find("description = \"") {
         let search_start = start + "description = \"".len();
@@ -157,28 +157,37 @@ pub fn find_env_vars(flake_content: &str) -> Result<(usize, usize)> {
 
 /// Find buildInputs section in a flake.nix content
 pub fn find_packages_inputs(flake_content: &str) -> Result<(usize, usize, bool)> {
-    // Find packages = with pkgs; [ or packages = [ section
-    let (build_inputs_start, has_with_pkgs) = flake_content
-        .find("Packages = with pkgs; [")
-        .map(|pos| (pos, true))
+    // Try devPackages first (with pkgs; [ or [)
+    if let Some((build_inputs_start, has_with_pkgs)) =
+        flake_content.find("devPackages = with pkgs; [").map(|pos| (pos, true))
+        .or_else(|| flake_content.find("devPackages = [").map(|pos| (pos, false)))
+    {
+        let bracket_pos = flake_content[build_inputs_start..]
+            .find('[')
+            .context("Could not find opening bracket for devPackages section")?;
+        let list_start = build_inputs_start + bracket_pos + 1;
+        let closing_bracket = flake_content[list_start..]
+            .find("];\")
+            .context("Could not find closing bracket for devPackages section")?;
+        let list_end = list_start + closing_bracket;
+        return Ok((list_start, list_end, has_with_pkgs));
+    }
+    // Fallback to Packages (legacy)
+    if let Some((build_inputs_start, has_with_pkgs)) =
+        flake_content.find("Packages = with pkgs; [").map(|pos| (pos, true))
         .or_else(|| flake_content.find("Packages = [").map(|pos| (pos, false)))
-        .context("Could not find 'packages' in flake.nix")?;
-
-    // Find the opening bracket
-    let bracket_pos = flake_content[build_inputs_start..]
-        .find('[')
-        .context("Could not find opening bracket for packages section")?;
-
-    let list_start = build_inputs_start + bracket_pos + 1;
-
-    // Find the closing bracket
-    let closing_bracket = flake_content[list_start..]
-        .find("];")
-        .context("Could not find closing bracket for packages section")?;
-
-    let list_end = list_start + closing_bracket;
-
-    Ok((list_start, list_end, has_with_pkgs))
+    {
+        let bracket_pos = flake_content[build_inputs_start..]
+            .find('[')
+            .context("Could not find opening bracket for Packages section")?;
+        let list_start = build_inputs_start + bracket_pos + 1;
+        let closing_bracket = flake_content[list_start..]
+            .find("];\")
+            .context("Could not find closing bracket for Packages section")?;
+        let list_end = list_start + closing_bracket;
+        return Ok((list_start, list_end, has_with_pkgs));
+    }
+    Err(anyhow::anyhow!("Could not find 'devPackages' or 'Packages' in flake.nix"))
 }
 
 /// Check if a package exists in buildInputs
