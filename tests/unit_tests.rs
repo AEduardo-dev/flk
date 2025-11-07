@@ -4,15 +4,6 @@
 #[cfg(test)]
 mod parser_tests {
     use flk::flake;
-    use std::fs;
-    use tempfile::NamedTempFile;
-
-    // Helper to create a test flake file
-    fn create_test_flake(content: &str) -> NamedTempFile {
-        let file = NamedTempFile::new().unwrap();
-        fs::write(file.path(), content).unwrap();
-        file
-    }
 
     #[test]
     fn test_parse_description() {
@@ -22,26 +13,31 @@ mod parser_tests {
   inputs = {};
 }
 "#;
-        let file = create_test_flake(content);
 
-        let path = file.path().to_str().unwrap();
-
-        let config = flake::parser::parse_flake(path).unwrap();
-        assert_eq!(config.description, "Test flake description");
+        let description = flake::parser::parse_description(&content);
+        assert_eq!(description, "Test flake description");
     }
 
     #[test]
     fn test_package_exists() {
         let content = r#"
-{
-  devShells.default = pkgs.mkShell {
-    packages = with pkgs; [
-      git
-      ripgrep
-      curl
-    ];
-  };
-}
+flake-utils.lib.eachDefaultSystem (
+      system: let
+        overlays = [(import rust-overlay)];
+        pkgs = import nixpkgs {
+          inherit system overlays;
+        };
+        devPackages = with pkgs; [
+            ripgrep
+            git
+            curl
+        ];
+      in
+      {
+
+      }
+);
+
 "#;
         // Test that package_exists correctly identifies packages
         let exists = flake::parser::package_exists(content, "ripgrep").unwrap();
@@ -54,12 +50,19 @@ mod parser_tests {
     #[test]
     fn test_add_package_to_empty_list() {
         let content = r#"
-{
-  devShells.default = pkgs.mkShell {
-    packages = with pkgs; [
-    ];
-  };
-}
+flake-utils.lib.eachDefaultSystem (
+      system: let
+        overlays = [(import rust-overlay)];
+        pkgs = import nixpkgs {
+          inherit system overlays;
+        };
+        devPackages = with pkgs; [
+        ];
+      in
+      {
+
+      }
+);
 "#;
         // Test adding a package to empty list
         let result = flake::parser::add_package_inputs(content, "ripgrep").unwrap();
@@ -69,14 +72,21 @@ mod parser_tests {
     #[test]
     fn test_add_package_to_existing_list() {
         let content = r#"
-{
-  devShells.default = pkgs.mkShell {
-    packages = with pkgs; [
-      git
-      curl
-    ];
-  };
-}
+flake-utils.lib.eachDefaultSystem (
+      system: let
+        overlays = [(import rust-overlay)];
+        pkgs = import nixpkgs {
+          inherit system overlays;
+        };
+        devPackages = with pkgs; [
+            git
+            curl
+        ];
+      in
+      {
+
+      }
+);
 "#;
         // Test adding a package to existing list
         let result = flake::parser::add_package_inputs(content, "ripgrep").unwrap();
@@ -88,15 +98,22 @@ mod parser_tests {
     #[test]
     fn test_remove_package() {
         let content = r#"
-{
-  devShells.default = pkgs.mkShell {
-    packages = with pkgs; [
-      git
-      ripgrep
-      curl
-    ];
-  };
-}
+flake-utils.lib.eachDefaultSystem (
+      system: let
+        overlays = [(import rust-overlay)];
+        pkgs = import nixpkgs {
+          inherit system overlays;
+        };
+        devPackages = with pkgs; [
+            ripgrep
+            git
+            curl
+        ];
+      in
+      { 
+
+      }
+);
 "#;
         // Test removing a package
         let result = flake::parser::remove_package_inputs(content, "ripgrep").unwrap();
@@ -108,14 +125,23 @@ mod parser_tests {
     #[test]
     fn test_command_exists() {
         let content = r#"
-shellHook = ''
-  echo "Welcome"
-  
-  # flk-command: test
-  test () {
-    echo "Test command"
-  }
-'';
+flake-utils.lib.eachDefaultSystem (
+      system: let
+        overlays = [(import rust-overlay)];
+        pkgs = import nixpkgs {
+          inherit system overlays;
+        };
+        shellHook = ''
+          # flk-command: test
+          test () {
+            echo test
+          }
+        '';
+      in
+      { 
+
+      }
+);
 "#;
         // Test command detection
         let exists = flake::parser::command_exists(content, "test");
@@ -128,13 +154,23 @@ shellHook = ''
     #[test]
     fn test_add_command() {
         let content = r#"
-{
-  devShells.default = pkgs.mkShell {
-    shellHook = ''
-      echo "Welcome"
-    '';
-  };
-}
+flake-utils.lib.eachDefaultSystem (
+      system: let
+        overlays = [(import rust-overlay)];
+        pkgs = import nixpkgs {
+          inherit system overlays;
+        };
+        shellHook = ''
+          # flk-command: test
+          test () {
+            echo test
+          }
+        '';
+      in
+      { 
+
+      }
+);
 "#;
         // Test adding a command
         let result =
@@ -147,18 +183,23 @@ shellHook = ''
     #[test]
     fn test_remove_command() {
         let content = r#"
-{
-  devShells.default = pkgs.mkShell {
-    shellHook = ''
-      echo "Welcome"
+flake-utils.lib.eachDefaultSystem (
+      system: let
+        overlays = [(import rust-overlay)];
+        pkgs = import nixpkgs {
+          inherit system overlays;
+        };
+        shellHook = ''
+          # flk-command: test
+          test () {
+            echo test
+          }
+        '';
+      in
+      { 
 
-      # flk-command: test
-            test () {
-              echo test
-            }
-    '';
-  };
-}
+      }
+);
 "#;
         // Test removing a command
         let result = flake::parser::remove_command_from_shell_hook(content, "test").unwrap();
@@ -169,10 +210,10 @@ shellHook = ''
     #[test]
     fn test_env_var_exists() {
         let content = r#"
-shellHook = ''
-  export MY_VAR="test"
-  export ANOTHER_VAR="value"
-'';
+devEnv = {
+  MY_VAR = "test";
+  ANOTHER_VAR = "value";
+};
 "#;
         // Test env var detection
         let exists = flake::parser::env_var_exists(content, "MY_VAR").unwrap();
@@ -185,13 +226,7 @@ shellHook = ''
     #[test]
     fn test_add_env_var() {
         let content = r#"
-{
-  devShells.default = pkgs.mkShell {
-    shellHook = ''
-      echo "Welcome"
-    '';
-  };
-}
+devEnv = {};
 "#;
         // Test adding an environment variable
         let result = flake::parser::add_env_var(content, "MY_VAR", "test_value").unwrap();
@@ -202,30 +237,24 @@ shellHook = ''
     #[test]
     fn test_remove_env_var() {
         let content = r#"
-{
-  devShells.default = pkgs.mkShell {
-    shellHook = ''
-      # flk-env: MY_VAR
-      export MY_VAR="test"
-    '';
-  };
-}
+devEnv = {
+  MY_VAR = "test";
+  ANOTHER_VAR = "value";
+};
 "#;
         // Test removing an environment variable
         let result = flake::parser::remove_env_var(content, "MY_VAR").unwrap();
-        assert!(!result.contains("# flk-env: MY_VAR"));
-        assert!(!result.contains("export MY_VAR"));
+        assert!(!result.contains("MY_VAR"));
     }
 
     #[test]
     fn test_parse_env_vars() {
         let content = r#"
-shellHook = ''
-  export VAR1="value1"
-  export VAR2="value2"
-  echo "test"
-  export VAR3="value3"
-'';
+devEnv = {
+    VAR1 = "value1";
+    VAR2 = "value2";
+    VAR3 = "value3";
+};
 "#;
         // Test parsing all environment variables
         let vars = flake::parser::parse_env_vars(content).unwrap();
