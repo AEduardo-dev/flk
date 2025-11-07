@@ -325,7 +325,7 @@ mod interface_tests {
     fn test_package_creation() {
         let pkg = Package::new("ripgrep".to_string());
         assert_eq!(pkg.name, "ripgrep");
-        assert_eq!(pkg.version, None);
+        assert_eq!(pkg.version.unwrap(), "latest");
     }
 
     #[test]
