@@ -1,6 +1,6 @@
-use std::process::Command;
+use std::{path::Path, process::Command};
 
-use crate::{nix::run_nix_command, utils::visual::with_spinner};
+use crate::{flake::parser::parse_flake, nix::run_nix_command, utils::visual::with_spinner};
 use anyhow::{Context, Ok, Result};
 use clap::ValueEnum;
 
@@ -8,7 +8,8 @@ use clap::ValueEnum;
 #[value(rename_all = "lowercase")]
 pub enum ExportType {
     Docker,
-    // Json,
+    Podman,
+    Json,
 }
 
 pub fn run_export(export_type: &ExportType) -> Result<()> {
@@ -31,10 +32,36 @@ pub fn run_export(export_type: &ExportType) -> Result<()> {
                     "failed ❌"
                 }
             );
-        } // ExportType::Json => {
-          //     //TODO: Implement JSON export logic for packages, shellhooks, and devcontainers
-          //     Ok(());
-          // }
+        }
+        ExportType::Podman => {
+            println!("Exporting flake.nix to Podman image...");
+            let (_, _, success) = with_spinner("<export-podman>", || {
+                run_nix_command(&["build", ".#podman", "--out-link", ".flk/result"])
+                    .context("Failed to build Podman image from flake.nix")
+            })?;
+            Command::new("podman")
+                .args(&["load", "<", ".flk/result"])
+                .output()
+                .context("Failed to load Podman image")?;
+            println!(
+                "Podman image export {}",
+                if success {
+                    "succeeded ✅"
+                } else {
+                    "failed ❌"
+                }
+            );
+        }
+        ExportType::Json => {
+            let flake_path = Path::new("flake.nix");
+            let flake_content = parse_flake(flake_path.to_str().unwrap())?;
+
+            // Serialize the flake content to JSON file
+            let json_output = serde_json::to_string_pretty(&flake_content)
+                .context("Failed to serialize flake content to JSON")?;
+            std::fs::write("flake.json", json_output).context("Failed to write flake.json file")?;
+            println!("Flake export to JSON succeeded ✅");
+        }
     }
     Ok(())
 }
