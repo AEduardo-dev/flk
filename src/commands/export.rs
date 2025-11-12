@@ -21,7 +21,7 @@ pub fn run_export(export_type: &ExportType) -> Result<()> {
                     .context("Failed to build Docker image from flake.nix")
             })?;
             Command::new("docker")
-                .args(&["load", "<", ".flk/result"])
+                .args(["load", "<", ".flk/result"])
                 .output()
                 .context("Failed to load Docker image")?;
             println!(
@@ -40,7 +40,7 @@ pub fn run_export(export_type: &ExportType) -> Result<()> {
                     .context("Failed to build Podman image from flake.nix")
             })?;
             Command::new("podman")
-                .args(&["load", "<", ".flk/result"])
+                .args(["load", "<", ".flk/result"])
                 .output()
                 .context("Failed to load Podman image")?;
             println!(
