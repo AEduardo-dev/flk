@@ -335,17 +335,20 @@ pub fn add_command_to_shell_hook(flake_content: &str, name: &str, command: &str)
 
     // Create function with proper formatting
     let command_block = format!(
-        "\n            # flk-command: {}\n            {} () {{\n{}\n            }}\n",
+        "\n{}{}\n{} () {{\n{}\n{}\n",
+        indent_lines("# flk-command: ", 12),
         name,
-        name,
-        indent_lines(command.trim(), 14)
+        indent_lines(name, 12),
+        indent_lines(command.trim(), 14),
+        indent_lines("}", 12)
     );
 
     // Insert the command before the closing ''
     let mut result = String::new();
     result.push_str(&flake_content[..insertion_point]);
     result.push_str(&command_block);
-    result.push_str(&flake_content[insertion_point..]);
+    result.push_str(indent_lines("'';", 8).as_str());
+    result.push_str(&flake_content[insertion_point + 3..]);
 
     Ok(result)
 }
@@ -432,44 +435,65 @@ pub fn add_env_var(flake_content: &str, name: &str, value: &str) -> Result<Strin
     let escaped_value = value.replace('"', "\\\"");
 
     // Create export statement with proper formatting
-    let env_block = format!("{} = \"{}\"\n", name, escaped_value);
+    let env_block = format!("{} = \"{}\";\n", indent_lines(name, 2), escaped_value);
 
+    println!(
+        "{}",
+        flake_content[insertion_point..].chars().next().unwrap()
+    );
     // Insert the variable before the closing ''
     let mut result = String::new();
     result.push_str(&flake_content[..insertion_point]);
     result.push_str(&env_block);
-    result.push_str(&flake_content[insertion_point..]);
+    result.push_str(indent_lines("}", 8).as_str());
+    result.push_str(&flake_content[insertion_point + 1..]);
 
     Ok(result)
 }
 
 /// Remove an environment variable from the shellHook
 pub fn remove_env_var(flake_content: &str, name: &str) -> Result<String> {
-    let marker = format!("{} = ", name);
-
-    // Find the marker
-    let marker_start = flake_content
-        .find(&marker)
-        .context("Environment variable marker not found")?;
-
-    // Find the start of the line - include the preceding newline if it exists
-    let line_start = if marker_start > 0 {
-        flake_content[..marker_start].rfind('\n').unwrap_or(0)
-    } else {
-        0
+    // Check if devEnv section exists
+    let (devenvs_start, devenvs_end) = match find_env_vars(flake_content) {
+        std::result::Result::Ok(result) => result,
+        Err(_) => return Ok(flake_content.to_string()),
     };
 
-    // Find the end of the marker line (first newline after marker)
-    let search_start = marker_start + marker.len();
-    let marker_line_end = flake_content[search_start..]
-        .find('\n')
-        .context("Could not find end of marker line")?;
+    // Check if the variable exists
+    if !env_var_exists(flake_content, name)? {
+        return Ok(flake_content.to_string());
+    }
 
-    // Now we're at the start of the export line
-    // Remove the entire variable block (marker comment + export statement)
+    let devenv_content = &flake_content[devenvs_start..devenvs_end];
+    let var_pattern = format!("{} = ", name);
+
+    // Find the variable line
+    let var_start = devenv_content
+        .find(&var_pattern)
+        .context("Could not find environment variable in devEnv section")?;
+
+    // Find the end of the line (semicolon)
+    let var_end = devenv_content[var_start..]
+        .find(';')
+        .context("Could not find semicolon ending for environment variable")?;
+
+    let var_line_end = var_start + var_end + 1;
+
+    // Determine indentation by looking at the line
+    let indent = if let Some(line_start_in_section) = devenv_content[..var_start].rfind('\n') {
+        var_start - line_start_in_section - 1
+    } else {
+        var_start // First line, count from start
+    };
+
+    // Calculate absolute positions including indentation and newline
+    let absolute_var_start = devenvs_start + var_start - (indent + 1);
+    let absolute_var_end = devenvs_start + var_line_end;
+
+    // Build result excluding the variable line
     let mut result = String::new();
-    result.push_str(&flake_content[..line_start]);
-    result.push_str(&flake_content[marker_line_end..]);
+    result.push_str(&flake_content[..absolute_var_start]);
+    result.push_str(&flake_content[absolute_var_end..]);
 
     Ok(result)
 }
