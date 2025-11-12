@@ -50,11 +50,11 @@
           RUST_BACKTRACE = "1";
         };
         shellHook = ''
-          echo "🦀 Rust development environment ready!"
-          echo "Rust version: $(rustc --version)"
-	  source .flk/hooks.sh
+                 echo "🦀 Rust development environment ready!"
+                 echo "Rust version: $(rustc --version)"
+          source .flk/hooks.sh
 
-          # Custom commands will be added here
+                 # Custom commands will be added here
         '';
       in {
         devShells.default = pkgs.mkShell ({
@@ -63,6 +63,16 @@
           }
           // devEnv);
         packages.docker = pkgs.dockerTools.buildLayeredImage {
+          name = "rust-dev";
+          tag = "latest";
+          contents = devPackages ++ containerPackages;
+          config = {
+            Cmd = ["${pkgs.bashInteractive}/bin/bash"];
+            Env = pkgs.lib.mapAttrsToList (name: value: "${name}=${value}") devEnv;
+            WorkingDir = "/workspace";
+          };
+        };
+        packages.podman = pkgs.dockerTools.buildLayeredImage {
           name = "rust-dev";
           tag = "latest";
           contents = devPackages ++ containerPackages;
