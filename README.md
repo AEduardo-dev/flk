@@ -352,6 +352,23 @@ flk update --show       # Preview available updates
 
 **Note:** A backup of your `flake.lock` is automatically created before updating.
 
+### Exports
+
+#### `flk export --format <FORMAT> [OPTIONS]`
+
+Export the current flake configuration to different formats.
+**Options:**
+
+- `--format <FORMAT>` - Export format: `docker`, `podman`, `json`
+
+**Examples:**
+
+```bash
+flk export --format docker     # Export as Dockerfile
+flk export --format podman     # Export as Podmanfile
+flk export --format json       # Export as JSON
+```
+
 ## 💡 Usage Examples
 
 ### Python Data Science Environment
@@ -457,40 +474,41 @@ cargo install --path .
 ```
 flk/
 ├── src/
-│   ├── main.rs              # CLI entry point
-│   ├── commands/            # Command implementations
-│   │   ├── activate.rs      # Activate dev shell
-│   │   ├── add.rs           # Add packages
-│   │   ├── add_command.rs   # Add custom commands
-│   │   ├── completions.rs   # Shell completions
-│   │   ├── env.rs           # Environment variable management
-│   │   ├── init.rs          # Initialize flake
-│   │   ├── list.rs          # List packages
-│   │   ├── lock.rs          # Lock file management
+│   ├── main.rs               # CLI entry point
+│   ├── commands/             # Command implementations
+│   │   ├── activate.rs       # Activate dev shell
+│   │   ├── add.rs            # Add packages
+│   │   ├── add_command.rs    # Add custom commands
+│   │   ├── completions.rs    # Shell completions
+│   │   ├── env.rs            # Environment variable management
+│   │   ├── export.rs         # Export flake config
+│   │   ├── init.rs           # Initialize flake
+│   │   ├── list.rs           # List packages
+│   │   ├── lock.rs           # Lock file management
 │   │   ├── mod.rs
-│   │   ├── remove.rs        # Remove packages
-│   │   ├── remove_command.rs
-│   │   ├── search.rs        # Search packages
-│   │   ├── show.rs          # Display flake config
-│   │   └── update.rs        # Update flake inputs
-│   ├── flake/               # Flake parsing and generation
-│   │   ├── generator.rs     # Generate flake.nix
-│   │   ├── interface.rs     # Data structures
+│   │   ├── remove.rs         # Remove packages
+│   │   ├── remove_command.rs # Remove custom commands
+│   │   ├── search.rs         # Search packages
+│   │   ├── show.rs           # Display flake config
+│   │   └── update.rs         # Update flake inputs
+│   ├── flake/                # Flake parsing and generation
+│   │   ├── generator.rs      # Generate flake.nix
+│   │   ├── interface.rs      # Data structures
 │   │   ├── mod.rs
-│   │   └── parser.rs        # Parse flake.nix
-│   ├── nix/                 # Nix command wrappers
+│   │   └── parser.rs         # Parse flake.nix
+│   ├── nix/                  # Nix command wrappers
 │   │   └── mod.rs
-│   └── utils/               # Utility functions
-│       ├── backup.rs        # Backup management
+│   └── utils/                # Utility functions
+│       ├── backup.rs         # Backup management
 │       ├── mod.rs
-│       └── visual.rs        # Visual enhancements
-├── templates/               # Flake templates
+│       └── visual.rs         # Visual enhancements
+├── templates/                # Flake templates
 │   ├── default_flake.nix
 │   ├── rust_flake.nix
 │   ├── python_flake.nix
 │   ├── node_flake.nix
 │   └── go_flake.nix
-└── tests/                   # Test files
+└── tests/                    # Test files
     ├── integration_tests.rs
     └── unit_tests.rs
 ```
