@@ -51,6 +51,16 @@
             WorkingDir = "/workspace";
           };
         };
+        packages.podman = pkgs.dockerTools.buildLayeredImage {
+          name = "dev-environment";
+          tag = "latest";
+          contents = devPackages ++ containerPackages;
+          config = {
+            Cmd = ["${pkgs.bashInteractive}/bin/bash"];
+            Env = pkgs.lib.mapAttrsToList (name: value: "${name}=${value}") devEnv;
+            WorkingDir = "/workspace";
+          };
+        };
       }
     );
 }
