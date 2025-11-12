@@ -31,6 +31,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make changelog follow git-cliff format
 - Update lockfile
 ## [unreleased]
+## [0.2.0] - 2025-11-12
+
+### 🚀 Features
+
+- #40 env activation and hot-reload ([#49](https://github.com/AEduardo-dev/flk/pull/49))
+- [**breaking**] Modify templates to manage devShell and Containers
+- [**breaking**] Add export command for docker container exporting
+- Add export to podman and json formats
+- Add serialize and deserialize traits for json export/import
+- [**breaking**] Update parsers for structure json dumping and new flake struct
+- Add podman image export output to flake
+- Adapt parsers to new flake structure
+- Add podman export build section for all templates
+
+### 🐛 Bug Fixes
+
+- Update to python313 and remove poetry plugins ([#43](https://github.com/AEduardo-dev/flk/pull/43))
+- Make version command report cargo information ([#44](https://github.com/AEduardo-dev/flk/pull/44))
+- DevEnv import in shell
+- Unit tests flake mocks
+- Update parsers to work with test scenarios
+- Update unit tests
+- Clippy suggestions
+
+### ⚙️ Miscellaneous Tasks
+
+- Update minimal rust version
+- Update dev env
+- Update gitignore for json exports
+- Update parsers for new flake syntax
+- Update integration tests to new outputs
+- Update tests for new parsers
+- Update documentation with new command
 
 ### ⚙️ Miscellaneous Tasks
 
