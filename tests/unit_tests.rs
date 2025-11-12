@@ -190,11 +190,11 @@ flake-utils.lib.eachDefaultSystem (
           inherit system overlays;
         };
         shellHook = ''
-          # flk-command: test
-          test () {
-            echo test
-          }
-        '';
+            # flk-command: test
+            test () {
+              echo test
+            }
+'';
       in
       { 
 
@@ -230,8 +230,7 @@ devEnv = {};
 "#;
         // Test adding an environment variable
         let result = flake::parser::add_env_var(content, "MY_VAR", "test_value").unwrap();
-        assert!(result.contains("# flk-env: MY_VAR"));
-        assert!(result.contains("export MY_VAR=\"test_value\""));
+        assert!(result.contains(" MY_VAR = \"test_value\""));
     }
 
     #[test]
