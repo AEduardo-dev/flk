@@ -7,16 +7,26 @@ use crate::flake::interface::{EnvVar, FlakeConfig, Package};
 pub fn parse_flake(path: &str) -> Result<FlakeConfig> {
     let content = fs::read_to_string(path).context("Failed to read flake.nix file")?;
 
-    let packages = parse_packages(&content).context("Failed to parse packages")?;
     let env_vars =
         parse_env_vars_as_structs(&content).context("Failed to parse environment variables")?;
     let shell_hook =
         parse_shell_hook_content(&content).context("Failed to parse shellHook content")?;
 
+    let profiles_list = list_profiles(&content).context("Failed to list profiles")?;
+
+    let mut profiles = Vec::new();
+    for profile_name in profiles_list {
+        let pkgs = parse_packages_from_profile(&content, Some(&profile_name)).context(format!(
+            "Failed to parse packages for profile '{}'",
+            profile_name
+        ))?;
+        profiles.push(pkgs);
+    }
+
     let config = FlakeConfig {
         description: parse_description(&content),
         inputs: parse_inputs(&content),
-        packages,
+        profiles,
         env_vars,
         shell_hook,
     };
@@ -140,12 +150,6 @@ pub fn find_packages_in_profile(content: &str, profile_name: &str) -> Result<(us
     let list_end = profile_start + packages_start + bracket_pos + closing_bracket;
 
     Ok((list_start, list_end, has_with_pkgs))
-}
-
-/// Extract packages from a specific profile
-fn parse_packages(content: &str) -> Result<Vec<Package>> {
-    // Default to parsing the first profile found, or you can specify which profile
-    parse_packages_from_profile(content, None)
 }
 
 /// Parse packages from a specific profile (or first one if None)

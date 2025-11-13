@@ -6,7 +6,7 @@ use std::fmt;
 pub struct FlakeConfig {
     pub description: String,
     pub inputs: Vec<String>,
-    pub packages: Vec<Package>,
+    pub profiles: Vec<Vec<Package>>,
     pub env_vars: Vec<EnvVar>,
     pub shell_hook: String,
 }
@@ -61,22 +61,30 @@ impl fmt::Display for Package {
 }
 
 impl FlakeConfig {
-    /// Display just the packages list (for `flk list`)
+    /// Display just the profiles list (for `flk list`)
     pub fn display_packages(&self) {
-        if self.packages.is_empty() {
-            println!("{}", "No packages installed".yellow());
+        if self.profiles.is_empty() {
+            println!("{}", "No profiles installed".yellow());
             return;
         }
 
         println!(
             "{} {}",
             "Installed Packages:".bold().cyan(),
-            format!("({})", self.packages.len()).dimmed()
+            format!("({})", self.profiles.len()).dimmed()
         );
         println!();
 
-        for (i, package) in self.packages.iter().enumerate() {
-            println!("  {}. {}", (i + 1).to_string().dimmed(), package);
+        for (i, profile) in self.profiles.iter().enumerate() {
+            println!(
+                "  {}. {}",
+                (i + 1).to_string().dimmed(),
+                profile
+                    .iter()
+                    .map(|p| p.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
         }
     }
 
@@ -119,15 +127,24 @@ impl fmt::Display for FlakeConfig {
             writeln!(f)?;
         }
 
-        if !self.packages.is_empty() {
+        if !self.profiles.is_empty() {
             writeln!(
                 f,
                 "{} {}",
                 "Packages:".bold().yellow(),
-                format!("({})", self.packages.len()).dimmed()
+                format!("({})", self.profiles.len()).dimmed()
             )?;
-            for package in &self.packages {
-                writeln!(f, "  {} {}", "•".green(), package)?;
+            for package in &self.profiles {
+                writeln!(
+                    f,
+                    "  {} {}",
+                    "•".green(),
+                    package
+                        .iter()
+                        .map(|p| p.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )?;
             }
             writeln!(f)?;
         }
