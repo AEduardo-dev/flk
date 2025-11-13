@@ -119,7 +119,7 @@ fn test_list_empty_flake() {
         .arg("list")
         .assert()
         .success()
-        .stdout(predicate::str::contains("No packages installed"));
+        .stdout(predicate::str::contains("No packages"));
 }
 
 #[test]

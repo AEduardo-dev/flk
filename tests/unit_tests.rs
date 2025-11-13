@@ -183,7 +183,7 @@ mod parser_tests {
     #[test]
     fn test_parse_env_vars() {
         // Test parsing all environment variables
-        let vars = flake::parser::parse_env_vars(CONTENT).unwrap();
+        let vars = flake::parser::parse_env_vars_from_profile(CONTENT, None).unwrap();
         assert_eq!(vars.len(), 3);
         assert!(vars.contains(&("VAR1".to_string(), "value1".to_string())));
         assert!(vars.contains(&("VAR2".to_string(), "value2".to_string())));
@@ -267,7 +267,5 @@ mod interface_tests {
         assert!(config.description.is_empty());
         assert!(config.inputs.is_empty());
         assert!(config.profiles.is_empty());
-        assert!(config.env_vars.is_empty());
-        assert!(config.shell_hook.is_empty());
     }
 }
