@@ -92,7 +92,7 @@ fn find_matching_brace(content: &str, start: usize) -> Result<usize> {
     let mut depth = 0;
     let bytes = content.as_bytes();
 
-    for i in start..bytes.len() {
+    for (i, _) in bytes.iter().enumerate().skip(start) {
         match bytes[i] {
             b'{' => depth += 1,
             b'}' => {
@@ -248,7 +248,7 @@ pub fn list_profiles(content: &str) -> Result<Vec<String>> {
             let name = trimmed[..eq_pos].trim();
 
             // Only top-level profiles (indent 8-12 spaces) and not reserved keywords
-            if !name.is_empty() && indent >= 8 && indent <= 12 && !reserved.contains(&name) {
+            if !name.is_empty() && (8..=12).contains(&indent) && !reserved.contains(&name) {
                 profiles.push(name.to_string());
             }
         }
@@ -451,7 +451,7 @@ pub fn remove_package_from_profile(
 
     let pkg_end = pkg_start + pkg.len();
 
-    let indent = if let Some(first_line) = packages_content.lines().nth(0) {
+    let indent = if let Some(first_line) = packages_content.lines().next() {
         first_line.len() - first_line.trim_start().len()
     } else {
         12

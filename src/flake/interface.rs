@@ -180,24 +180,24 @@ impl FlakeConfig {
         }
     }
 
-    /// Display shell hooks by profile (for `flk hooks` or similar)
-    pub fn display_shell_hooks(&self) {
-        if self.profiles.is_empty() {
-            println!("{}", "No profiles defined".yellow());
-            return;
-        }
-
-        println!("{}", "Shell Hooks by Profile:".bold().cyan());
-        println!();
-
-        for profile in &self.profiles {
-            if !profile.shell_hook.is_empty() {
-                println!("{}", profile.name.bold().magenta());
-                println!("{}", profile.shell_hook.dimmed());
-                println!();
-            }
-        }
-    }
+    // /// Display shell hooks by profile (for `flk hooks` or similar)
+    // pub fn display_shell_hooks(&self) {
+    //     if self.profiles.is_empty() {
+    //         println!("{}", "No profiles defined".yellow());
+    //         return;
+    //     }
+    //
+    //     println!("{}", "Shell Hooks by Profile:".bold().cyan());
+    //     println!();
+    //
+    //     for profile in &self.profiles {
+    //         if !profile.shell_hook.is_empty() {
+    //             println!("{}", profile.name.bold().magenta());
+    //             println!("{}", profile.shell_hook.dimmed());
+    //             println!();
+    //         }
+    //     }
+    // }
 }
 
 impl fmt::Display for FlakeConfig {
