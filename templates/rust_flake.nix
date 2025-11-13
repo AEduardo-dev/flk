@@ -5,83 +5,56 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     rust-overlay.url = "github:oxalica/rust-overlay";
+    profile-lib.url = "github:AEduardo-dev/nix-profile-lib";
   };
 
   outputs = {
     self,
-    nixpkgs,
     flake-utils,
+    nixpkgs,
+    profile-lib,
     rust-overlay,
   }:
-    flake-utils.lib.eachDefaultSystem (
-      system: let
-        overlays = [(import rust-overlay)];
-        pkgs = import nixpkgs {
-          inherit system overlays;
-        };
-        devPackages = with pkgs; [
-          # Rust toolchain
-          rust-bin.stable.latest.default
-          rust-analyzer
-          rustup
+    flake-utils.lib.eachDefaultSystem (system: let
+      overlays = [(import rust-overlay)];
+      pkgs = import nixpkgs {
+        inherit system overlays;
+      };
 
-          # Build tools
-          pkg-config
-          openssl
+      profileLib = profile-lib.lib {inherit pkgs;};
 
-          # Additional tools
-          cargo-watch
-          cargo-edit
-          cargo-dist
-          release-plz
+      profileDefinitions = {
+        rust = {
+          packages = with pkgs; [
+            rust-bin.stable.latest.default
+            rust-analyzer
+            rustup
+            pkg-config
+            openssl
+            cargo-watch
+            cargo-edit
+            cargo-dist
+            release-plz
+          ];
 
-          # User packages
-        ];
-        containerPackages = with pkgs; [
-          bashInteractive
-          coreutils
-          findutils
-          gnugrep
-          git
-        ];
-        devEnv = {
-          LANG = "en_US.UTF-8";
-          LC_ALL = "en_US.UTF-8";
-          RUST_BACKTRACE = "1";
-        };
-        shellHook = ''
-                 echo "🦀 Rust development environment ready!"
-                 echo "Rust version: $(rustc --version)"
-          source .flk/hooks.sh
+          envVars = {
+            RUST_BACKTRACE = "1";
+          };
 
-                 # Custom commands will be added here
-        '';
-      in {
-        devShells.default = pkgs.mkShell ({
-            packages = devPackages;
-            shellHook = shellHook;
-          }
-          // devEnv);
-        packages.docker = pkgs.dockerTools.buildLayeredImage {
-          name = "rust-dev";
-          tag = "latest";
-          contents = devPackages ++ containerPackages;
-          config = {
+          shellHook = ''
+            echo "🦀 Rust development environment ready!"
+            echo "Rust version: $(rustc --version)"
+          '';
+
+          containerConfig = {
             Cmd = ["${pkgs.bashInteractive}/bin/bash"];
-            Env = pkgs.lib.mapAttrsToList (name: value: "${name}=${value}") devEnv;
-            WorkingDir = "/workspace";
           };
         };
-        packages.podman = pkgs.dockerTools.buildLayeredImage {
-          name = "rust-dev";
-          tag = "latest";
-          contents = devPackages ++ containerPackages;
-          config = {
-            Cmd = ["${pkgs.bashInteractive}/bin/bash"];
-            Env = pkgs.lib.mapAttrsToList (name: value: "${name}=${value}") devEnv;
-            WorkingDir = "/workspace";
-          };
-        };
-      }
-    );
+      };
+    in
+      profileLib.mkProfileOutputs {
+        inherit profileDefinitions;
+        defaultShell = "rust";
+        defaultImage = "rust";
+      });
 }

@@ -4,75 +4,54 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    profile-lib.url = "github:AEduardo-dev/nix-profile-lib";
   };
 
   outputs = {
     self,
-    nixpkgs,
     flake-utils,
+    nixpkgs,
+    profile-lib,
   }:
     flake-utils.lib.eachDefaultSystem (
       system: let
         pkgs = nixpkgs.legacyPackages.${system};
-        devPackages = with pkgs; [
-          # Node.js and package managers
-          nodejs_20
-          nodePackages.npm
-          nodePackages.pnpm
-          yarn
+        profileLib = profile-lib.lib {inherit pkgs;};
 
-          # Additional tools
-          nodePackages.typescript
-          nodePackages.eslint
-          nodePackages.prettier
+        profileDefinitions = {
+          nodejs = {
+            packages = with pkgs; [
+              nodejs_20
+              nodePackages.npm
+              nodePackages.pnpm
+              yarn
+              nodePackages.typescript
+              nodePackages.eslint
+              nodePackages.prettier
+            ];
 
-          # User packages
-        ];
-        containerPackages = with pkgs; [
-          bashInteractive
-          coreutils
-          findutils
-          gnugrep
-          git
-        ];
-        devEnv = {
-          LANG = "en_US.UTF-8";
-          LC_ALL = "en_US.UTF-8";
-        };
-        shellHook = ''
-          echo "📦 Node.js development environment ready!"
-          echo "Node version: $(node --version)"
-          echo "npm version: $(npm --version)"
-          source .flk/hooks.sh
+            envVars = {
+              LANG = "en_US.UTF-8";
+              LC_ALL = "en_US.UTF-8";
+            };
 
-          # Custom commands will be added here
-        '';
-      in {
-        devShells.default = pkgs.mkShell ({
-            packages = devPackages;
-            shellHook = shellHook;
-          }
-          // devEnv);
-        packages.docker = pkgs.dockerTools.buildLayeredImage {
-          name = "nodejs-dev";
-          tag = "latest";
-          contents = devPackages ++ containerPackages;
-          config = {
-            Cmd = ["${pkgs.bashInteractive}/bin/bash"];
-            Env = pkgs.lib.mapAttrsToList (name: value: "${name}=${value}") devEnv;
-            WorkingDir = "/workspace";
+            shellHook = ''
+              echo "📦 Node.js development environment ready!"
+              echo "Node version: $(node --version)"
+
+              # Custom commands will be added here
+            '';
+
+            containerConfig = {
+              Cmd = ["${pkgs.bashInteractive}/bin/bash"];
+            };
           };
         };
-        packages.podman = pkgs.dockerTools.buildLayeredImage {
-          name = "nodejs-dev";
-          tag = "latest";
-          contents = devPackages ++ containerPackages;
-          config = {
-            Cmd = ["${pkgs.bashInteractive}/bin/bash"];
-            Env = pkgs.lib.mapAttrsToList (name: value: "${name}=${value}") devEnv;
-            WorkingDir = "/workspace";
-          };
-        };
-      }
+      in
+        profileLib.mkProfileOutputs {
+          inherit profileDefinitions;
+          defaultShell = "nodejs";
+          defaultImage = "nodejs";
+        }
     );
 }
