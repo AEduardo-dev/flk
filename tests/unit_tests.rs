@@ -266,7 +266,7 @@ mod interface_tests {
         let config = FlakeConfig::default();
         assert!(config.description.is_empty());
         assert!(config.inputs.is_empty());
-        assert!(config.packages.is_empty());
+        assert!(config.profiles.is_empty());
         assert!(config.env_vars.is_empty());
         assert!(config.shell_hook.is_empty());
     }
