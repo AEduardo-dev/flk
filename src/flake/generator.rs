@@ -19,6 +19,6 @@ pub fn generate_flake(project_type: &str) -> Result<String> {
 }
 
 pub fn generate_hooks() -> String {
-    let hook_script = include_str!("../hooks/hooks.sh");
+    let hook_script = include_str!("../helpers/hooks.sh");
     hook_script.to_string()
 }
