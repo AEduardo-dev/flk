@@ -48,7 +48,7 @@ pub fn run(name: &str, command: &str, file: Option<String>) -> Result<()> {
 
     // Add the command to shellHook
     let updated_content =
-        parser::add_command_to_shell_hook(&flake_content, name, &command_content)?;
+        parser::add_command_to_shell_hook(&flake_content, name, &command_content, None)?;
 
     // Write back to file
     fs::write(flake_path, updated_content).context("Failed to write flake.nix")?;

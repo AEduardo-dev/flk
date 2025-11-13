@@ -21,14 +21,14 @@ pub fn run_remove(package: &str) -> Result<()> {
 
     let flake_content = fs::read_to_string(flake_path).context("Failed to read flake.nix")?;
 
-    if !parser::package_exists(&flake_content, package)? {
+    if !parser::package_exists(&flake_content, package, None)? {
         bail!(
             "Package '{}' is not present in the packages declaration",
             package
         );
     }
 
-    let updated_content = parser::remove_package_inputs(&flake_content, package)?;
+    let updated_content = parser::remove_package_from_profile(&flake_content, package, None)?;
     fs::write(flake_path, updated_content).context("Failed to write flake.nix")?;
 
     println!(
