@@ -5,7 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     rust-overlay.url = "github:oxalica/rust-overlay";
-    profile-lib.url = "path:/home/angel/Documents/repos/nix-profile-lib";
+    profile-lib.url = "github:AEduardo-dev/nix-profile-lib";
   };
 
   outputs = {
@@ -24,30 +24,6 @@
       profileLib = profile-lib.lib {inherit pkgs;};
 
       profileDefinitions = {
-        base = {
-          packages = with pkgs; [
-            bashInteractive
-            coreutils
-            findutils
-            gnugrep
-            git
-          ];
-
-          envVars = {
-            LANG = "en_US.UTF-8";
-            LC_ALL = "en_US.UTF-8";
-          };
-
-          shellHook = ''
-            echo "✓ Base tools loaded"
-          '';
-
-          containerConfig = {
-            Cmd = ["${pkgs.bashInteractive}/bin/bash"];
-            WorkingDir = "/workspace";
-          };
-        };
-
         rust = {
           packages = with pkgs; [
             rust-bin.stable.latest.default
@@ -78,6 +54,7 @@
     in
       profileLib.mkProfileOutputs {
         inherit profileDefinitions;
-        defaultImage = "base-rust";
+        defaultShell = "rust";
+        defaultImage = "rust";
       });
 }
