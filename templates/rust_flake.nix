@@ -9,7 +9,6 @@
   };
 
   outputs = {
-    self,
     flake-utils,
     nixpkgs,
     profile-lib,
