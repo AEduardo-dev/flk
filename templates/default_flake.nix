@@ -4,63 +4,47 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    profile-lib.url = "github:AEduardo-dev/nix-profile-lib";
   };
 
   outputs = {
     self,
-    nixpkgs,
     flake-utils,
+    nixpkgs,
+    profile-lib,
     ...
   }:
     flake-utils.lib.eachDefaultSystem (
       system: let
         pkgs = nixpkgs.legacyPackages.${system};
-        devPackages = with pkgs; [
-          # User packages
-        ];
-        containerPackages = with pkgs; [
-          bashInteractive
-          coreutils
-          findutils
-          gnugrep
-          git
-        ];
-        devEnv = {
-          LANG = "en_US.UTF-8";
-          LC_ALL = "en_US.UTF-8";
-        };
-        shellHook = ''
-          echo "Welcome to your flk development environment!"
-          echo "Packages managed by: flk"
-          source .flk/hooks.sh
-          # Custom commands will be added here
-        '';
-      in {
-        devShells.default = pkgs.mkShell ({
-            packages = devPackages;
-            shellHook = shellHook;
-          }
-          // devEnv);
-        packages.docker = pkgs.dockerTools.buildLayeredImage {
-          name = "dev-environment";
-          tag = "latest";
-          contents = devPackages ++ containerPackages;
-          config = {
-            Cmd = ["${pkgs.bashInteractive}/bin/bash"];
-            Env = pkgs.lib.mapAttrsToList (name: value: "${name}=${value}") devEnv;
-            WorkingDir = "/workspace";
+        profileLib = profile-lib.lib {inherit pkgs;};
+
+        profileDefinitions = {
+          default = {
+            packages = with pkgs; [
+              # User packages
+            ];
+
+            envVars = {
+              LANG = "en_US.UTF-8";
+              LC_ALL = "en_US.UTF-8";
+            };
+
+            shellHook = ''
+              echo "🛠️  Development environment ready!"
+              # Custom commands will be added here
+            '';
+
+            containerConfig = {
+              Cmd = ["${pkgs.bashInteractive}/bin/bash"];
+            };
           };
         };
-        packages.podman = pkgs.dockerTools.buildLayeredImage {
-          name = "dev-environment";
-          tag = "latest";
-          contents = devPackages ++ containerPackages;
-          config = {
-            Cmd = ["${pkgs.bashInteractive}/bin/bash"];
-            Env = pkgs.lib.mapAttrsToList (name: value: "${name}=${value}") devEnv;
-            WorkingDir = "/workspace";
-          };
-        };
-      }
+      in
+        profileLib.mkProfileOutputs {
+          inherit profileDefinitions;
+          defaultShell = "default";
+          defaultImage = "default";
+        }
     );
 }

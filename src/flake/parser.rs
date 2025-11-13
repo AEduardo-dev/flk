@@ -1,35 +1,43 @@
-use anyhow::{Context, Ok, Result};
+use anyhow::{Context, Result};
 use std::fs;
 
-use crate::flake::interface::{EnvVar, FlakeConfig, Package};
+use crate::flake::interface::{EnvVar, FlakeConfig, Package, Profile};
 
-/// Parse a flake.nix file and extract its components
 pub fn parse_flake(path: &str) -> Result<FlakeConfig> {
     let content = fs::read_to_string(path).context("Failed to read flake.nix file")?;
 
-    // Use ? operator instead of unwrap to propagate errors properly
-    let packages = parse_packages(&content).context("Failed to parse packages")?;
+    let profiles_list = list_profiles(&content).context("Failed to list profiles")?;
 
-    let env_vars =
-        parse_env_vars_as_structs(&content).context("Failed to parse environment variables")?;
+    let mut profiles = Vec::new();
+    for profile_name in profiles_list {
+        let packages = parse_packages_from_profile(&content, Some(&profile_name))?;
+        let env_vars = parse_env_vars_from_profile(&content, Some(&profile_name))?;
+        let shell_hook =
+            parse_shell_hook_from_profile(&content, Some(&profile_name)).unwrap_or_default(); // Use empty string if no shell hook
 
-    let shell_hook =
-        parse_shell_hook_content(&content).context("Failed to parse shellHook content")?;
+        let env_vars: Vec<EnvVar> = env_vars
+            .into_iter()
+            .map(|(name, value)| EnvVar::new(name, value))
+            .collect();
+
+        let mut profile = Profile::new(profile_name.clone());
+        profile.packages = packages;
+        profile.env_vars = env_vars;
+        profile.shell_hook = shell_hook;
+
+        profiles.push(profile);
+    }
 
     let config = FlakeConfig {
         description: parse_description(&content),
         inputs: parse_inputs(&content),
-        packages,
-        env_vars,
-        shell_hook,
+        profiles,
     };
 
     Ok(config)
 }
-
 /// Extract the description from the flake
 pub fn parse_description(content: &str) -> String {
-    // Look for description = "..."; pattern
     if let Some(start) = content.find("description = \"") {
         let search_start = start + "description = \"".len();
         if let Some(end) = content[search_start..].find("\";") {
@@ -39,17 +47,15 @@ pub fn parse_description(content: &str) -> String {
     String::new()
 }
 
-/// Extract flake inputs (dependencies like nixpkgs)
+/// Extract flake inputs
 fn parse_inputs(content: &str) -> Vec<String> {
     let mut inputs = Vec::new();
 
-    // Find the inputs section
     if let Some(inputs_start) = content.find("inputs = {") {
         let search_start = inputs_start + "inputs = {".len();
         if let Some(inputs_end) = content[search_start..].find("};") {
             let inputs_section = &content[search_start..search_start + inputs_end];
 
-            // Parse each input (look for patterns like "nixpkgs.url = ...")
             for line in inputs_section.lines() {
                 let trimmed = line.trim();
                 if let Some(dot_pos) = trimmed.find('.') {
@@ -65,26 +71,115 @@ fn parse_inputs(content: &str) -> Vec<String> {
     inputs
 }
 
-/// Extract packages from the packages list
-fn parse_packages(content: &str) -> Result<Vec<Package>> {
+/// Find a specific profile definition section
+pub fn find_profile(content: &str, profile_name: &str) -> Result<(usize, usize)> {
+    let pattern = format!("{} = {{", profile_name);
+
+    let profile_start = content.find(&pattern).context(format!(
+        "Could not find profile '{}' in profileDefinitions",
+        profile_name
+    ))?;
+
+    let brace_start = profile_start + pattern.len() - 1;
+    let profile_end = find_matching_brace(content, brace_start)
+        .context("Could not find closing brace for profile")?;
+
+    Ok((profile_start, profile_end + 1))
+}
+
+/// Find matching closing brace for an opening brace
+fn find_matching_brace(content: &str, start: usize) -> Result<usize> {
+    let mut depth = 0;
+    let bytes = content.as_bytes();
+
+    for (i, _) in bytes.iter().enumerate().skip(start) {
+        match bytes[i] {
+            b'{' => depth += 1,
+            b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Ok(i);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    Err(anyhow::anyhow!("No matching closing brace found"))
+}
+
+/// Find the profileDefinitions section
+pub fn find_profile_definitions(content: &str) -> Result<(usize, usize)> {
+    let profile_defs_start = content
+        .find("profileDefinitions = {")
+        .context("Could not find 'profileDefinitions' section")?;
+
+    let brace_start = profile_defs_start + "profileDefinitions = {".len() - 1;
+    let profile_defs_end = find_matching_brace(content, brace_start)
+        .context("Could not find closing brace for profileDefinitions")?;
+
+    Ok((profile_defs_start, profile_defs_end + 1))
+}
+
+/// Find packages section within a profile
+pub fn find_packages_in_profile(content: &str, profile_name: &str) -> Result<(usize, usize, bool)> {
+    let (profile_start, profile_end) = find_profile(content, profile_name)?;
+    let profile_content = &content[profile_start..profile_end];
+
+    // Look for "packages = with pkgs; [" or "packages = ["
+    let (packages_start, has_with_pkgs) =
+        if let Some(pos) = profile_content.find("packages = with pkgs; [") {
+            (pos, true)
+        } else if let Some(pos) = profile_content.find("packages = [") {
+            (pos, false)
+        } else {
+            return Err(anyhow::anyhow!(
+                "Could not find packages section in profile '{}'",
+                profile_name
+            ));
+        };
+
+    let bracket_pos = profile_content[packages_start..]
+        .find('[')
+        .context("Could not find opening bracket for packages")?;
+
+    let list_start = profile_start + packages_start + bracket_pos + 1;
+
+    let closing_bracket = profile_content[packages_start + bracket_pos..]
+        .find("];")
+        .context("Could not find closing bracket for packages")?;
+
+    let list_end = profile_start + packages_start + bracket_pos + closing_bracket;
+
+    Ok((list_start, list_end, has_with_pkgs))
+}
+
+/// Parse packages from a specific profile (or first one if None)
+pub fn parse_packages_from_profile(
+    content: &str,
+    profile_name: Option<&str>,
+) -> Result<Vec<Package>> {
     let mut packages = Vec::new();
 
-    // Use existing helper function to find packages section
-    let (list_start, list_end, has_with_pkgs) = match find_packages_inputs(content) {
-        Result::Ok(result) => result,
-        Err(_) => return Ok(packages), // Return empty if no packages section found
+    let profile_to_parse = match profile_name {
+        Some(name) => name.to_string(),
+        None => get_default_shell_profile(content)?,
     };
+
+    let (list_start, list_end, has_with_pkgs) =
+        match find_packages_in_profile(content, &profile_to_parse) {
+            Ok(result) => result,
+            Err(_) => return Ok(packages),
+        };
 
     let packages_content = &content[list_start..list_end];
 
-    // Parse each package line
     for line in packages_content.lines() {
         let trimmed = line.trim();
         if trimmed.is_empty() || trimmed.starts_with('#') {
             continue;
         }
 
-        // Remove "pkgs." prefix if it exists and not using "with pkgs;"
         let package_name = if !has_with_pkgs && trimmed.starts_with("pkgs.") {
             trimmed.strip_prefix("pkgs.").unwrap_or(trimmed)
         } else {
@@ -99,111 +194,184 @@ fn parse_packages(content: &str) -> Result<Vec<Package>> {
     Ok(packages)
 }
 
-/// Extract the shellHook content
-fn parse_shell_hook_content(content: &str) -> Result<String> {
-    let (shell_hook_start, shell_hook_end) =
-        find_shell_hook(content).context("Failed to find shellHook")?;
+/// Get the default shell profile from flake.nix
+fn get_default_shell_profile(content: &str) -> Result<String> {
+    if let Some(default_start) = content.find("defaultShell = \"") {
+        let search_start = default_start + "defaultShell = \"".len();
+        if let Some(end) = content[search_start..].find('"') {
+            return Ok(content[search_start..search_start + end].to_string());
+        }
+    }
+    // Fallback to first profile if no defaultShell set
+    get_first_profile_name(content)
+}
 
-    // Extract the content between shellHook = '' and '';
+/// Get first profile name from profileDefinitions
+fn get_first_profile_name(content: &str) -> Result<String> {
+    let (defs_start, defs_end) = find_profile_definitions(content)?;
+    let defs_content = &content[defs_start..defs_end];
+
+    // Look for pattern "name = {"
+    for line in defs_content.lines() {
+        let trimmed = line.trim();
+        if let Some(eq_pos) = trimmed.find(" = {") {
+            let name = trimmed[..eq_pos].trim();
+            if !name.is_empty() && name != "profileDefinitions" {
+                return Ok(name.to_string());
+            }
+        }
+    }
+
+    Err(anyhow::anyhow!("No profiles found in profileDefinitions"))
+}
+
+/// List all profile names
+pub fn list_profiles(content: &str) -> Result<Vec<String>> {
+    let (defs_start, defs_end) = find_profile_definitions(content)?;
+    let defs_content = &content[defs_start..defs_end];
+    let mut profiles = Vec::new();
+
+    // Profile names should be simple identifiers at the right indentation level
+    let reserved = [
+        "packages",
+        "envVars",
+        "shellHook",
+        "containerConfig",
+        "scripts",
+    ];
+
+    for line in defs_content.lines() {
+        let trimmed = line.trim();
+        let indent = line.len() - trimmed.len();
+
+        if let Some(eq_pos) = trimmed.find(" = {") {
+            let name = trimmed[..eq_pos].trim();
+
+            // Only top-level profiles (indent 8-12 spaces) and not reserved keywords
+            if !name.is_empty() && (8..=12).contains(&indent) && !reserved.contains(&name) {
+                profiles.push(name.to_string());
+            }
+        }
+    }
+
+    Ok(profiles)
+}
+
+/// Find envVars section within a profile
+pub fn find_env_vars_in_profile(content: &str, profile_name: &str) -> Result<(usize, usize)> {
+    let (profile_start, profile_end) = find_profile(content, profile_name)?;
+    let profile_content = &content[profile_start..profile_end];
+
+    let envvars_start = profile_content.find("envVars = {").context(format!(
+        "Could not find 'envVars' section in profile '{}'",
+        profile_name
+    ))?;
+
+    let brace_start = envvars_start + "envVars = {".len() - 1;
+    let search_start = profile_start + brace_start;
+
+    let envvars_end = find_matching_brace(content, search_start)
+        .context("Could not find closing brace for envVars")?;
+
+    let section_start = profile_start + envvars_start + "envVars = {".len();
+
+    Ok((section_start, envvars_end))
+}
+
+/// Parse environment variables from a specific profile (or first one if None)
+pub fn parse_env_vars_from_profile(
+    content: &str,
+    profile_name: Option<&str>,
+) -> Result<Vec<(String, String)>> {
+    let mut env_vars = Vec::new();
+
+    let profile_to_parse = match profile_name {
+        Some(name) => name.to_string(),
+        None => get_default_shell_profile(content)?,
+    };
+
+    let (envvars_start, envvars_end) = match find_env_vars_in_profile(content, &profile_to_parse) {
+        Ok(result) => result,
+        Err(_) => return Ok(env_vars),
+    };
+
+    let envvars_content = &content[envvars_start..envvars_end];
+
+    for line in envvars_content.lines() {
+        let trimmed = line.trim();
+
+        if let Some(eq_pos) = trimmed.find('=') {
+            let name = trimmed[..eq_pos].trim();
+            let value_part = trimmed[eq_pos + 1..].trim();
+
+            let value = value_part
+                .trim_end_matches(';')
+                .trim_start_matches('"')
+                .trim_end_matches('"')
+                .trim_start_matches('\'')
+                .trim_end_matches('\'');
+
+            env_vars.push((name.to_string(), value.to_string()));
+        }
+    }
+
+    Ok(env_vars)
+}
+
+/// Find shellHook section within a profile
+pub fn find_shell_hook_in_profile(content: &str, profile_name: &str) -> Result<(usize, usize)> {
+    let (profile_start, profile_end) = find_profile(content, profile_name)?;
+    let profile_content = &content[profile_start..profile_end];
+
+    let shell_hook_start = profile_content
+        .find("shellHook = ''")
+        .or_else(|| profile_content.find("shellHook=''"))
+        .context(format!(
+            "Could not find 'shellHook' in profile '{}'",
+            profile_name
+        ))?;
+
+    let search_start = shell_hook_start + "shellHook = ''".len();
+    let shell_hook_end = profile_content[search_start..]
+        .find("'';")
+        .context("Could not find closing \"'';\" for shellHook")?;
+
+    let absolute_start = profile_start + shell_hook_start;
+    let absolute_end = profile_start + search_start + shell_hook_end;
+
+    Ok((absolute_start, absolute_end))
+}
+
+/// Parse shellHook from a specific profile (or first one if None)
+pub fn parse_shell_hook_from_profile(content: &str, profile_name: Option<&str>) -> Result<String> {
+    let profile_to_parse = match profile_name {
+        Some(name) => name.to_string(),
+        None => get_default_shell_profile(content)?,
+    };
+
+    let (shell_hook_start, shell_hook_end) =
+        find_shell_hook_in_profile(content, &profile_to_parse)?;
+
     let hook_start = shell_hook_start + "shellHook = ''".len();
     let hook_content = &content[hook_start..shell_hook_end];
 
-    // Return the content as-is with actual newlines preserved
     Ok(hook_content.trim().to_string())
 }
 
-/// Parse environment variables as EnvVar structs
-fn parse_env_vars_as_structs(content: &str) -> Result<Vec<EnvVar>> {
-    let env_tuples = parse_env_vars(content)?;
+/// Check if a package exists in a profile
+pub fn package_exists(
+    flake_content: &str,
+    package: &str,
+    profile_name: Option<&str>,
+) -> Result<bool> {
+    let profile_to_parse = match profile_name {
+        Some(name) => name.to_string(),
+        None => get_default_shell_profile(flake_content)?,
+    };
+    let (start, end, _) = find_packages_in_profile(flake_content, profile_to_parse.as_str())?;
+    let packages_content = &flake_content[start..end];
 
-    Ok(env_tuples
-        .into_iter()
-        .map(|(name, value)| EnvVar::new(name, value))
-        .collect())
-}
-
-/// Find the shellHook section in a flake.nix content
-pub fn find_shell_hook(flake_content: &str) -> Result<(usize, usize)> {
-    // Find the shellHook section
-    let shell_hook_start = flake_content
-        .find("shellHook = ''")
-        .or_else(|| flake_content.find("shellHook=''"))
-        .context("Could not find 'shellHook' in flake.nix. Is this a valid flake?")?;
-
-    // Find the closing of shellHook
-    let search_start = shell_hook_start + "shellHook = ''".len();
-    let shell_hook_end = flake_content[search_start..]
-        .find("'';")
-        .context("Could not find closing \"'';\") for shellHook")?;
-
-    let insertion_point = search_start + shell_hook_end;
-
-    Ok((shell_hook_start, insertion_point))
-}
-
-pub fn find_env_vars(flake_content: &str) -> Result<(usize, usize)> {
-    let devenv_start = flake_content
-        .find("devEnv = {")
-        .context("Could not find 'devEnv' section in flake.nix")?;
-    let search_start = devenv_start + "devEnv = {".len();
-    let devenv_end = flake_content[search_start..]
-        .find("};")
-        .context("Could not find closing '};' for devEnv section")?;
-    let section_end = search_start + devenv_end;
-    Ok((search_start, section_end))
-}
-
-/// Find buildInputs section in a flake.nix content
-pub fn find_packages_inputs(flake_content: &str) -> Result<(usize, usize, bool)> {
-    // Try devPackages first (with pkgs; [ or [)
-    if let Some((build_inputs_start, has_with_pkgs)) = flake_content
-        .find("devPackages = with pkgs; [")
-        .map(|pos| (pos, true))
-        .or_else(|| {
-            flake_content
-                .find("devPackages = [")
-                .map(|pos| (pos, false))
-        })
-    {
-        let bracket_pos = flake_content[build_inputs_start..]
-            .find('[')
-            .context("Could not find opening bracket for devPackages section")?;
-        let list_start = build_inputs_start + bracket_pos + 1;
-        let closing_bracket = flake_content[list_start..]
-            .find("];")
-            .context("Could not find closing bracket for devPackages section")?;
-        let list_end = list_start + closing_bracket;
-        return Ok((list_start, list_end, has_with_pkgs));
-    }
-    // Fallback to Packages (legacy)
-    if let Some((build_inputs_start, has_with_pkgs)) = flake_content
-        .find("Packages = with pkgs; [")
-        .map(|pos| (pos, true))
-        .or_else(|| flake_content.find("Packages = [").map(|pos| (pos, false)))
-    {
-        let bracket_pos = flake_content[build_inputs_start..]
-            .find('[')
-            .context("Could not find opening bracket for Packages section")?;
-        let list_start = build_inputs_start + bracket_pos + 1;
-        let closing_bracket = flake_content[list_start..]
-            .find("];")
-            .context("Could not find closing bracket for Packages section")?;
-        let list_end = list_start + closing_bracket;
-        return Ok((list_start, list_end, has_with_pkgs));
-    }
-    Err(anyhow::anyhow!(
-        "Could not find 'devPackages' or 'Packages' in flake.nix"
-    ))
-}
-
-/// Check if a package exists in buildInputs
-pub fn package_exists(flake_content: &str, package: &str) -> Result<bool> {
-    let (start, end, _) = find_packages_inputs(flake_content)?;
-    let build_inputs_content = &flake_content[start..end];
-
-    // Check if the package name appears in the buildInputs list
-    // This is a simple check - could be improved with proper parsing
-    for line in build_inputs_content.lines() {
+    for line in packages_content.lines() {
         let trimmed = line.trim();
         if trimmed == package || trimmed.starts_with(&format!("{}.", package)) {
             return Ok(true);
@@ -213,39 +381,39 @@ pub fn package_exists(flake_content: &str, package: &str) -> Result<bool> {
     Ok(false)
 }
 
-/// Add a package to buildInputs
-pub fn add_package_inputs(flake_content: &str, package: &str) -> Result<String> {
-    let (list_start, list_end, has_with_pkgs) = find_packages_inputs(flake_content)?;
-
-    // Get the content inside buildInputs
-    let build_inputs_content = &flake_content[list_start..list_end];
-
-    // Determine indentation by looking at existing entries
-    let indent = if let Some(pckg_line) = build_inputs_content.lines().nth(2) {
-        // Count leading spaces
-        pckg_line.len() - pckg_line.trim_start().len()
-    } else {
-        12 // Default indentation
+/// Add a package to a profile
+pub fn add_package_to_profile(
+    flake_content: &str,
+    package: &str,
+    profile_name: Option<&str>,
+) -> Result<String> {
+    let profile_to_parse = match profile_name {
+        Some(name) => name.to_string(),
+        None => get_default_shell_profile(flake_content)?,
     };
-    println!("{}", indent);
+    let (list_start, list_end, has_with_pkgs) =
+        find_packages_in_profile(flake_content, profile_to_parse.as_str())?;
+
+    let packages_content = &flake_content[list_start..list_end];
+
+    let indent = if let Some(pkg_line) = packages_content.lines().nth(1) {
+        pkg_line.len() - pkg_line.trim_start().len()
+    } else {
+        12
+    };
 
     let indent_str = " ".repeat(indent);
     let indent_bracket = " ".repeat(indent - 2);
 
-    // Check if buildInputs is empty or has items
-    let is_empty = build_inputs_content.trim().is_empty();
-    let mut prefix = "";
-    if !has_with_pkgs {
-        prefix = "pkgs."
-    }
+    let is_empty = packages_content.trim().is_empty();
+    let prefix = if !has_with_pkgs { "pkgs." } else { "" };
 
     let package_entry = if is_empty {
-        format!("\n{}{}{}\n          ", indent_str, prefix, package)
+        format!("\n{}{}{}\n{}", indent_str, prefix, package, indent_bracket)
     } else {
-        format!("  {}{}\n{}", prefix, package, indent_bracket)
+        format!("{}{}\n{}", prefix, package, indent_bracket)
     };
 
-    // Insert before the closing bracket
     let mut result = String::new();
     result.push_str(&flake_content[..list_end]);
     result.push_str(&package_entry);
@@ -254,114 +422,139 @@ pub fn add_package_inputs(flake_content: &str, package: &str) -> Result<String> 
     Ok(result)
 }
 
-/// Remove a package from buildInputs
-pub fn remove_package_inputs(flake_content: &str, package: &str) -> Result<String> {
-    let (list_start, list_end, has_with_pkgs) = find_packages_inputs(flake_content)?;
-
-    // Get the content inside buildInputs
-    let build_inputs_content = &flake_content[list_start..list_end];
-
-    // Determine indentation by looking at existing entries
-    let indent = if let Some(first_line) = build_inputs_content.lines().nth(1) {
-        // Count leading spaces
-        first_line.len() - first_line.trim_start().len()
-    } else {
-        12 // Default indentation
+/// Remove a package from a profile
+pub fn remove_package_from_profile(
+    flake_content: &str,
+    package: &str,
+    profile_name: Option<&str>,
+) -> Result<String> {
+    let profile_to_parse = match profile_name {
+        Some(name) => name.to_string(),
+        None => get_default_shell_profile(flake_content)?,
     };
+    let (list_start, list_end, has_with_pkgs) =
+        find_packages_in_profile(flake_content, profile_to_parse.as_str())?;
 
-    // Determine if file is empty. If it is, return nothing
-    let is_empty = build_inputs_content.trim().is_empty();
-    let mut result = String::new();
+    let packages_content = &flake_content[list_start..list_end];
+    let is_empty = packages_content.trim().is_empty();
+
     if is_empty {
-        return Ok(result);
+        return Ok(flake_content.to_string());
     }
 
-    let mut prefix = "";
-    if !has_with_pkgs {
-        prefix = "pkgs."
-    }
+    let prefix = if !has_with_pkgs { "pkgs." } else { "" };
+    let pkg = format!("{}{}", prefix, package);
 
-    let pckg = format!("{}{}", prefix, package);
-    println!("{}", pckg);
-
-    let pckg_start = build_inputs_content
-        .find(&pckg)
+    let pkg_start = packages_content
+        .find(&pkg)
         .context("Could not find package in the current list")?;
 
-    let pckg_end = pckg_start + pckg.len();
+    let pkg_end = pkg_start + pkg.len();
 
-    // Insert all content but removed package
-    let absolute_pckg_start = list_start + pckg_start - (indent + 1);
-    let absolute_pckg_end = list_start + pckg_end;
-
-    result.push_str(&flake_content[..absolute_pckg_start]);
-    result.push_str(&flake_content[absolute_pckg_end..]);
-
-    Ok(result)
-}
-
-/// Find a command marker in the flake content
-pub fn find_command(flake_content: &str, name: &str) -> Option<(usize, usize)> {
-    let marker = format!("# flk-command: {}", name);
-
-    // Find the marker
-    let marker_start = flake_content.find(&marker)?;
-
-    // Find the start of the line - include the preceding newline if it exists
-    let line_start = if marker_start > 0 {
-        flake_content[..marker_start].rfind('\n').unwrap_or(0)
+    let indent = if let Some(first_line) = packages_content.lines().next() {
+        first_line.len() - first_line.trim_start().len()
     } else {
-        0
+        12
     };
 
-    // Find the end of the function (closing brace + newline)
-    let search_start = marker_start + marker.len();
-    let function_end = flake_content[search_start..].find("            }\n")?;
+    let absolute_pkg_start = list_start + pkg_start - (indent + 1);
+    let absolute_pkg_end = list_start + pkg_end;
 
-    // Include the newline after the closing brace
-    let end_point = search_start + function_end + "            }\n".len();
-
-    Some((line_start, end_point))
-}
-
-/// Check if a command exists in the flake
-pub fn command_exists(flake_content: &str, name: &str) -> bool {
-    flake_content.contains(&format!("# flk-command: {}", name))
-}
-
-/// Add a command to the shellHook section
-pub fn add_command_to_shell_hook(flake_content: &str, name: &str, command: &str) -> Result<String> {
-    let (_, insertion_point) = find_shell_hook(flake_content)?;
-
-    // Create function with proper formatting
-    let command_block = format!(
-        "\n{}{}\n{} () {{\n{}\n{}\n",
-        indent_lines("# flk-command: ", 12),
-        name,
-        indent_lines(name, 12),
-        indent_lines(command.trim(), 14),
-        indent_lines("}", 12)
-    );
-
-    // Insert the command before the closing ''
     let mut result = String::new();
-    result.push_str(&flake_content[..insertion_point]);
-    result.push_str(&command_block);
-    result.push_str(indent_lines("'';", 8).as_str());
-    result.push_str(&flake_content[insertion_point + 3..]);
+    result.push_str(&flake_content[..absolute_pkg_start]);
+    result.push_str(&flake_content[absolute_pkg_end..]);
 
     Ok(result)
 }
 
-/// Remove a command from the shellHook section
-pub fn remove_command_from_shell_hook(flake_content: &str, name: &str) -> Result<String> {
-    let (line_start, end_point) =
-        find_command(flake_content, name).context("Command marker not found")?;
+/// Check if an environment variable exists in a profile
+pub fn env_var_exists(flake_content: &str, name: &str, profile_name: &str) -> Result<bool> {
+    let export_pattern = format!("{} = ", name);
+    let (envvars_start, envvars_end) = find_env_vars_in_profile(flake_content, profile_name)?;
+    let envvars_content = &flake_content[envvars_start..envvars_end];
 
-    // Remove the entire command block including surrounding newlines
+    for line in envvars_content.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with(&export_pattern) {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+/// Add an environment variable to a profile
+pub fn add_env_var_to_profile(
+    flake_content: &str,
+    name: &str,
+    value: &str,
+    profile_name: Option<&str>,
+) -> Result<String> {
+    let profile_to_parse = match profile_name {
+        Some(name) => name.to_string(),
+        None => get_default_shell_profile(flake_content)?,
+    };
+
+    env_var_exists(flake_content, name, profile_to_parse.as_str())
+        .context("Environtment variable already exists")?;
+    let (_, insertion_point) = find_env_vars_in_profile(flake_content, profile_to_parse.as_str())?;
+
+    let escaped_value = value.replace('"', "\\\"");
+    let env_block = format!("      {} = \"{}\";\n", name, escaped_value);
+
     let mut result = String::new();
-    result.push_str(&flake_content[..line_start]);
-    result.push_str(&flake_content[end_point..]);
+    result.push_str(&flake_content[..insertion_point]);
+    result.push_str(&env_block);
+    result.push_str(indent_lines("    }", 0).as_str());
+    result.push_str(&flake_content[insertion_point + 5..]);
+
+    Ok(result)
+}
+
+/// Remove an environment variable from a profile
+pub fn remove_env_var_from_profile(
+    flake_content: &str,
+    name: &str,
+    profile_name: Option<&str>,
+) -> Result<String> {
+    let profile_to_parse = match profile_name {
+        Some(name) => name.to_string(),
+        None => get_default_shell_profile(flake_content)?,
+    };
+    let (envvars_start, envvars_end) =
+        match find_env_vars_in_profile(flake_content, profile_to_parse.as_str()) {
+            Ok(result) => result,
+            Err(_) => return Ok(flake_content.to_string()),
+        };
+
+    if !env_var_exists(flake_content, name, profile_to_parse.as_str())? {
+        return Ok(flake_content.to_string());
+    }
+
+    let envvars_content = &flake_content[envvars_start..envvars_end];
+    let var_pattern = format!("{} = ", name);
+
+    let var_start = envvars_content
+        .find(&var_pattern)
+        .context("Could not find environment variable in envVars section")?;
+
+    let var_end = envvars_content[var_start..]
+        .find(';')
+        .context("Could not find semicolon ending for environment variable")?;
+
+    let var_line_end = var_start + var_end + 1;
+
+    let indent = if let Some(line_start_in_section) = envvars_content[..var_start].rfind('\n') {
+        var_start - line_start_in_section - 1
+    } else {
+        var_start
+    };
+
+    let absolute_var_start = envvars_start + var_start - (indent + 1);
+    let absolute_var_end = envvars_start + var_line_end;
+
+    let mut result = String::new();
+    result.push_str(&flake_content[..absolute_var_start]);
+    result.push_str(&flake_content[absolute_var_end..]);
 
     Ok(result)
 }
@@ -381,119 +574,76 @@ fn indent_lines(text: &str, spaces: usize) -> String {
         .join("\n")
 }
 
-/// Check if an environment variable exists in the shellHook
-pub fn env_var_exists(flake_content: &str, name: &str) -> Result<bool> {
-    // Look for export NAME= pattern
-    let export_pattern = format!("{} = ", name);
-    let (devenvs_start, devenvs_end) = find_env_vars(flake_content)?;
-    let devenv_content = &flake_content[devenvs_start..devenvs_end];
+// Command functions remain similar but need to target specific profiles
+// Keeping the old ones for now for backward compatibility
 
-    for line in devenv_content.lines() {
-        let trimmed = line.trim();
-        if trimmed.starts_with(&export_pattern) {
-            return Ok(true);
-        }
-    }
-    Ok(false)
+pub fn find_command(flake_content: &str, name: &str, profile_name: &str) -> Option<(usize, usize)> {
+    let (shell_hook_start, shell_hook_end) =
+        find_shell_hook_in_profile(flake_content, profile_name).ok()?;
+    let marker = format!("# flk-command: {}", name);
+    let shell_hook_content = &flake_content[shell_hook_start..shell_hook_end];
+    let marker_start = shell_hook_content.find(&marker)? + shell_hook_start;
+    let line_start = if marker_start > 0 {
+        flake_content[..marker_start].rfind('\n').unwrap_or(0)
+    } else {
+        0
+    };
+    let search_start = marker_start + marker.len();
+    let function_end = flake_content[search_start..].find("            }\n")?;
+    let end_point = search_start + function_end + "            }\n".len();
+    Some((line_start, end_point))
 }
 
-/// Parse all environment variables from the shellHook
-pub fn parse_env_vars(flake_content: &str) -> Result<Vec<(String, String)>> {
-    let mut env_vars = Vec::new();
-    let (devenvs_start, devenvs_end) = find_env_vars(flake_content)?;
-    let devenv_content = &flake_content[devenvs_start..devenvs_end];
-
-    // Parse export statements
-    for line in devenv_content.lines() {
-        let trimmed = line.trim();
-
-        // Look for export NAME="VALUE;" or export NAME=VALUE;
-        if let Some(eq_pos) = trimmed.find('=') {
-            let name = trimmed[..eq_pos].trim();
-            let value_part = trimmed[eq_pos + 1..].trim();
-
-            // Remove quotes if present
-            let value = value_part
-                .trim_end_matches(';')
-                .trim_start_matches('"')
-                .trim_end_matches('"')
-                .trim_start_matches('\'')
-                .trim_end_matches('\'');
-
-            env_vars.push((name.to_string(), value.to_string()));
-        }
-    }
-
-    Ok(env_vars)
+pub fn command_exists(flake_content: &str, name: &str) -> bool {
+    flake_content.contains(&format!("# flk-command: {}", name))
 }
 
-/// Add an environment variable to the shellHook
-pub fn add_env_var(flake_content: &str, name: &str, value: &str) -> Result<String> {
-    let (_, insertion_point) = find_env_vars(flake_content)?;
+pub fn add_command_to_shell_hook(
+    flake_content: &str,
+    name: &str,
+    command: &str,
+    profile_name: Option<&str>,
+) -> Result<String> {
+    let profile_to_parse = match profile_name {
+        Some(name) => name.to_string(),
+        None => get_default_shell_profile(flake_content)?,
+    };
+    let (_, insertion_point) =
+        find_shell_hook_in_profile(flake_content, profile_to_parse.as_str())?;
 
-    // Escape quotes in value
-    let escaped_value = value.replace('"', "\\\"");
-
-    // Create export statement with proper formatting
-    let env_block = format!("{} = \"{}\";\n", indent_lines(name, 2), escaped_value);
-
-    println!(
-        "{}",
-        flake_content[insertion_point..].chars().next().unwrap()
+    let command_block = format!(
+        "\n{}{}\n{} () {{\n{}\n{}\n",
+        indent_lines("# flk-command: ", 12),
+        name,
+        indent_lines(name, 12),
+        indent_lines(command.trim(), 14),
+        indent_lines("}", 12)
     );
-    // Insert the variable before the closing ''
+
     let mut result = String::new();
     result.push_str(&flake_content[..insertion_point]);
-    result.push_str(&env_block);
-    result.push_str(indent_lines("}", 8).as_str());
-    result.push_str(&flake_content[insertion_point + 1..]);
+    result.push_str(&command_block);
+    result.push_str(indent_lines("'';", 8).as_str());
+    result.push_str(&flake_content[insertion_point + 3..]);
 
     Ok(result)
 }
 
-/// Remove an environment variable from the shellHook
-pub fn remove_env_var(flake_content: &str, name: &str) -> Result<String> {
-    // Check if devEnv section exists
-    let (devenvs_start, devenvs_end) = match find_env_vars(flake_content) {
-        std::result::Result::Ok(result) => result,
-        Err(_) => return Ok(flake_content.to_string()),
+pub fn remove_command_from_shell_hook(
+    flake_content: &str,
+    name: &str,
+    profile_name: Option<&str>,
+) -> Result<String> {
+    let profile_to_parse = match profile_name {
+        Some(name) => name.to_string(),
+        None => get_default_shell_profile(flake_content)?,
     };
+    let (line_start, end_point) = find_command(flake_content, name, profile_to_parse.as_str())
+        .context("Command marker not found")?;
 
-    // Check if the variable exists
-    if !env_var_exists(flake_content, name)? {
-        return Ok(flake_content.to_string());
-    }
-
-    let devenv_content = &flake_content[devenvs_start..devenvs_end];
-    let var_pattern = format!("{} = ", name);
-
-    // Find the variable line
-    let var_start = devenv_content
-        .find(&var_pattern)
-        .context("Could not find environment variable in devEnv section")?;
-
-    // Find the end of the line (semicolon)
-    let var_end = devenv_content[var_start..]
-        .find(';')
-        .context("Could not find semicolon ending for environment variable")?;
-
-    let var_line_end = var_start + var_end + 1;
-
-    // Determine indentation by looking at the line
-    let indent = if let Some(line_start_in_section) = devenv_content[..var_start].rfind('\n') {
-        var_start - line_start_in_section - 1
-    } else {
-        var_start // First line, count from start
-    };
-
-    // Calculate absolute positions including indentation and newline
-    let absolute_var_start = devenvs_start + var_start - (indent + 1);
-    let absolute_var_end = devenvs_start + var_line_end;
-
-    // Build result excluding the variable line
     let mut result = String::new();
-    result.push_str(&flake_content[..absolute_var_start]);
-    result.push_str(&flake_content[absolute_var_end..]);
+    result.push_str(&flake_content[..line_start]);
+    result.push_str(&flake_content[end_point..]);
 
     Ok(result)
 }

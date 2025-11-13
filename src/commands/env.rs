@@ -38,16 +38,8 @@ pub fn add(name: &str, value: &str) -> Result<()> {
     // Read the current flake.nix
     let flake_content = fs::read_to_string(flake_path).context("Failed to read flake.nix")?;
 
-    // Check if variable already exists
-    if parser::env_var_exists(&flake_content, name)? {
-        bail!(
-            "Environment variable '{}' already exists. Remove it first or use a different name.",
-            name
-        );
-    }
-
     // Add the environment variable to shellHook
-    let updated_content = parser::add_env_var(&flake_content, name, value)?;
+    let updated_content = parser::add_env_var_to_profile(&flake_content, name, value, None)?;
 
     // Write back to file
     fs::write(flake_path, updated_content).context("Failed to write flake.nix")?;
@@ -85,12 +77,9 @@ pub fn remove(name: &str) -> Result<()> {
     let flake_content = fs::read_to_string(flake_path).context("Failed to read flake.nix")?;
 
     // Check if variable exists
-    if !parser::env_var_exists(&flake_content, name)? {
-        bail!("Environment variable '{}' not found in flake.nix", name);
-    }
 
     // Remove the environment variable
-    let updated_content = parser::remove_env_var(&flake_content, name)?;
+    let updated_content = parser::remove_env_var_from_profile(&flake_content, name, None)?;
 
     // Write back to file
     fs::write(flake_path, updated_content).context("Failed to write flake.nix")?;

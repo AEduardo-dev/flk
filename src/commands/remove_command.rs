@@ -23,7 +23,7 @@ pub fn run(name: &str) -> Result<()> {
     }
 
     // Remove the command from shellHook
-    let updated_content = parser::remove_command_from_shell_hook(&flake_content, name)?;
+    let updated_content = parser::remove_command_from_shell_hook(&flake_content, name, None)?;
 
     // Write back to file
     fs::write(flake_path, updated_content).context("Failed to write flake.nix")?;

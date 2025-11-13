@@ -5,91 +5,110 @@
 mod parser_tests {
     use flk::flake;
 
+    const CONTENT: &str = r#"
+    {
+      description = "Test flake description";
+
+      inputs = {
+        nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+        flake-utils.url = "github:numtide/flake-utils";
+        profile-lib.url = "github:AEduardo-dev/nix-profile-lib";
+      };
+
+      outputs = {
+        self,
+        flake-utils,
+        nixpkgs,
+        profile-lib,
+      }:
+        flake-utils.lib.eachDefaultSystem (system: let
+          pkgs = import nixpkgs {
+            inherit system overlays;
+          };
+
+          profileLib = profile-lib.lib {inherit pkgs;};
+
+          profileDefinitions = {
+            default = {
+              packages = with pkgs; [
+                git
+                curl
+              ];
+
+              envVars = {
+                VAR1 = "value1";
+                VAR2 = "value2";
+                VAR3 = "value3";
+              };
+
+              shellHook = ''
+                echo "Welcome to the development shell!"
+
+                # flk-command: test
+                test () {
+                  echo "This is a test command"
+                }
+              '';
+
+              containerConfig = {
+                Cmd = ["${pkgs.bashInteractive}/bin/bash"];
+              };
+            };
+          };
+        in
+          profileLib.mkProfileOutputs {
+            inherit profileDefinitions;
+            defaultShell = "default";
+            defaultImage = "default";
+          });
+    }
+    "#;
+
     #[test]
     fn test_parse_description() {
-        let content = r#"
-{
-  description = "Test flake description";
-  inputs = {};
-}
-"#;
-
-        let description = flake::parser::parse_description(&content);
+        let description = flake::parser::parse_description(&CONTENT);
         assert_eq!(description, "Test flake description");
     }
 
     #[test]
     fn test_package_exists() {
-        let content = r#"
-flake-utils.lib.eachDefaultSystem (
-      system: let
-        overlays = [(import rust-overlay)];
-        pkgs = import nixpkgs {
-          inherit system overlays;
-        };
-        devPackages = with pkgs; [
-            ripgrep
-            git
-            curl
-        ];
-      in
-      {
-
-      }
-);
-
-"#;
         // Test that package_exists correctly identifies packages
-        let exists = flake::parser::package_exists(content, "ripgrep").unwrap();
+        let exists = flake::parser::package_exists(CONTENT, "git", None).unwrap();
         assert!(exists);
 
-        let not_exists = flake::parser::package_exists(content, "nonexistent").unwrap();
+        let not_exists = flake::parser::package_exists(CONTENT, "nonexistent", None).unwrap();
         assert!(!not_exists);
     }
 
     #[test]
     fn test_add_package_to_empty_list() {
         let content = r#"
-flake-utils.lib.eachDefaultSystem (
-      system: let
-        overlays = [(import rust-overlay)];
-        pkgs = import nixpkgs {
-          inherit system overlays;
-        };
-        devPackages = with pkgs; [
-        ];
-      in
-      {
+    ...
+      test_package_existskgs = import nixpkgs {
+        inherit system overlays;
+      };
 
-      }
-);
+      profileLib = profile-lib.lib {inherit pkgs;};
+
+      profileDefinitions = {
+        default = {
+          packages = with pkgs; [
+          ];
+        };
+      };
+    in
+      profileLib.mkProfileOutputs {
+...
 "#;
         // Test adding a package to empty list
-        let result = flake::parser::add_package_inputs(content, "ripgrep").unwrap();
+        let result = flake::parser::add_package_to_profile(content, "ripgrep", None).unwrap();
         assert!(result.contains("ripgrep"));
     }
 
     #[test]
     fn test_add_package_to_existing_list() {
-        let content = r#"
-flake-utils.lib.eachDefaultSystem (
-      system: let
-        overlays = [(import rust-overlay)];
-        pkgs = import nixpkgs {
-          inherit system overlays;
-        };
-        devPackages = with pkgs; [
-            git
-            curl
-        ];
-      in
-      {
-
-      }
-);
-"#;
         // Test adding a package to existing list
-        let result = flake::parser::add_package_inputs(content, "ripgrep").unwrap();
+        let result = flake::parser::add_package_to_profile(CONTENT, "ripgrep", None).unwrap();
         assert!(result.contains("ripgrep"));
         assert!(result.contains("git"));
         assert!(result.contains("curl"));
@@ -97,166 +116,74 @@ flake-utils.lib.eachDefaultSystem (
 
     #[test]
     fn test_remove_package() {
-        let content = r#"
-flake-utils.lib.eachDefaultSystem (
-      system: let
-        overlays = [(import rust-overlay)];
-        pkgs = import nixpkgs {
-          inherit system overlays;
-        };
-        devPackages = with pkgs; [
-            ripgrep
-            git
-            curl
-        ];
-      in
-      { 
-
-      }
-);
-"#;
         // Test removing a package
-        let result = flake::parser::remove_package_inputs(content, "ripgrep").unwrap();
-        assert!(!result.contains("ripgrep"));
+        let result = flake::parser::remove_package_from_profile(CONTENT, "curl", None).unwrap();
+        println!("{}", result);
         assert!(result.contains("git"));
-        assert!(result.contains("curl"));
+        assert!(!result.contains("curl"));
     }
 
     #[test]
     fn test_command_exists() {
-        let content = r#"
-flake-utils.lib.eachDefaultSystem (
-      system: let
-        overlays = [(import rust-overlay)];
-        pkgs = import nixpkgs {
-          inherit system overlays;
-        };
-        shellHook = ''
-          # flk-command: test
-          test () {
-            echo test
-          }
-        '';
-      in
-      { 
-
-      }
-);
-"#;
         // Test command detection
-        let exists = flake::parser::command_exists(content, "test");
+        let exists = flake::parser::command_exists(CONTENT, "test");
         assert!(exists);
 
-        let not_exists = flake::parser::command_exists(content, "nonexistent");
+        let not_exists = flake::parser::command_exists(CONTENT, "nonexistent");
         assert!(!not_exists);
     }
 
     #[test]
     fn test_add_command() {
-        let content = r#"
-flake-utils.lib.eachDefaultSystem (
-      system: let
-        overlays = [(import rust-overlay)];
-        pkgs = import nixpkgs {
-          inherit system overlays;
-        };
-        shellHook = ''
-          # flk-command: test
-          test () {
-            echo test
-          }
-        '';
-      in
-      { 
-
-      }
-);
-"#;
         // Test adding a command
-        let result =
-            flake::parser::add_command_to_shell_hook(content, "test", "echo 'test command'")
-                .unwrap();
-        assert!(result.contains("# flk-command: test"));
-        assert!(result.contains("test ()"));
+        let result = flake::parser::add_command_to_shell_hook(
+            CONTENT,
+            "test_add",
+            "echo 'test command'",
+            None,
+        )
+        .unwrap();
+        assert!(result.contains("# flk-command: test_add"));
+        assert!(result.contains("test_add ()"));
     }
 
     #[test]
     fn test_remove_command() {
-        let content = r#"
-flake-utils.lib.eachDefaultSystem (
-      system: let
-        overlays = [(import rust-overlay)];
-        pkgs = import nixpkgs {
-          inherit system overlays;
-        };
-        shellHook = ''
-            # flk-command: test
-            test () {
-              echo test
-            }
-'';
-      in
-      { 
-
-      }
-);
-"#;
         // Test removing a command
-        let result = flake::parser::remove_command_from_shell_hook(content, "test").unwrap();
+        let result = flake::parser::remove_command_from_shell_hook(CONTENT, "test", None).unwrap();
         assert!(!result.contains("# flk-command: test"));
         assert!(!result.contains("test ()"));
     }
 
     #[test]
     fn test_env_var_exists() {
-        let content = r#"
-devEnv = {
-  MY_VAR = "test";
-  ANOTHER_VAR = "value";
-};
-"#;
         // Test env var detection
-        let exists = flake::parser::env_var_exists(content, "MY_VAR").unwrap();
+        let exists = flake::parser::env_var_exists(CONTENT, "VAR2", "default").unwrap();
         assert!(exists);
 
-        let not_exists = flake::parser::env_var_exists(content, "NONEXISTENT").unwrap();
+        let not_exists = flake::parser::env_var_exists(CONTENT, "NONEXISTENT", "default").unwrap();
         assert!(!not_exists);
     }
 
     #[test]
     fn test_add_env_var() {
-        let content = r#"
-devEnv = {};
-"#;
         // Test adding an environment variable
-        let result = flake::parser::add_env_var(content, "MY_VAR", "test_value").unwrap();
+        let result =
+            flake::parser::add_env_var_to_profile(CONTENT, "MY_VAR", "test_value", None).unwrap();
         assert!(result.contains(" MY_VAR = \"test_value\""));
     }
 
     #[test]
     fn test_remove_env_var() {
-        let content = r#"
-devEnv = {
-  MY_VAR = "test";
-  ANOTHER_VAR = "value";
-};
-"#;
         // Test removing an environment variable
-        let result = flake::parser::remove_env_var(content, "MY_VAR").unwrap();
-        assert!(!result.contains("MY_VAR"));
+        let result = flake::parser::remove_env_var_from_profile(CONTENT, "VAR1", None).unwrap();
+        assert!(!result.contains("VAR1"));
     }
 
     #[test]
     fn test_parse_env_vars() {
-        let content = r#"
-devEnv = {
-    VAR1 = "value1";
-    VAR2 = "value2";
-    VAR3 = "value3";
-};
-"#;
         // Test parsing all environment variables
-        let vars = flake::parser::parse_env_vars(content).unwrap();
+        let vars = flake::parser::parse_env_vars_from_profile(CONTENT, None).unwrap();
         assert_eq!(vars.len(), 3);
         assert!(vars.contains(&("VAR1".to_string(), "value1".to_string())));
         assert!(vars.contains(&("VAR2".to_string(), "value2".to_string())));
@@ -289,7 +216,7 @@ mod generator_tests {
         // Test generating a Python flake
         let flake = flake::generator::generate_flake("python").unwrap();
         assert!(flake.contains("Python development environment"));
-        assert!(flake.contains("python313"));
+        assert!(flake.contains("python312"));
     }
 
     #[test]
@@ -339,8 +266,6 @@ mod interface_tests {
         let config = FlakeConfig::default();
         assert!(config.description.is_empty());
         assert!(config.inputs.is_empty());
-        assert!(config.packages.is_empty());
-        assert!(config.env_vars.is_empty());
-        assert!(config.shell_hook.is_empty());
+        assert!(config.profiles.is_empty());
     }
 }

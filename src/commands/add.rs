@@ -43,7 +43,7 @@ pub fn run_add(package: &str, version: Option<String>) -> Result<()> {
     let flake_content = fs::read_to_string(flake_path).context("Failed to read flake.nix")?;
 
     // Check if package already exists
-    if parser::package_exists(&flake_content, &package_to_add)? {
+    if parser::package_exists(&flake_content, &package_to_add, None)? {
         bail!(
             "Package '{}' is already in the packages declaration",
             package_to_add
@@ -51,7 +51,7 @@ pub fn run_add(package: &str, version: Option<String>) -> Result<()> {
     }
 
     // Add the package to buildInputs
-    let updated_content = parser::add_package_inputs(&flake_content, &package_to_add)?;
+    let updated_content = parser::add_package_to_profile(&flake_content, &package_to_add, None)?;
 
     // Write back to file
     fs::write(flake_path, updated_content).context("Failed to write flake.nix")?;

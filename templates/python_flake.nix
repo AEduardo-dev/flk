@@ -4,81 +4,61 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    profile-lib.url = "github:AEduardo-dev/nix-profile-lib";
   };
 
   outputs = {
     self,
-    nixpkgs,
     flake-utils,
+    nixpkgs,
+    profile-lib,
   }:
     flake-utils.lib.eachDefaultSystem (
       system: let
         pkgs = nixpkgs.legacyPackages.${system};
-        devPackages = with pkgs; [
-          # Python and tools
-          poetry
-          python313
-          python313Packages.pip
-          python313Packages.virtualenv
+        profileLib = profile-lib.lib {inherit pkgs;};
 
-          # Additional tools
-          black
-          pyright
-          mypy
-          ruff
+        profileDefinitions = {
+          python = {
+            packages = with pkgs; [
+              poetry
+              python312
+              python312Packages.pip
+              python312Packages.virtualenv
+              black
+              pyright
+              mypy
+              ruff
+            ];
 
-          # User packages
-        ];
-        containerPackages = with pkgs; [
-          bashInteractive
-          coreutils
-          findutils
-          gnugrep
-          git
-        ];
-        shellHook = ''
-          echo "🐍 Python development environment ready!"
-          echo "Python version: $(python --version)"
-          source .flk/hooks.sh
+            envVars = {
+              LANG = "en_US.UTF-8";
+              LC_ALL = "en_US.UTF-8";
+            };
 
-          # Create virtual environment if it doesn't exist
-          if [ ! -d .venv ]; then
-            python -m venv .venv
-          fi
-          source .venv/bin/activate
+            shellHook = ''
+              echo "🐍 Python development environment ready!"
+              echo "Python version: $(python --version)"
 
-          # Custom commands will be added here
-        '';
-        devEnv = {
-          LANG = "en_US.UTF-8";
-          LC_ALL = "en_US.UTF-8";
-        };
-      in {
-        devShells.default = pkgs.mkShell ({
-            packages = devPackages;
-            shellHook = shellHook;
-          }
-          // devEnv);
-        packages.docker = pkgs.dockerTools.buildLayeredImage {
-          name = "python-dev";
-          tag = "latest";
-          contents = devPackages ++ containerPackages;
-          config = {
-            Cmd = ["${pkgs.bashInteractive}/bin/bash"];
-            Env = pkgs.lib.mapAttrsToList (name: value: "${name}=${value}") devEnv;
-            WorkingDir = "/workspace";
+              # Create virtual environment if it doesn't exist
+              if [ ! -d .venv ]; then
+                python -m venv .venv
+              fi
+              source .venv/bin/activate
+
+              # Custom commands will be added here
+            '';
+
+            containerConfig = {
+              Cmd = ["${pkgs.bashInteractive}/bin/bash"];
+            };
           };
         };
-        packages.podman = pkgs.dockerTools.buildLayeredImage {
-          name = "python-dev";
-          tag = "latest";
-          contents = devPackages ++ containerPackages;
-          config = {
-            Cmd = ["${pkgs.bashInteractive}/bin/bash"];
-            Env = pkgs.lib.mapAttrsToList (name: value: "${name}=${value}") devEnv;
-            WorkingDir = "/workspace";
-          };
-        };
-      }
+      in
+        profileLib.mkProfileOutputs {
+          inherit profileDefinitions;
+          defaultShell = "python";
+          defaultImage = "python";
+        }
     );
 }

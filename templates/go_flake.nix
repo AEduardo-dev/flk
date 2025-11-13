@@ -4,73 +4,53 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    profile-lib.url = "github:AEduardo-dev/nix-profile-lib";
   };
 
   outputs = {
     self,
-    nixpkgs,
     flake-utils,
+    nixpkgs,
+    profile-lib,
   }:
     flake-utils.lib.eachDefaultSystem (
       system: let
         pkgs = nixpkgs.legacyPackages.${system};
-        devPackages = with pkgs; [
-          # Go toolchain
-          go
-          gopls
-          gotools
-          go-tools
+        profileLib = profile-lib.lib {inherit pkgs;};
 
-          # Additional tools
-          delve
-          golangci-lint
+        profileDefinitions = {
+          go = {
+            packages = with pkgs; [
+              go
+              gopls
+              gotools
+              go-tools
+              delve
+              golangci-lint
+            ];
 
-          # User packages
-        ];
-        containerPackages = with pkgs; [
-          bashInteractive
-          coreutils
-          findutils
-          gnugrep
-          git
-        ];
-        devEnv = {
-          LANG = "en_US.UTF-8";
-          LC_ALL = "en_US.UTF-8";
-        };
-        shellHook = ''
-          echo "🐹 Go development environment ready!"
-          echo "Go version: $(go version)"
-          source .flk/hooks.sh
+            envVars = {
+              LANG = "en_US.UTF-8";
+              LC_ALL = "en_US.UTF-8";
+            };
 
-          # Custom commands will be added here
-        '';
-      in {
-        devShells.default = pkgs.mkShell ({
-            packages = devPackages;
-            shellHook = shellHook;
-          }
-          // devEnv);
-        packages.docker = pkgs.dockerTools.buildLayeredImage {
-          name = "go-dev";
-          tag = "latest";
-          contents = devPackages ++ containerPackages;
-          config = {
-            Cmd = ["${pkgs.bashInteractive}/bin/bash"];
-            Env = pkgs.lib.mapAttrsToList (name: value: "${name}=${value}") devEnv;
-            WorkingDir = "/workspace";
+            shellHook = ''
+              echo "🐹 Go development environment ready!"
+              echo "Go version: $(go version)"
+
+              # Custom commands will be added here
+            '';
+
+            containerConfig = {
+              Cmd = ["${pkgs.bashInteractive}/bin/bash"];
+            };
           };
         };
-        packages.podman = pkgs.dockerTools.buildLayeredImage {
-          name = "go-dev";
-          tag = "latest";
-          contents = devPackages ++ containerPackages;
-          config = {
-            Cmd = ["${pkgs.bashInteractive}/bin/bash"];
-            Env = pkgs.lib.mapAttrsToList (name: value: "${name}=${value}") devEnv;
-            WorkingDir = "/workspace";
-          };
-        };
-      }
+      in
+        profileLib.mkProfileOutputs {
+          inherit profileDefinitions;
+          defaultShell = "go";
+          defaultImage = "go";
+        }
     );
 }
