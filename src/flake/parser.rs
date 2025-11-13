@@ -1,39 +1,41 @@
 use anyhow::{Context, Result};
 use std::fs;
 
-use crate::flake::interface::{EnvVar, FlakeConfig, Package};
+use crate::flake::interface::{EnvVar, FlakeConfig, Package, Profile};
 
-/// Parse a flake.nix file and extract its components
 pub fn parse_flake(path: &str) -> Result<FlakeConfig> {
     let content = fs::read_to_string(path).context("Failed to read flake.nix file")?;
-
-    let env_vars =
-        parse_env_vars_as_structs(&content).context("Failed to parse environment variables")?;
-    let shell_hook =
-        parse_shell_hook_content(&content).context("Failed to parse shellHook content")?;
 
     let profiles_list = list_profiles(&content).context("Failed to list profiles")?;
 
     let mut profiles = Vec::new();
     for profile_name in profiles_list {
-        let pkgs = parse_packages_from_profile(&content, Some(&profile_name)).context(format!(
-            "Failed to parse packages for profile '{}'",
-            profile_name
-        ))?;
-        profiles.push(pkgs);
+        let packages = parse_packages_from_profile(&content, Some(&profile_name))?;
+        let env_vars = parse_env_vars_from_profile(&content, Some(&profile_name))?;
+        let shell_hook =
+            parse_shell_hook_from_profile(&content, Some(&profile_name)).unwrap_or_default(); // Use empty string if no shell hook
+
+        let env_vars: Vec<EnvVar> = env_vars
+            .into_iter()
+            .map(|(name, value)| EnvVar::new(name, value))
+            .collect();
+
+        let mut profile = Profile::new(profile_name.clone());
+        profile.packages = packages;
+        profile.env_vars = env_vars;
+        profile.shell_hook = shell_hook;
+
+        profiles.push(profile);
     }
 
     let config = FlakeConfig {
         description: parse_description(&content),
         inputs: parse_inputs(&content),
         profiles,
-        env_vars,
-        shell_hook,
     };
 
     Ok(config)
 }
-
 /// Extract the description from the flake
 pub fn parse_description(content: &str) -> String {
     if let Some(start) = content.find("description = \"") {
@@ -229,11 +231,24 @@ pub fn list_profiles(content: &str) -> Result<Vec<String>> {
     let defs_content = &content[defs_start..defs_end];
     let mut profiles = Vec::new();
 
+    // Profile names should be simple identifiers at the right indentation level
+    let reserved = [
+        "packages",
+        "envVars",
+        "shellHook",
+        "containerConfig",
+        "scripts",
+    ];
+
     for line in defs_content.lines() {
         let trimmed = line.trim();
+        let indent = line.len() - trimmed.len();
+
         if let Some(eq_pos) = trimmed.find(" = {") {
             let name = trimmed[..eq_pos].trim();
-            if !name.is_empty() && name != "profileDefinitions" {
+
+            // Only top-level profiles (indent 8-12 spaces) and not reserved keywords
+            if !name.is_empty() && indent >= 8 && indent <= 12 && !reserved.contains(&name) {
                 profiles.push(name.to_string());
             }
         }
@@ -261,11 +276,6 @@ pub fn find_env_vars_in_profile(content: &str, profile_name: &str) -> Result<(us
     let section_start = profile_start + envvars_start + "envVars = {".len();
 
     Ok((section_start, envvars_end))
-}
-
-/// Parse environment variables from a specific profile
-pub fn parse_env_vars(content: &str) -> Result<Vec<(String, String)>> {
-    parse_env_vars_from_profile(content, None)
 }
 
 /// Parse environment variables from a specific profile (or first one if None)
@@ -308,16 +318,6 @@ pub fn parse_env_vars_from_profile(
     Ok(env_vars)
 }
 
-/// Parse environment variables as EnvVar structs
-fn parse_env_vars_as_structs(content: &str) -> Result<Vec<EnvVar>> {
-    let env_tuples = parse_env_vars(content)?;
-
-    Ok(env_tuples
-        .into_iter()
-        .map(|(name, value)| EnvVar::new(name, value))
-        .collect())
-}
-
 /// Find shellHook section within a profile
 pub fn find_shell_hook_in_profile(content: &str, profile_name: &str) -> Result<(usize, usize)> {
     let (profile_start, profile_end) = find_profile(content, profile_name)?;
@@ -340,11 +340,6 @@ pub fn find_shell_hook_in_profile(content: &str, profile_name: &str) -> Result<(
     let absolute_end = profile_start + search_start + shell_hook_end;
 
     Ok((absolute_start, absolute_end))
-}
-
-/// Extract the shellHook content from a profile
-fn parse_shell_hook_content(content: &str) -> Result<String> {
-    parse_shell_hook_from_profile(content, None)
 }
 
 /// Parse shellHook from a specific profile (or first one if None)
