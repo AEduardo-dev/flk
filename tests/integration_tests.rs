@@ -1,4 +1,4 @@
-use assert_cmd::cargo;
+use assert_cmd::{cargo, Command};
 use predicates::prelude::*;
 use predicates::str::contains;
 use std::fs;
