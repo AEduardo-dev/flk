@@ -578,9 +578,12 @@ fn indent_lines(text: &str, spaces: usize) -> String {
 // Command functions remain similar but need to target specific profiles
 // Keeping the old ones for now for backward compatibility
 
-pub fn find_command(flake_content: &str, name: &str) -> Option<(usize, usize)> {
+pub fn find_command(flake_content: &str, name: &str, profile_name: &str) -> Option<(usize, usize)> {
+    let (shell_hook_start, shell_hook_end) =
+        find_shell_hook_in_profile(flake_content, profile_name).ok()?;
     let marker = format!("# flk-command: {}", name);
-    let marker_start = flake_content.find(&marker)?;
+    let shell_hook_content = &flake_content[shell_hook_start..shell_hook_end];
+    let marker_start = shell_hook_content.find(&marker)? + shell_hook_start;
     let line_start = if marker_start > 0 {
         flake_content[..marker_start].rfind('\n').unwrap_or(0)
     } else {
@@ -627,9 +630,17 @@ pub fn add_command_to_shell_hook(
     Ok(result)
 }
 
-pub fn remove_command_from_shell_hook(flake_content: &str, name: &str) -> Result<String> {
-    let (line_start, end_point) =
-        find_command(flake_content, name).context("Command marker not found")?;
+pub fn remove_command_from_shell_hook(
+    flake_content: &str,
+    name: &str,
+    profile_name: Option<&str>,
+) -> Result<String> {
+    let profile_to_parse = match profile_name {
+        Some(name) => name.to_string(),
+        None => get_default_shell_profile(flake_content)?,
+    };
+    let (line_start, end_point) = find_command(flake_content, name, profile_to_parse.as_str())
+        .context("Command marker not found")?;
 
     let mut result = String::new();
     result.push_str(&flake_content[..line_start]);
