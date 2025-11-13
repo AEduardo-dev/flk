@@ -6,15 +6,34 @@ use std::fmt;
 pub struct FlakeConfig {
     pub description: String,
     pub inputs: Vec<String>,
-    pub profiles: Vec<Vec<Package>>,
+    pub profiles: Vec<Profile>,
+}
+
+/// Represents a profile in the flake
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Profile {
+    pub name: String,
+    pub packages: Vec<Package>,
     pub env_vars: Vec<EnvVar>,
     pub shell_hook: String,
 }
+
+impl Profile {
+    pub fn new(name: String) -> Self {
+        Self {
+            name,
+            packages: Vec::new(),
+            env_vars: Vec::new(),
+            shell_hook: String::new(),
+        }
+    }
+}
+
 /// Represents a package in the flake
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Package {
     pub name: String,
-    pub version: Option<String>, // For future version pinning support
+    pub version: Option<String>,
 }
 
 /// Represents an environment variable in the flake
@@ -40,7 +59,7 @@ impl Package {
     pub fn new(name: String) -> Self {
         Self {
             name,
-            version: "latest".to_string().into(),
+            version: Some("latest".to_string()),
         }
     }
 }
@@ -60,50 +79,123 @@ impl fmt::Display for Package {
     }
 }
 
+impl fmt::Display for Profile {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "{}", self.name.bold().magenta())?;
+
+        if !self.packages.is_empty() {
+            writeln!(
+                f,
+                "  {} {}",
+                "Packages:".dimmed(),
+                format!("({})", self.packages.len()).dimmed()
+            )?;
+            for pkg in &self.packages {
+                writeln!(f, "    {} {}", "•".green(), pkg)?;
+            }
+        }
+
+        if !self.env_vars.is_empty() {
+            writeln!(
+                f,
+                "  {} {}",
+                "Environment Variables:".dimmed(),
+                format!("({})", self.env_vars.len()).dimmed()
+            )?;
+            for env in &self.env_vars {
+                writeln!(f, "    {} {}", "•".green(), env)?;
+            }
+        }
+
+        if !self.shell_hook.is_empty() {
+            writeln!(f, "  {}", "Shell Hook:".dimmed())?;
+            // Show first 100 chars of shell hook
+            let preview = if self.shell_hook.len() > 100 {
+                format!("{}...", &self.shell_hook[..100])
+            } else {
+                self.shell_hook.clone()
+            };
+            writeln!(f, "    {}", preview.dimmed())?;
+        }
+
+        Ok(())
+    }
+}
+
 impl FlakeConfig {
-    /// Display just the profiles list (for `flk list`)
     pub fn display_packages(&self) {
         if self.profiles.is_empty() {
-            println!("{}", "No profiles installed".yellow());
+            println!("{}", "No profiles defined".yellow());
             return;
         }
 
         println!(
             "{} {}",
-            "Installed Packages:".bold().cyan(),
+            "Profiles:".bold().cyan(),
             format!("({})", self.profiles.len()).dimmed()
         );
         println!();
 
-        for (i, profile) in self.profiles.iter().enumerate() {
-            println!(
-                "  {}. {}",
-                (i + 1).to_string().dimmed(),
-                profile
-                    .iter()
-                    .map(|p| p.to_string())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            );
+        for profile in &self.profiles {
+            println!("{}", profile.name.bold().magenta());
+
+            if !profile.packages.is_empty() {
+                println!(
+                    "  {} {}",
+                    "Packages:".dimmed(),
+                    format!("({})", profile.packages.len()).dimmed()
+                );
+                for pkg in &profile.packages {
+                    println!("    {} {}", "•".green(), pkg);
+                }
+            } else {
+                println!("  {}", "No packages".dimmed());
+            }
+            println!();
         }
     }
 
     /// Display just the environment variables list (for `flk env list`)
     pub fn display_env_vars(&self) {
-        if self.env_vars.is_empty() {
-            println!("{}", "No environment variables set".yellow());
+        if self.profiles.is_empty() {
+            println!("{}", "No profiles defined".yellow());
             return;
         }
 
-        println!(
-            "{} {}",
-            "Environment Variables:".bold().cyan(),
-            format!("({})", self.env_vars.len()).dimmed()
-        );
+        println!("{}", "Environment Variables by Profile:".bold().cyan());
         println!();
 
-        for (i, env_var) in self.env_vars.iter().enumerate() {
-            println!("  {}. {}", (i + 1).to_string().dimmed(), env_var);
+        for profile in &self.profiles {
+            if !profile.env_vars.is_empty() {
+                println!(
+                    "{} {}",
+                    profile.name.bold().magenta(),
+                    format!("({})", profile.env_vars.len()).dimmed()
+                );
+                for env_var in &profile.env_vars {
+                    println!("  {} {}", "•".green(), env_var);
+                }
+                println!();
+            }
+        }
+    }
+
+    /// Display shell hooks by profile (for `flk hooks` or similar)
+    pub fn display_shell_hooks(&self) {
+        if self.profiles.is_empty() {
+            println!("{}", "No profiles defined".yellow());
+            return;
+        }
+
+        println!("{}", "Shell Hooks by Profile:".bold().cyan());
+        println!();
+
+        for profile in &self.profiles {
+            if !profile.shell_hook.is_empty() {
+                println!("{}", profile.name.bold().magenta());
+                println!("{}", profile.shell_hook.dimmed());
+                println!();
+            }
         }
     }
 }
@@ -131,41 +223,12 @@ impl fmt::Display for FlakeConfig {
             writeln!(
                 f,
                 "{} {}",
-                "Packages:".bold().yellow(),
+                "Profiles:".bold().yellow(),
                 format!("({})", self.profiles.len()).dimmed()
             )?;
-            for package in &self.profiles {
-                writeln!(
-                    f,
-                    "  {} {}",
-                    "•".green(),
-                    package
-                        .iter()
-                        .map(|p| p.to_string())
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                )?;
+            for profile in &self.profiles {
+                writeln!(f, "{}", profile)?;
             }
-            writeln!(f)?;
-        }
-
-        // Add this section for environment variables
-        if !self.env_vars.is_empty() {
-            writeln!(
-                f,
-                "{} {}",
-                "Environment Variables:".bold().yellow(),
-                format!("({})", self.env_vars.len()).dimmed()
-            )?;
-            for env_var in &self.env_vars {
-                writeln!(f, "  {} {}", "•".green(), env_var)?;
-            }
-            writeln!(f)?;
-        }
-
-        if !self.shell_hook.is_empty() {
-            writeln!(f, "{}", "Shell Hook:".bold().yellow())?;
-            writeln!(f, "{}", self.shell_hook.dimmed())?;
         }
 
         Ok(())
