@@ -7,9 +7,9 @@ mod nix;
 mod utils;
 
 use crate::commands::{
-    activate, add, add_command, completions, env,
+    activate, add, command, completions, env,
     export::{self, ExportType},
-    init, list, lock, remove, remove_command, search, show, update,
+    init, list, lock, remove, search, show, update,
 };
 
 #[derive(Parser)]
@@ -73,26 +73,6 @@ enum Commands {
     /// Remove a package from the flake.nix
     Remove { package: String },
 
-    /// Add a custom command to the dev shell
-    AddCommand {
-        /// Command name
-        name: String,
-
-        /// Command definition (bash code)
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        command: Vec<String>,
-
-        /// Source from a file instead
-        #[arg(short, long)]
-        file: Option<String>,
-    },
-
-    /// Remove a custom command from the dev shell
-    RemoveCommand {
-        /// Command name to remove
-        name: String,
-    },
-
     /// Update packages to latest version
     /// TODO: manage version pinning after implementing #7
     Update {
@@ -104,6 +84,11 @@ enum Commands {
         show: bool,
     },
 
+    /// Manage custom commands in the dev shell
+    Command {
+        #[command(subcommand)]
+        action: CommandAction,
+    },
     /// Manage environment variables in the dev shell
     Env {
         #[command(subcommand)]
@@ -135,6 +120,30 @@ enum Commands {
         #[arg(short, long)]
         format: ExportType,
     },
+}
+
+#[derive(Subcommand)]
+enum CommandAction {
+    /// Add a custom command to the dev shell
+    Add {
+        /// Command name
+        name: String,
+
+        /// Command definition (bash code)
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        command: Vec<String>,
+
+        /// Source from a file instead
+        #[arg(short, long)]
+        file: Option<String>,
+    },
+    /// Remove a custom command from the dev shell
+    Remove {
+        /// Command name to remove
+        name: String,
+    },
+    /// List all custom commands
+    List,
 }
 
 #[derive(Subcommand)]
@@ -195,20 +204,25 @@ async fn main() -> Result<()> {
         Commands::Remove { package } => {
             remove::run_remove(&package)?;
         }
-        Commands::AddCommand {
-            name,
-            command,
-            file,
-        } => {
-            let cmd = command.join(" ");
-            add_command::run(&name, &cmd, file)?;
-        }
-        Commands::RemoveCommand { name } => {
-            remove_command::run(&name)?;
-        }
         Commands::Update { packages, show } => {
             update::run_update(packages, show)?;
         }
+        Commands::Command { action } => match action {
+            CommandAction::Add {
+                name,
+                command,
+                file,
+            } => {
+                let cmd = command.join(" ");
+                command::run_add(&name, &cmd, file)?;
+            }
+            CommandAction::Remove { name } => {
+                command::run_remove(&name)?;
+            }
+            CommandAction::List => {
+                command::list()?;
+            }
+        },
         Commands::Env { action } => match action {
             EnvAction::Add { name, value } => {
                 env::add(&name, &value)?;
