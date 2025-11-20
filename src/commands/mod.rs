@@ -1,6 +1,6 @@
 pub mod activate;
 pub mod add;
-pub mod add_command;
+pub mod command;
 pub mod completions;
 pub mod env;
 pub mod export;
@@ -8,7 +8,6 @@ pub mod init;
 pub mod list;
 pub mod lock;
 pub mod remove;
-pub mod remove_command;
 pub mod search;
 pub mod show;
 pub mod update;

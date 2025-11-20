@@ -169,7 +169,8 @@ fn test_add_command_without_init() {
     let temp_dir = TempDir::new().unwrap();
     cargo::cargo_bin_cmd!("flk")
         .current_dir(temp_dir.path())
-        .arg("add-command")
+        .arg("command")
+        .arg("add")
         .arg("test")
         .arg("echo hello")
         .assert()
@@ -208,7 +209,8 @@ fn test_remove_command_without_init() {
     let temp_dir = TempDir::new().unwrap();
     cargo::cargo_bin_cmd!("flk")
         .current_dir(temp_dir.path())
-        .arg("remove-command")
+        .arg("command")
+        .arg("remove")
         .arg("test")
         .assert()
         .failure()
@@ -226,7 +228,8 @@ fn test_invalid_command_name() {
 
     cargo::cargo_bin_cmd!("flk")
         .current_dir(temp_dir.path())
-        .arg("add-command")
+        .arg("command")
+        .arg("add")
         .arg("\"-invalid-name\"")
         .arg("echo test")
         .assert()
