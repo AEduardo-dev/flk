@@ -31,6 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make changelog follow git-cliff format
 - Update lockfile
 ## [unreleased]
+## [0.3.0] - 2025-11-20
+
+### 🚀 Features
+
+- [**breaking**] #17 multi profile support ([#51](https://github.com/AEduardo-dev/flk/pull/51))
+- [**breaking**] Add split of commands ([#53](https://github.com/AEduardo-dev/flk/pull/53))
 ## [0.2.0] - 2025-11-12
 
 ### 🚀 Features
