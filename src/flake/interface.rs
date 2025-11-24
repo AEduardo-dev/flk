@@ -4,7 +4,6 @@ use std::fmt;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct FlakeConfig {
-    pub description: String,
     pub inputs: Vec<String>,
     pub profiles: Vec<Profile>,
 }
@@ -205,11 +204,6 @@ impl fmt::Display for FlakeConfig {
         writeln!(f, "{}", "Flake Configuration".bold().cyan())?;
         writeln!(f, "{}", "===================".cyan())?;
         writeln!(f)?;
-
-        if !self.description.is_empty() {
-            writeln!(f, "{} {}", "Description:".bold(), self.description)?;
-            writeln!(f)?;
-        }
 
         if !self.inputs.is_empty() {
             writeln!(f, "{}", "Inputs:".bold().yellow())?;
