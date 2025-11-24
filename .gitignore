@@ -23,5 +23,4 @@ result-*
 *.profraw
 
 # flk backup directory
-.flk/
 flake.json
