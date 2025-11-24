@@ -11,7 +11,7 @@ in
       profileDefinitions = builtins.listToAttrs (
         map (file: {
           name = pkgs.lib.removeSuffix ".nix" file;
-          value = import (./profiles + "/${file}") {inherit pkgs;};
+          value = import (./profiles + "/${file}") {inherit pkgs system;};
         })
         (builtins.filter
           (n: n != "default.nix" && pkgs.lib.hasSuffix ".nix" n)

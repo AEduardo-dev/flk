@@ -1,4 +1,7 @@
-{pkgs}: let
+{
+  pkgs,
+  system,
+}: let
   # Auto-import all .nix files in this directory
   entries = builtins.readDir ./.;
   nixFiles =
@@ -8,6 +11,6 @@
 in
   builtins.listToAttrs (map (file: {
       name = pkgs.lib.removeSuffix ".nix" file;
-      value = import (./${file}) {inherit pkgs;};
+      value = import (./${file}) {inherit pkgs system;};
     })
     nixFiles)
