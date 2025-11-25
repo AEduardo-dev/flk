@@ -91,19 +91,9 @@ fn find_matching_brace(
         match bytes[i] {
             c if c == open_char => {
                 depth += 1;
-                println!("Increased depth to {}", depth);
-                println!(
-                    "At position {} found opening char '{}'",
-                    i, open_char as char
-                );
             }
             c if c == close_char => {
                 depth -= 1;
-                println!("Decreased depth to {}", depth);
-                println!(
-                    "At position {} found closing char '{}'",
-                    i, close_char as char
-                );
                 if depth == 0 {
                     return Ok(i);
                 }
@@ -152,7 +142,7 @@ pub fn parse_packages_from_profile(
 
     let profile_to_parse = match profile_name {
         Some(name) => name.to_string(),
-        None => get_default_shell_profile(content)?,
+        None => get_default_shell_profile()?,
     };
 
     let (list_start, list_end, has_with_pkgs) =
@@ -183,8 +173,9 @@ pub fn parse_packages_from_profile(
     Ok(packages)
 }
 
-/// Get the default shell profile from flake.nix
-fn get_default_shell_profile(content: &str) -> Result<String> {
+/// Get the default shell profile from default.nix helper
+pub fn get_default_shell_profile() -> Result<String> {
+    let content = fs::read_to_string(".flk/default.nix").context("Failed to read flake.nix")?;
     if let Some(default_start) = content.find("defaultShell = \"") {
         let search_start = default_start + "defaultShell = \"".len();
         if let Some(end) = content[search_start..].find('"') {
@@ -195,7 +186,7 @@ fn get_default_shell_profile(content: &str) -> Result<String> {
     get_first_profile_name()
 }
 
-/// Get first profile name from profileDefinitions
+/// Get first profile name from pofiles directory
 fn get_first_profile_name() -> Result<String> {
     let profiles = list_profiles()?;
     if let Some(first_profile) = profiles.first() {
@@ -244,7 +235,7 @@ pub fn parse_env_vars_from_profile(
 
     let profile_to_parse = match profile_name {
         Some(name) => name.to_string(),
-        None => get_default_shell_profile(content)?,
+        None => get_default_shell_profile()?,
     };
 
     let (envvars_start, envvars_end) = match find_env_vars_in_profile(content, &profile_to_parse) {
@@ -300,7 +291,7 @@ pub fn find_shell_hook_in_profile(content: &str, profile_name: &str) -> Result<(
 pub fn parse_shell_hook_from_profile(content: &str, profile_name: Option<&str>) -> Result<String> {
     let profile_to_parse = match profile_name {
         Some(name) => name.to_string(),
-        None => get_default_shell_profile(content)?,
+        None => get_default_shell_profile()?,
     };
 
     let (shell_hook_start, shell_hook_end) =
@@ -316,7 +307,7 @@ pub fn parse_shell_hook_from_profile(content: &str, profile_name: Option<&str>) 
 pub fn package_exists(content: &str, package: &str, profile_name: Option<&str>) -> Result<bool> {
     let profile_to_parse = match profile_name {
         Some(name) => name.to_string(),
-        None => get_default_shell_profile(content)?,
+        None => get_default_shell_profile()?,
     };
     let (start, end, _) = find_packages_in_profile(content, profile_to_parse.as_str())?;
     let packages_content = &content[start..end];
@@ -339,7 +330,7 @@ pub fn add_package_to_profile(
 ) -> Result<String> {
     let profile_to_parse = match profile_name {
         Some(name) => name.to_string(),
-        None => get_default_shell_profile(content)?,
+        None => get_default_shell_profile()?,
     };
     let (list_start, list_end, has_with_pkgs) =
         find_packages_in_profile(content, profile_to_parse.as_str())?;
@@ -370,7 +361,7 @@ pub fn remove_package_from_profile(
 ) -> Result<String> {
     let profile_to_parse = match profile_name {
         Some(name) => name.to_string(),
-        None => get_default_shell_profile(content)?,
+        None => get_default_shell_profile()?,
     };
     let (list_start, list_end, has_with_pkgs) =
         find_packages_in_profile(content, profile_to_parse.as_str())?;
@@ -429,7 +420,7 @@ pub fn add_env_var_to_profile(
 ) -> Result<String> {
     let profile_to_parse = match profile_name {
         Some(name) => name.to_string(),
-        None => get_default_shell_profile(content)?,
+        None => get_default_shell_profile()?,
     };
 
     env_var_exists(content, name, profile_to_parse.as_str())
@@ -456,7 +447,7 @@ pub fn remove_env_var_from_profile(
 ) -> Result<String> {
     let profile_to_parse = match profile_name {
         Some(name) => name.to_string(),
-        None => get_default_shell_profile(flake_content)?,
+        None => get_default_shell_profile()?,
     };
     let (envvars_start, envvars_end) =
         match find_env_vars_in_profile(flake_content, profile_to_parse.as_str()) {
@@ -538,7 +529,7 @@ pub fn add_command_to_shell_hook(
 ) -> Result<String> {
     let profile_to_parse = match profile_name {
         Some(name) => name.to_string(),
-        None => get_default_shell_profile(content)?,
+        None => get_default_shell_profile()?,
     };
     let (_, insertion_point) = find_shell_hook_in_profile(content, profile_to_parse.as_str())?;
 
@@ -567,7 +558,7 @@ pub fn remove_command_from_shell_hook(
 ) -> Result<String> {
     let profile_to_parse = match profile_name {
         Some(name) => name.to_string(),
-        None => get_default_shell_profile(content)?,
+        None => get_default_shell_profile()?,
     };
     let (line_start, end_point) = find_command(content, name, profile_to_parse.as_str())
         .context("Command marker not found")?;
