@@ -130,6 +130,12 @@ fn test_show_flake() {
         .arg("init")
         .assert()
         .success();
+    // Create necessary directories in temp dir
+    fs::create_dir_all(temp_dir.path().join("profiles")).unwrap();
+    // Create a dummy profile copying python template
+    fs::read_to_string("templates/profiles/python.nix")
+        .and_then(|content| fs::write(temp_dir.path().join("profiles/python.nix"), content))
+        .unwrap();
 
     cargo::cargo_bin_cmd!("flk")
         .current_dir(temp_dir.path())
