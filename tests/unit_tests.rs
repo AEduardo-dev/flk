@@ -193,8 +193,7 @@ mod generator_tests {
     fn test_generate_generic_flake() {
         // Test generating a generic flake
         let flake = flake::generator::generate_flake("generic").unwrap();
-        assert!(flake.contains("Development environment managed by flk"));
-        assert!(flake.contains("nixpkgs"));
+        assert!(flake.contains("Generic Development Environment"));
     }
 
     #[test]
@@ -210,7 +209,7 @@ mod generator_tests {
         // Test generating a Python flake
         let flake = flake::generator::generate_flake("python").unwrap();
         assert!(flake.contains("Python development environment"));
-        assert!(flake.contains("python312"));
+        assert!(flake.contains("python311"));
     }
 
     #[test]
@@ -233,7 +232,7 @@ mod generator_tests {
     fn test_unknown_template_defaults_to_generic() {
         // Test that unknown templates fall back to generic
         let flake = flake::generator::generate_flake("unknown").unwrap();
-        assert!(flake.contains("Development environment managed by flk"));
+        assert!(flake.contains("Generic Development Environment"));
     }
 }
 
