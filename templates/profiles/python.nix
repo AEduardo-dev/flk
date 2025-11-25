@@ -1,10 +1,12 @@
 {pkgs}: let
 in {
+  description = "Python development environment";
+
   packages = with pkgs; [
     poetry
-    python312
-    python312Packages.pip
-    python312Packages.virtualenv
+    python311
+    python311Packages.pip
+    python311Packages.virtualenv
     black
     pyright
     mypy

@@ -1,5 +1,7 @@
 {pkgs}: let
 in {
+  description = "Generic Development Environment";
+
   packages = with pkgs; [
     # User packages
   ];
