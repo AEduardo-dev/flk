@@ -7,14 +7,11 @@ use crate::flake::parser;
 
 /// Add an environment variable to the dev shell
 pub fn add(name: &str, value: &str) -> Result<()> {
-    let flake_path = Path::new("flake.nix");
-
-    if !flake_path.exists() {
-        bail!(
-            "No flake.nix found in current directory. Run {} first.",
-            "flk init".yellow()
-        );
-    }
+    let flake_path = Path::new(".flk/profiles/").join(format!(
+        "{}.nix",
+        parser::get_default_shell_profile()
+            .context("Could not find default shell profile (flake.nix)")?
+    ));
 
     // Validate variable name
     if name.trim().is_empty() {
@@ -36,7 +33,7 @@ pub fn add(name: &str, value: &str) -> Result<()> {
     );
 
     // Read the current flake.nix
-    let flake_content = fs::read_to_string(flake_path).context("Failed to read flake.nix")?;
+    let flake_content = fs::read_to_string(&flake_path).context("Failed to read flake.nix")?;
 
     // Add the environment variable to shellHook
     let updated_content = parser::add_env_var_to_profile(&flake_content, name, value, None)?;
@@ -58,14 +55,11 @@ pub fn add(name: &str, value: &str) -> Result<()> {
 
 /// Remove an environment variable from the dev shell
 pub fn remove(name: &str) -> Result<()> {
-    let flake_path = Path::new("flake.nix");
-
-    if !flake_path.exists() {
-        bail!(
-            "No flake.nix found in current directory. Run {} first.",
-            "flk init".yellow()
-        );
-    }
+    let flake_path = Path::new(".flk/profiles/").join(format!(
+        "{}.nix",
+        parser::get_default_shell_profile()
+            .context("Could not find default shell profile (flake.nix)")?
+    ));
 
     println!(
         "{} Removing environment variable: {}",
@@ -74,7 +68,7 @@ pub fn remove(name: &str) -> Result<()> {
     );
 
     // Read the current flake.nix
-    let flake_content = fs::read_to_string(flake_path).context("Failed to read flake.nix")?;
+    let flake_content = fs::read_to_string(&flake_path).context("Failed to read flake.nix")?;
 
     // Check if variable exists
 

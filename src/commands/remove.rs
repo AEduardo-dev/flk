@@ -6,20 +6,17 @@ use std::path::Path;
 use crate::flake::parser;
 
 pub fn run_remove(package: &str) -> Result<()> {
-    let flake_path = Path::new("flake.nix");
-
-    if !flake_path.exists() {
-        bail!(
-            "No flake.nix found in current directory. Run {} first if not initialized yet.",
-            "flk init".yellow()
-        );
-    }
+    let flake_path = Path::new(".flk/profiles/").join(format!(
+        "{}.nix",
+        parser::get_default_shell_profile()
+            .context("Could not find default shell profile (flake.nix)")?
+    ));
 
     if package.trim().is_empty() {
         bail!("Package name cannot be empty!");
     }
 
-    let flake_content = fs::read_to_string(flake_path).context("Failed to read flake.nix")?;
+    let flake_content = fs::read_to_string(&flake_path).context("Failed to read flake.nix")?;
 
     if !parser::package_exists(&flake_content, package, None)? {
         bail!(

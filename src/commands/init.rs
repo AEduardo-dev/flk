@@ -1,6 +1,5 @@
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
-use flk::flake::generator::generate_flake;
 use std::fs;
 use std::path::Path;
 
