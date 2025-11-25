@@ -1,5 +1,7 @@
 {pkgs}: let
 in {
+  description = "Node.js development environment";
+
   packages = with pkgs; [
     nodejs_20
     nodePackages.npm

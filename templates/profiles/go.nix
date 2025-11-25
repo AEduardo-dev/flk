@@ -1,6 +1,7 @@
-{
 {pkgs}: let
 in {
+  description = "Go development environment";
+
   packages = with pkgs; [
     go
     gopls

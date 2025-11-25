@@ -65,12 +65,6 @@ mod parser_tests {
     "#;
 
     #[test]
-    fn test_parse_description() {
-        let description = flake::parser::parse_description(&CONTENT);
-        assert_eq!(description, "Test flake description");
-    }
-
-    #[test]
     fn test_package_exists() {
         // Test that package_exists correctly identifies packages
         let exists = flake::parser::package_exists(CONTENT, "git", None).unwrap();
@@ -264,7 +258,6 @@ mod interface_tests {
     #[test]
     fn test_flake_config_default() {
         let config = FlakeConfig::default();
-        assert!(config.description.is_empty());
         assert!(config.inputs.is_empty());
         assert!(config.profiles.is_empty());
     }

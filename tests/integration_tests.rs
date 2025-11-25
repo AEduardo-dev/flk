@@ -32,14 +32,16 @@ fn test_init_without_template() {
         .arg("init")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Created flake.nix successfully!"));
+        .stdout(predicate::str::contains(
+            "Created flk environment successfully!",
+        ));
 
     // Check that flake.nix was created
-    let flake_path = temp_dir.path().join("flake.nix");
+    let flake_path = temp_dir.path().join(".flk/profiles/generic.nix");
     assert!(flake_path.exists());
 
     let content = fs::read_to_string(flake_path).unwrap();
-    assert!(content.contains("description = \"Development environment managed by flk\""));
+    assert!(content.contains("description = \"Generic Development Environment\""));
 }
 
 #[test]
@@ -56,7 +58,7 @@ fn test_init_with_rust_template() {
             "Initializing flake for rust project",
         ));
 
-    let flake_path = temp_dir.path().join("flake.nix");
+    let flake_path = temp_dir.path().join(".flk/profiles/rust.nix");
     let content = fs::read_to_string(flake_path).unwrap();
     assert!(content.contains("Rust development environment"));
     assert!(content.contains("rust-bin.stable.latest.default"));
@@ -71,12 +73,21 @@ fn test_init_with_python_template() {
         .arg("--template")
         .arg("python")
         .assert()
-        .success();
+        .success()
+        .stdout(predicate::str::contains(
+            "Initializing flake for python project",
+        ));
 
-    let flake_path = temp_dir.path().join("flake.nix");
+    // Print the temp dir content for debugging
+    let entries = fs::read_dir(temp_dir.path().join(".flk/profiles")).unwrap();
+    for entry in entries {
+        let entry = entry.unwrap();
+        println!("Entry: {:?}", entry.path());
+    }
+    let flake_path = temp_dir.path().join(".flk/profiles/python.nix");
     let content = fs::read_to_string(flake_path).unwrap();
     assert!(content.contains("Python development environment"));
-    assert!(content.contains("python312"));
+    assert!(content.contains("python311"));
 }
 
 #[test]
@@ -283,7 +294,7 @@ fn test_auto_detect_rust_project() {
         .success()
         .stdout(predicate::str::contains("Detected Rust project"));
 
-    let flake_path = temp_dir.path().join("flake.nix");
+    let flake_path = temp_dir.path().join(".flk/profiles/rust.nix");
     let content = fs::read_to_string(flake_path).unwrap();
     assert!(content.contains("Rust development environment"));
 }
@@ -302,7 +313,7 @@ fn test_auto_detect_python_project() {
         .success()
         .stdout(predicate::str::contains("Detected Python project"));
 
-    let flake_path = temp_dir.path().join("flake.nix");
+    let flake_path = temp_dir.path().join(".flk/profiles/python.nix");
     let content = fs::read_to_string(flake_path).unwrap();
     assert!(content.contains("Python development environment"));
 }
@@ -321,7 +332,7 @@ fn test_auto_detect_node_project() {
         .success()
         .stdout(predicate::str::contains("Detected Node.js project"));
 
-    let flake_path = temp_dir.path().join("flake.nix");
+    let flake_path = temp_dir.path().join(".flk/profiles/node.nix");
     let content = fs::read_to_string(flake_path).unwrap();
     assert!(content.contains("Node.js development environment"));
 }
@@ -340,7 +351,7 @@ fn test_auto_detect_go_project() {
         .success()
         .stdout(predicate::str::contains("Detected Go project"));
 
-    let flake_path = temp_dir.path().join("flake.nix");
+    let flake_path = temp_dir.path().join(".flk/profiles/go.nix");
     let content = fs::read_to_string(flake_path).unwrap();
     assert!(content.contains("Go development environment"));
 }
