@@ -1,20 +1,22 @@
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
-use std::fs;
-use std::path::Path;
+use flk::flake::parser;
+use std::{fs, path};
 
-use crate::flake::parser;
+use crate::flake::parser::get_default_shell_profile;
 use crate::nix::run_nix_command;
 
 pub fn run_add(package: &str, version: Option<String>) -> Result<()> {
-    let flake_path = Path::new("flake.nix");
-
-    if !flake_path.exists() {
-        bail!(
-            "No flake.nix found in current directory. Run {} first if not initialized yet.",
-            "flk init".yellow()
-        );
-    }
+    let flake_path = path::Path::new(".flk/profiles/").join(format!(
+        "{}.nix",
+        get_default_shell_profile().context("Could not find default shell profile (flake.nix)")?
+    ));
+    let flake_content = fs::read_to_string(&flake_path).with_context(|| {
+        format!(
+            "Failed to read flake file at {}",
+            flake_path.to_str().unwrap()
+        )
+    })?;
 
     // Validate package name
     if package.trim().is_empty() {
@@ -38,9 +40,6 @@ pub fn run_add(package: &str, version: Option<String>) -> Result<()> {
         println!("{} Adding package: {}", "→".blue().bold(), package.green());
         package.to_string()
     };
-
-    // Read the current flake.nix
-    let flake_content = fs::read_to_string(flake_path).context("Failed to read flake.nix")?;
 
     // Check if package already exists
     if parser::package_exists(&flake_content, &package_to_add, None)? {
