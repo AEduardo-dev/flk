@@ -6,11 +6,11 @@ use std::path::Path;
 use crate::flake::parser;
 
 pub fn run_add(name: &str, command: &str, file: Option<String>) -> Result<()> {
-    let flake_path = Path::new("flake.nix");
-
-    if !flake_path.exists() {
-        bail!("No flake.nix found. Run {} first.", "flk init".yellow());
-    }
+    let flake_path = Path::new(".flk/profiles/").join(format!(
+        "{}.nix",
+        parser::get_default_shell_profile()
+            .context("Could not find default shell profile (flake.nix)")?
+    ));
 
     // Validate command name
     if !is_valid_command_name(name) {
@@ -35,7 +35,7 @@ pub fn run_add(name: &str, command: &str, file: Option<String>) -> Result<()> {
     }
 
     // Read the current flake.nix
-    let flake_content = fs::read_to_string(flake_path).context("Failed to read flake.nix")?;
+    let flake_content = fs::read_to_string(&flake_path).context("Failed to read flake.nix")?;
 
     // Check if command already exists
     if parser::command_exists(&flake_content, name) {

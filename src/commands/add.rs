@@ -61,7 +61,7 @@ pub fn run_add(package: &str, version: Option<String>) -> Result<()> {
         package_to_add
     );
     println!("\n{}", "Next steps:".bold());
-    println!("  1. Run {} to update your shell", "nix develop".cyan());
+    println!("  1. Run {} to update your shell", "refresh".cyan());
     println!("  2. The package will be available in your environment");
 
     Ok(())
