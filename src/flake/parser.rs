@@ -4,9 +4,8 @@ use std::{fs, path::PathBuf};
 
 use crate::flake::interface::{EnvVar, FlakeConfig, Package, Profile};
 
-// TODO: fix typing
-const INDENT_IN: &str = " ".repeat(4).as_str();
-const INDENT_OUT: &str = " ".repeat(2).as_str();
+const INDENT_IN: &str = "    "; // 4 spaces
+const INDENT_OUT: &str = "  "; // 2 spaces
 
 pub fn parse_flake(path: &str) -> Result<FlakeConfig> {
     let content = fs::read_to_string(path).context("Failed to read flake.nix file")?;
@@ -180,10 +179,11 @@ fn get_first_profile_name() -> Result<String> {
 
 /// List all profile names
 pub fn list_profiles() -> Result<Vec<PathBuf>> {
-    Ok(std::fs::read_dir("./profiles")
+    Ok(std::fs::read_dir(".flk/profiles")
         .unwrap()
         .filter_map(|e| e.ok())
         .filter(|e| e.path().extension() == Some(&OsStr::from("nix")))
+        .filter(|e| e.path().file_name() != Some(&OsStr::from("default.nix")))
         .map(|e| e.path())
         .collect())
 }
@@ -492,8 +492,8 @@ pub fn find_command(content: &str, name: &str, profile_name: &str) -> Option<(us
         0
     };
     let search_start = marker_start + marker.len();
-    let function_end = content[search_start..].find(format!("{}}}\n", INDENT_IN))?;
-    let end_point = search_start + function_end + format!("{}}}\n", INDENT_IN).len();
+    let function_end = content[search_start..].find(&format!("{}}}\n", &*INDENT_IN))?;
+    let end_point = search_start + function_end + format!("{}}}\n", &*INDENT_IN).len();
     Some((line_start, end_point))
 }
 
