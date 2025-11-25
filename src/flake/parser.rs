@@ -14,11 +14,19 @@ pub fn parse_flake(path: &str) -> Result<FlakeConfig> {
 
     let mut profiles = Vec::new();
     for profile_path in profiles_list {
-        let profile_data = profile_path.to_str().unwrap();
-        let packages = parse_packages_from_profile(&content, Some(&profile_data))?;
-        let env_vars = parse_env_vars_from_profile(&content, Some(&profile_data))?;
+        let profile_data = fs::read_to_string(&profile_path).with_context(|| {
+            format!(
+                "Failed to read profile file: {}",
+                profile_path.to_string_lossy()
+            )
+        })?;
+        let packages =
+            parse_packages_from_profile(&profile_data, Some(profile_path.to_str().unwrap()))?;
+        let env_vars =
+            parse_env_vars_from_profile(&profile_data, Some(profile_path.to_str().unwrap()))?;
         let shell_hook =
-            parse_shell_hook_from_profile(&content, Some(&profile_data)).unwrap_or_default(); // Use empty string if no shell hook
+            parse_shell_hook_from_profile(&profile_data, Some(profile_path.to_str().unwrap()))
+                .unwrap_or_default(); // Use empty string if no shell hook
 
         let env_vars: Vec<EnvVar> = env_vars
             .into_iter()
@@ -26,6 +34,11 @@ pub fn parse_flake(path: &str) -> Result<FlakeConfig> {
             .collect();
 
         let mut profile = Profile::new(profile_data.to_string().clone());
+        profile.name = profile_path
+            .file_stem()
+            .unwrap()
+            .to_string_lossy()
+            .to_string();
         profile.packages = packages;
         profile.env_vars = env_vars;
         profile.shell_hook = shell_hook;
@@ -66,15 +79,31 @@ fn parse_inputs(content: &str) -> Vec<String> {
 }
 
 /// Find matching closing brace for an opening brace
-fn find_matching_brace(content: &str, start: usize) -> Result<usize> {
+fn find_matching_brace(
+    content: &str,
+    start: usize,
+    open_char: u8,
+    close_char: u8,
+) -> Result<usize> {
     let mut depth = 0;
     let bytes = content.as_bytes();
-
     for (i, _) in bytes.iter().enumerate().skip(start) {
         match bytes[i] {
-            b'{' => depth += 1,
-            b'}' => {
+            c if c == open_char => {
+                depth += 1;
+                println!("Increased depth to {}", depth);
+                println!(
+                    "At position {} found opening char '{}'",
+                    i, open_char as char
+                );
+            }
+            c if c == close_char => {
                 depth -= 1;
+                println!("Decreased depth to {}", depth);
+                println!(
+                    "At position {} found closing char '{}'",
+                    i, close_char as char
+                );
                 if depth == 0 {
                     return Ok(i);
                 }
@@ -82,14 +111,14 @@ fn find_matching_brace(content: &str, start: usize) -> Result<usize> {
             _ => {}
         }
     }
-
     Err(anyhow::anyhow!("No matching closing brace found"))
 }
 
 /// Find packages section within a profile
 pub fn find_packages_in_profile(content: &str, profile_name: &str) -> Result<(usize, usize, bool)> {
     // Look for "packages = with pkgs; [" or "packages = ["
-    let (packages_start, has_with_pkgs) = if let Some(pos) = content.find("packages = with ") {
+
+    let (packages_start, has_with_pkgs) = if let Some(pos) = content.find("packages = with") {
         (pos, true)
     } else if let Some(pos) = content.find("packages =") {
         (pos, false)
@@ -104,12 +133,12 @@ pub fn find_packages_in_profile(content: &str, profile_name: &str) -> Result<(us
         .find('[')
         .context("Could not find opening bracket for packages")?;
 
-    let list_start = packages_start + bracket_pos + 1;
+    let list_start = packages_start + bracket_pos;
 
-    let closing_bracket = find_matching_brace(&content, packages_start + bracket_pos)
+    let closing_bracket = find_matching_brace(&content, list_start, b'[', b']')
         .context("Could not find closing bracket for packages")?;
 
-    let list_end = packages_start + bracket_pos + closing_bracket;
+    let list_end = closing_bracket;
 
     Ok((list_start, list_end, has_with_pkgs))
 }
@@ -136,7 +165,7 @@ pub fn parse_packages_from_profile(
 
     for line in packages_content.lines() {
         let trimmed = line.trim();
-        if trimmed.is_empty() || trimmed.starts_with('#') {
+        if trimmed.is_empty() || trimmed.starts_with('#') || trimmed == "[" || trimmed == "]" {
             continue;
         }
 
@@ -195,10 +224,10 @@ pub fn find_env_vars_in_profile(content: &str, profile_name: &str) -> Result<(us
         profile_name
     ))?;
 
-    let brace_start = envvars_start + "envVars = {".len() - 1;
+    let brace_start = envvars_start + "envVars = ".len();
     let search_start = brace_start;
 
-    let envvars_end = find_matching_brace(content, search_start)
+    let envvars_end = find_matching_brace(content, search_start, b'{', b'}')
         .context("Could not find closing brace for envVars")?;
 
     let section_start = envvars_start + "envVars = {".len();
