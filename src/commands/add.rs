@@ -5,6 +5,7 @@ use std::{fs, path};
 
 use crate::flake::parser::get_default_shell_profile;
 use crate::nix::run_nix_command;
+use crate::utils::visual::with_spinner;
 
 pub fn run_add(package: &str, version: Option<String>) -> Result<()> {
     let flake_path = path::Path::new(".flk/profiles/").join(format!(
@@ -23,7 +24,9 @@ pub fn run_add(package: &str, version: Option<String>) -> Result<()> {
         bail!("Package name cannot be empty");
     }
 
-    let _ = validate_package_exists(package);
+    let _ = with_spinner("Validating package...", || {
+        validate_package_exists(package).context("Failed to execute nix search. Is nix installed?")
+    })?;
 
     let package_to_add = if let Some(ver) = version {
         println!(
