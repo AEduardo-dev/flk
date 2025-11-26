@@ -3,7 +3,7 @@ use colored::Colorize;
 use flk::flake::parser;
 use std::{fs, path};
 
-use crate::flake::parser::get_default_shell_profile;
+use crate::flake::parser::{add_package_to_profile, get_default_shell_profile};
 use crate::nix::run_nix_command;
 use crate::utils::visual::with_spinner;
 
@@ -53,7 +53,7 @@ pub fn run_add(package: &str, version: Option<String>) -> Result<()> {
     }
 
     // Add the package to buildInputs
-    let updated_content = parser::add_package_to_profile(&flake_content, &package_to_add, None)?;
+    let updated_content = add_package_to_profile(&flake_content, &package_to_add, None)?;
 
     // Write back to file
     fs::write(flake_path, updated_content).context("Failed to write flake.nix")?;

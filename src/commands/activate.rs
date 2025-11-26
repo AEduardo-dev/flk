@@ -48,6 +48,7 @@ pub fn run_activate() -> Result<()> {
             continue;
         }
 
+        // Backward compatibility for exit codes
         match status.code() {
             Some(100) => {
                 // Backward compatibility for exit code 100
@@ -70,4 +71,3 @@ pub fn run_activate() -> Result<()> {
     }
     Ok(())
 }
-
