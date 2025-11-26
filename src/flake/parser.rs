@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use clap::builder::OsStr;
+use colored::Colorize;
 use std::{fs, path::PathBuf};
 
 use crate::flake::interface::{EnvVar, FlakeConfig, Package, Profile};
@@ -222,8 +223,9 @@ pub fn find_env_vars_in_profile(content: &str, profile_name: &str) -> Result<(us
         .context("Could not find closing brace for envVars")?;
 
     let section_start = envvars_start + "envVars = {".len();
+    let section_end = envvars_end - INDENT_OUT.len();
 
-    Ok((section_start, envvars_end))
+    Ok((section_start, section_end))
 }
 
 /// Parse environment variables from a specific profile (or first one if None)
@@ -418,8 +420,16 @@ pub fn add_env_var_to_profile(
         None => get_default_shell_profile()?,
     };
 
-    env_var_exists(content, name, profile_to_parse.as_str())
-        .context("Environtment variable already exists")?;
+    if env_var_exists(content, name, profile_to_parse.as_str())? {
+        println!(
+            "Environment variable '{}' already exists in profile '{}'",
+            name.cyan(),
+            profile_to_parse.yellow()
+        );
+        println!("Skipping addition.");
+        return Ok(content.to_string());
+    }
+
     let (_, insertion_point) = find_env_vars_in_profile(content, profile_to_parse.as_str())?;
 
     let escaped_value = value.replace('"', "\\\"");
@@ -428,8 +438,13 @@ pub fn add_env_var_to_profile(
     let mut result = String::new();
     result.push_str(&content[..insertion_point]);
     result.push_str(&env_block);
-    result.push_str(indent_lines("    }", 0).as_str());
-    result.push_str(&content[insertion_point + 5..]);
+    result.push_str(&content[insertion_point..]);
+
+    println!(
+        "{} Environment variable '{}' added successfully!",
+        "✓".green().bold(),
+        name
+    );
 
     Ok(result)
 }
@@ -450,10 +465,6 @@ pub fn remove_env_var_from_profile(
             Err(_) => return Ok(flake_content.to_string()),
         };
 
-    if !env_var_exists(flake_content, name, profile_to_parse.as_str())? {
-        return Ok(flake_content.to_string());
-    }
-
     let envvars_content = &flake_content[envvars_start..envvars_end];
     let var_pattern = format!("{} = ", name);
 
@@ -473,6 +484,12 @@ pub fn remove_env_var_from_profile(
     let mut result = String::new();
     result.push_str(&flake_content[..absolute_var_start]);
     result.push_str(&flake_content[absolute_var_end..]);
+
+    println!(
+        "{} Environment variable '{}' removed successfully!",
+        "✓".green().bold(),
+        name
+    );
 
     Ok(result)
 }
@@ -526,7 +543,9 @@ pub fn add_command_to_shell_hook(
         Some(name) => name.to_string(),
         None => get_default_shell_profile()?,
     };
-    let (_, insertion_point) = find_shell_hook_in_profile(content, profile_to_parse.as_str())?;
+    let (_, shell_hook_end) = find_shell_hook_in_profile(content, profile_to_parse.as_str())?;
+
+    let insertion_point = shell_hook_end - INDENT_OUT.len();
 
     let command_block = format!(
         "\n{}{}\n{} () {{\n{}\n{}\n",
@@ -540,8 +559,7 @@ pub fn add_command_to_shell_hook(
     let mut result = String::new();
     result.push_str(&content[..insertion_point]);
     result.push_str(&command_block);
-    result.push_str(indent_lines("'';", INDENT_OUT.len()).as_str());
-    result.push_str(&content[insertion_point + 3..]);
+    result.push_str(&content[insertion_point..]);
 
     Ok(result)
 }
