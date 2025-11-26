@@ -3,6 +3,8 @@ use anyhow::{Ok, Result};
 const ROOT_FLAKE_TEMPLATE: &str = include_str!("../../templates/flake.nix");
 const HELPER_TEMPLATE: &str = include_str!("../../templates/default.nix");
 const IMPORTER_TEMPLATE: &str = include_str!("../../templates/profiles/default.nix");
+const OVERLAYS_TEMPLATE: &str = include_str!("../../templates/overlays.nix");
+const PINS_TEMPLATE: &str = include_str!("../../templates/pins.nix");
 
 const GENERIC_TEMPLATE: &str = include_str!("../../templates/profiles/base.nix");
 const RUST_TEMPLATE: &str = include_str!("../../templates/profiles/rust.nix");
@@ -32,4 +34,12 @@ pub fn generate_flake(project_type: &str) -> Result<String> {
     };
 
     Ok(template.to_string())
+}
+
+pub fn generate_overlays() -> Result<String> {
+    Ok(OVERLAYS_TEMPLATE.to_string())
+}
+
+pub fn generate_pins() -> Result<String> {
+    Ok(PINS_TEMPLATE.to_string())
 }

@@ -1,17 +1,9 @@
 {
   pkgs,
   system,
-}: let
-  # Profile fetches the overlay itself
-  rust-overlay = builtins.fetchTarball "https://github.com/oxalica/rust-overlay/archive/master.tar.gz";
-
-  pkgsWithRust = import pkgs.path {
-    inherit system;
-    overlays = [(import rust-overlay)];
-  };
-in {
-  packages = with pkgsWithRust; [
-    rust-bin.stable.latest.default
+}: {
+  packages = with pkgs; [
+    rust-bin.stable.latest.default # From rust-overlay
     rust-analyzer
     pkg-config
     openssl
@@ -30,6 +22,6 @@ in {
   '';
 
   containerConfig = {
-    Cmd = ["${pkgsWithRust.bashInteractive}/bin/bash"];
+    Cmd = ["${pkgs.bashInteractive}/bin/bash"];
   };
 }

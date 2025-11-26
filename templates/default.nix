@@ -1,10 +1,9 @@
-# .flk/default.nix
 inputs: let
   inherit (inputs) flake-utils nixpkgs profile-lib;
 in
   flake-utils.lib.eachDefaultSystem (
     system: let
-      overlays = import ./overlays.nix;
+      overlays = import ./overlays.nix {inherit system;};
 
       pkgs = import nixpkgs {
         inherit system overlays;
@@ -12,7 +11,6 @@ in
 
       profileLib = profile-lib.lib {inherit pkgs;};
 
-      # Auto-import all profiles from .flk/profiles/
       profileFiles = builtins.readDir ./profiles;
       profileDefinitions = builtins.listToAttrs (
         map (file: {
