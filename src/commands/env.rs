@@ -12,6 +12,8 @@ pub fn add(name: &str, value: &str) -> Result<()> {
         parser::get_default_shell_profile()
             .context("Could not find default shell profile (flake.nix)")?
     ));
+    let profile_to_parse = parser::get_default_shell_profile()
+        .context("Could not find default shell profile (flake.nix)")?;
 
     // Validate variable name
     if name.trim().is_empty() {
@@ -35,17 +37,20 @@ pub fn add(name: &str, value: &str) -> Result<()> {
     // Read the current flake.nix
     let flake_content = fs::read_to_string(&flake_path).context("Failed to read flake.nix")?;
 
+    if parser::env_var_exists(&flake_content, name, profile_to_parse.as_str())? {
+        bail!(
+            "Environment variable '{}' already exists in profile '{}'",
+            name.cyan(),
+            profile_to_parse.yellow()
+        );
+    }
+
     // Add the environment variable to shellHook
     let updated_content = parser::add_env_var_to_profile(&flake_content, name, value, None)?;
 
     // Write back to file
     fs::write(flake_path, updated_content).context("Failed to write flake.nix")?;
 
-    println!(
-        "{} Environment variable '{}' added successfully!",
-        "✓".green().bold(),
-        name
-    );
     println!("\n{}", "Next steps:".bold());
     println!("  1. Run {} to update your shell", "nix develop".cyan());
     println!("  2. The variable will be available as ${}", name.cyan());
@@ -60,6 +65,8 @@ pub fn remove(name: &str) -> Result<()> {
         parser::get_default_shell_profile()
             .context("Could not find default shell profile (flake.nix)")?
     ));
+    let profile_to_parse = parser::get_default_shell_profile()
+        .context("Could not find default shell profile (flake.nix)")?;
 
     println!(
         "{} Removing environment variable: {}",
@@ -70,19 +77,18 @@ pub fn remove(name: &str) -> Result<()> {
     // Read the current flake.nix
     let flake_content = fs::read_to_string(&flake_path).context("Failed to read flake.nix")?;
 
-    // Check if variable exists
-
+    if !parser::env_var_exists(&flake_content, name, profile_to_parse.as_str())? {
+        bail!(
+            "Environment variable '{}' does not exist in profile '{}'",
+            name.cyan(),
+            profile_to_parse.yellow()
+        );
+    }
     // Remove the environment variable
     let updated_content = parser::remove_env_var_from_profile(&flake_content, name, None)?;
 
     // Write back to file
     fs::write(flake_path, updated_content).context("Failed to write flake.nix")?;
-
-    println!(
-        "{} Environment variable '{}' removed successfully!",
-        "✓".green().bold(),
-        name
-    );
 
     Ok(())
 }

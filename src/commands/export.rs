@@ -4,6 +4,8 @@ use crate::{flake::parser::parse_flake, nix::run_nix_command, utils::visual::wit
 use anyhow::{Context, Ok, Result};
 use clap::ValueEnum;
 
+use crate::flake::parser;
+
 #[derive(Debug, Clone, ValueEnum)]
 #[value(rename_all = "lowercase")]
 pub enum ExportType {
@@ -13,12 +15,19 @@ pub enum ExportType {
 }
 
 pub fn run_export(export_type: &ExportType) -> Result<()> {
+    let profile: String = parser::get_default_shell_profile()
+        .context("Could not find default shell profile (flake.nix)")?;
     match export_type {
         ExportType::Docker => {
             println!("Exporting flake.nix to Docker image...");
             let (_, _, success) = with_spinner("<export-docker>", || {
-                run_nix_command(&["build", ".#docker", "--out-link", ".flk/result"])
-                    .context("Failed to build Docker image from flake.nix")
+                run_nix_command(&[
+                    "build",
+                    &format!(".#docker-{}", profile.as_str()),
+                    "--out-link",
+                    ".flk/result",
+                ])
+                .context("Failed to build Docker image from flake.nix")
             })?;
             Command::new("docker")
                 .args(["load", "<", ".flk/result"])
@@ -36,8 +45,13 @@ pub fn run_export(export_type: &ExportType) -> Result<()> {
         ExportType::Podman => {
             println!("Exporting flake.nix to Podman image...");
             let (_, _, success) = with_spinner("<export-podman>", || {
-                run_nix_command(&["build", ".#podman", "--out-link", ".flk/result"])
-                    .context("Failed to build Podman image from flake.nix")
+                run_nix_command(&[
+                    "build",
+                    &format!(".#podman-{}", profile.as_str()),
+                    "--out-link",
+                    ".flk/result",
+                ])
+                .context("Failed to build Podman image from flake.nix")
             })?;
             Command::new("podman")
                 .args(["load", "<", ".flk/result"])
