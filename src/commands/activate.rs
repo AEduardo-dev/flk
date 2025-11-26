@@ -35,7 +35,7 @@ pub fn run_activate() -> Result<()> {
 
         // Check if refresh was requested via signal
         if refresh_requested.load(Ordering::Relaxed) {
-            let action_file = format!("/tmp/devshell-action-{}", std::process::id());
+            let action_file = "/tmp/devshell-expected-profile";
 
             if let Ok(new_profile) = std::fs::read_to_string(&action_file) {
                 let new_profile = new_profile.trim().to_string();

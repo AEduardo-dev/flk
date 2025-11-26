@@ -30,11 +30,9 @@ pub fn run(template: Option<String>, force: bool) -> Result<()> {
     let helper_content = generator::generate_helper_module()?;
     let importer_content = generator::generate_importer_module()?;
     let profile_content = generator::generate_flake(&project_type)?;
-    let hook_content = generator::generate_hooks();
 
     fs::create_dir_all(".flk/profiles")
         .context("Failed to create .flk and profiles directories")?;
-    fs::write(".flk/hooks.sh", hook_content).context("Failed to write hook script")?;
 
     // Write to file
     fs::write(flake_path, root_flake_content).context("Failed to write flake.nix")?;
