@@ -332,21 +332,16 @@ pub fn add_package_to_profile(
         Some(name) => name.to_string(),
         None => get_default_shell_profile()?,
     };
-    let (list_start, list_end, has_with_pkgs) =
+    let (_, list_end, has_with_pkgs) =
         find_packages_in_profile(content, profile_to_parse.as_str())?;
 
-    let packages_content = &content[list_start..list_end];
-    let is_empty = packages_content.trim().is_empty();
     let prefix = if !has_with_pkgs { "pkgs." } else { "" };
 
-    let package_entry = if is_empty {
-        format!("\n{}{}{}\n{}", INDENT_IN, prefix, package, INDENT_OUT)
-    } else {
-        format!("{}{}\n{}", prefix, package, INDENT_OUT)
-    };
+    let package_entry = format!("{}{}{}\n{}", INDENT_IN, prefix, package, INDENT_OUT);
+    let insertion_point = list_end - INDENT_OUT.len();
 
     let mut result = String::new();
-    result.push_str(&content[..list_end]);
+    result.push_str(&content[..insertion_point]);
     result.push_str(&package_entry);
     result.push_str(&content[list_end..]);
 
