@@ -11,6 +11,6 @@
 in
   builtins.listToAttrs (map (file: {
       name = pkgs.lib.removeSuffix ".nix" file;
-      value = import (./${file}) {inherit pkgs system;};
+      value = import ./${file} {inherit pkgs system;};
     })
     nixFiles)

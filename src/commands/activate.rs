@@ -27,6 +27,7 @@ pub fn run_activate() -> Result<()> {
         // Build nix develop command
         let mut cmd = Command::new("nix");
         cmd.arg("develop");
+        cmd.arg("--impure");
         if let Some(ref profile) = current_profile {
             cmd.arg(profile);
         }

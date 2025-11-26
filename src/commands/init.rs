@@ -30,6 +30,8 @@ pub fn run(template: Option<String>, force: bool) -> Result<()> {
     let helper_content = generator::generate_helper_module()?;
     let importer_content = generator::generate_importer_module()?;
     let profile_content = generator::generate_flake(&project_type)?;
+    let overlays_content = generator::generate_overlays()?;
+    let pins_content = generator::generate_pins()?;
 
     fs::create_dir_all(".flk/profiles")
         .context("Failed to create .flk and profiles directories")?;
@@ -40,10 +42,12 @@ pub fn run(template: Option<String>, force: bool) -> Result<()> {
         format!(".flk/profiles/{}.nix", project_type),
         profile_content,
     )
-    .context("Failed to write flake.nix")?;
-    fs::write(".flk/default.nix", helper_content).context("Failed to write flake.nix")?;
+    .context("Failed to write profile file")?;
+    fs::write(".flk/default.nix", helper_content).context("Failed to write helper nix file")?;
+    fs::write(".flk/overlays.nix", overlays_content).context("Failed to write overlays.nix")?;
+    fs::write(".flk/pins.nix", pins_content).context("Failed to write pins.nix")?;
     fs::write(".flk/profiles/default.nix", importer_content)
-        .context("Failed to write flake.nix")?;
+        .context("Failed to write importer nix file")?;
 
     println!(
         "{} Created flk environment successfully!",
