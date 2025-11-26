@@ -1,9 +1,15 @@
+# .flk/default.nix
 inputs: let
   inherit (inputs) flake-utils nixpkgs profile-lib;
 in
   flake-utils.lib.eachDefaultSystem (
     system: let
-      pkgs = import nixpkgs {inherit system;};
+      overlays = import ./overlays.nix;
+
+      pkgs = import nixpkgs {
+        inherit system overlays;
+      };
+
       profileLib = profile-lib.lib {inherit pkgs;};
 
       # Auto-import all profiles from .flk/profiles/
@@ -20,6 +26,6 @@ in
     in
       profileLib.mkProfileOutputs {
         inherit profileDefinitions;
-        maxCombinations = 3; # rust, node, rust-node, etc.
+        maxCombinations = 3;
       }
   )
