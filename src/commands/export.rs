@@ -27,6 +27,7 @@ pub fn run_export(export_type: &ExportType) -> Result<()> {
                     &format!(".#docker-{}", profile.as_str()),
                     "--out-link",
                     ".flk/result",
+                    "--impure",
                 ])
                 .context("Failed to build Docker image from flake.nix")
             })?;
@@ -58,6 +59,7 @@ pub fn run_export(export_type: &ExportType) -> Result<()> {
                     &format!(".#podman-{}", profile.as_str()),
                     "--out-link",
                     ".flk/result",
+                    "--impure",
                 ])
                 .context("Failed to build Podman image from flake.nix")
             })?;

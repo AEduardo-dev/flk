@@ -27,10 +27,10 @@ pub fn run_activate() -> Result<()> {
         // Build nix develop command
         let mut cmd = Command::new("nix");
         cmd.arg("develop");
-        cmd.arg("--impure");
         if let Some(ref profile) = current_profile {
-            cmd.arg(profile);
+            cmd.arg(format!(".#{}", profile));
         }
+        cmd.arg("--impure");
 
         let status = cmd.status().expect("Failed to start nix develop shell");
 
