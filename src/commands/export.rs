@@ -3,6 +3,7 @@ use std::{path::Path, process::Command};
 use crate::{flake::parser::parse_flake, nix::run_nix_command, utils::visual::with_spinner};
 use anyhow::{Context, Ok, Result};
 use clap::ValueEnum;
+use std::fs::File;
 
 use crate::flake::parser;
 
@@ -29,10 +30,16 @@ pub fn run_export(export_type: &ExportType) -> Result<()> {
                 ])
                 .context("Failed to build Docker image from flake.nix")
             })?;
-            Command::new("docker")
-                .args(["load", "<", ".flk/result"])
-                .output()
-                .context("Failed to load Docker image")?;
+            println!("Docker image created successfully ✅");
+            let file = File::open(".flk/result").context("Failed to open .flk/result")?;
+
+            let output = with_spinner("<load-image>", || {
+                Command::new("docker")
+                    .args(["load"])
+                    .stdin(file)
+                    .output()
+                    .context("Failed to load Docker image")
+            })?;
             println!(
                 "Docker image export {}",
                 if success {
@@ -41,6 +48,7 @@ pub fn run_export(export_type: &ExportType) -> Result<()> {
                     "failed ❌"
                 }
             );
+            println!("{}", String::from_utf8_lossy(&output.stdout));
         }
         ExportType::Podman => {
             println!("Exporting flake.nix to Podman image...");
@@ -53,10 +61,16 @@ pub fn run_export(export_type: &ExportType) -> Result<()> {
                 ])
                 .context("Failed to build Podman image from flake.nix")
             })?;
-            Command::new("podman")
-                .args(["load", "<", ".flk/result"])
-                .output()
-                .context("Failed to load Podman image")?;
+            println!("Podman image created successfully ✅");
+            let file = File::open(".flk/result").context("Failed to open .flk/result")?;
+
+            let output = with_spinner("<load-image>", || {
+                Command::new("podman")
+                    .args(["load"])
+                    .stdin(file)
+                    .output()
+                    .context("Failed to load Podman image")
+            })?;
             println!(
                 "Podman image export {}",
                 if success {
@@ -65,6 +79,7 @@ pub fn run_export(export_type: &ExportType) -> Result<()> {
                     "failed ❌"
                 }
             );
+            println!("{}", String::from_utf8_lossy(&output.stdout));
         }
         ExportType::Json => {
             let flake_path = Path::new("flake.nix");
