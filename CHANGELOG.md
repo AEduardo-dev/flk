@@ -31,6 +31,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make changelog follow git-cliff format
 - Update lockfile
 ## [unreleased]
+## [0.3.0] - 2025-11-27
+
+### 🚀 Features
+
+- [**breaking**] #17 multi profile support ([#51](https://github.com/AEduardo-dev/flk/pull/51))
+- [**breaking**] Add split of commands ([#53](https://github.com/AEduardo-dev/flk/pull/53))
+- Move and adapt flake template implementations
+- Simplify base flake to follow import early approach
+- Generate profile names and permutations
+- Add auto import all files in the directory non-recursively
+- Update init command to new dendritic approach
+- Update parsers implementation (work in progress)
+- Use signal instead of exit code for refresh and switch
+- Use string literal for indent constants
+- Implement consistent brace find approach for parsing
+- Update implementation for command addition
+- Adjust base commands to manage default env
+- Fix package insertion to provide consistent indentation
+- Add profile name support for all base commands
+- Improve parsing for flake operations
+- Add profile support and improve export logic
+- Import and apply overlay files
+- Add overlay and pins for version pinning
+- Update tests
+- Allow usage of utils in tests
+- Make activation command unix and windows compatible
+
+### 🐛 Bug Fixes
+
+- Pass system input for rust overlay
+- Clippy suggestions
+- Parsing of packages with prefix
+
+### ⚙️ Miscellaneous Tasks
+
+- Remove gitignore of flk dir
+- Remove description field from flake config
+- Correct integration tests to follow new paths
+- Update unit tests for new struct
+- Add missing cargo packages
+- Make default shell extract public and independent
+- Add visual feedback during package validation
+- Remove helper hooks from flk
+- Update dev environment to new structure
+- Add impure flag to activation commands
+- Update lockfile ref
+- Adjust test to new profile outputs
+- Update documentation
+- Update tool descriptor
+- Update dist
 ## [0.2.0] - 2025-11-12
 
 ### 🚀 Features
