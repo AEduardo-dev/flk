@@ -570,6 +570,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - The Nix community for creating an amazing ecosystem
 - Jetify for the Devbox inspiration and showing what's possible
 - All contributors and users of flk
+- Special mention to @vic for creating [nix-versions](https://github.com/vic/nix-versions)
 
 ## 📞 Support
 
@@ -581,4 +582,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Made with ❤️ by [AEduardo-dev](https://github.com/AEduardo-dev)**
 
-**Note:** This project is under active development (v0.3.0). While all core features are implemented and working, some advanced features like version pinning are still in progress. See the [roadmap](#-roadmap) for details.
+**Note:** This project is under active development (v0.3.2). While all core features are implemented and working, some advanced features like version pinning are still in progress.
