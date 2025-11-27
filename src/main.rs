@@ -49,10 +49,6 @@ enum Commands {
     DeepSearch {
         /// Full package name
         package: String,
-
-        /// Show version history
-        #[arg(short, long)]
-        versions: bool,
     },
 
     /// List the packages of the flake.nix
@@ -189,8 +185,8 @@ async fn main() -> Result<()> {
         Commands::Search { query, limit } => {
             search::run_search(&query, limit).await?;
         }
-        Commands::DeepSearch { package, versions } => {
-            search::run_deep_search(&package, versions).await?;
+        Commands::DeepSearch { package } => {
+            search::run_deep_search(&package).await?;
         }
         Commands::List {} => {
             list::run_list()?;
