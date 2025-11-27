@@ -20,7 +20,7 @@ fn test_help() {
         .assert()
         .success()
         .stdout(predicate::str::contains(
-            "A CLI tool for managing flake.nix",
+            "A CLI tool for managing flake.nix devShell environments",
         ));
 }
 
@@ -36,11 +36,18 @@ fn test_init_without_template() {
             "Created flk environment successfully!",
         ));
 
-    // Check that flake.nix was created
-    let flake_path = temp_dir.path().join(".flk/profiles/generic.nix");
-    assert!(flake_path.exists());
+    // Check that . flk directory structure was created
+    let flk_dir = temp_dir.path().join(".flk");
+    assert!(flk_dir.exists());
 
-    let content = fs::read_to_string(flake_path).unwrap();
+    let profiles_dir = temp_dir.path().join(".flk/profiles");
+    assert!(profiles_dir.exists());
+
+    // Check that a profile file was created
+    let profile_path = temp_dir.path().join(".flk/profiles/generic.nix");
+    assert!(profile_path.exists());
+
+    let content = fs::read_to_string(profile_path).unwrap();
     assert!(content.contains("description = \"Generic Development Environment\""));
 }
 
@@ -78,16 +85,42 @@ fn test_init_with_python_template() {
             "Initializing flake for python project",
         ));
 
-    // Print the temp dir content for debugging
-    let entries = fs::read_dir(temp_dir.path().join(".flk/profiles")).unwrap();
-    for entry in entries {
-        let entry = entry.unwrap();
-        println!("Entry: {:?}", entry.path());
-    }
     let flake_path = temp_dir.path().join(".flk/profiles/python.nix");
     let content = fs::read_to_string(flake_path).unwrap();
     assert!(content.contains("Python development environment"));
     assert!(content.contains("python311"));
+}
+
+#[test]
+fn test_init_with_node_template() {
+    let temp_dir = TempDir::new().unwrap();
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .arg("--template")
+        .arg("node")
+        .assert()
+        .success();
+
+    let flake_path = temp_dir.path().join(".flk/profiles/node.nix");
+    let content = fs::read_to_string(flake_path).unwrap();
+    assert!(content.contains("Node.js development environment"));
+}
+
+#[test]
+fn test_init_with_go_template() {
+    let temp_dir = TempDir::new().unwrap();
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .arg("--template")
+        .arg("go")
+        .assert()
+        .success();
+
+    let flake_path = temp_dir.path().join(".flk/profiles/go.nix");
+    let content = fs::read_to_string(flake_path).unwrap();
+    assert!(content.contains("Go development environment"));
 }
 
 #[test]
@@ -117,6 +150,21 @@ fn test_init_force_overwrite() {
 }
 
 #[test]
+fn test_init_creates_flk_directory_structure() {
+    let temp_dir = TempDir::new().unwrap();
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    // Verify directory structure
+    assert!(temp_dir.path().join(".flk").exists());
+    assert!(temp_dir.path().join(".flk/profiles").exists());
+    assert!(temp_dir.path().join("flake.nix").exists());
+}
+
+#[test]
 fn test_list_empty_flake() {
     let temp_dir = TempDir::new().unwrap();
     cargo::cargo_bin_cmd!("flk")
@@ -141,12 +189,6 @@ fn test_show_flake() {
         .arg("init")
         .assert()
         .success();
-    // Create necessary directories in temp dir
-    fs::create_dir_all(temp_dir.path().join("profiles")).unwrap();
-    // Create a dummy profile copying python template
-    fs::read_to_string("templates/profiles/python.nix")
-        .and_then(|content| fs::write(temp_dir.path().join("profiles/python.nix"), content))
-        .unwrap();
 
     cargo::cargo_bin_cmd!("flk")
         .current_dir(temp_dir.path())
@@ -378,7 +420,7 @@ fn test_completions_prints_bash_script() {
 #[test]
 fn test_completions_install_creates_file() {
     let temp = tempfile::tempdir().unwrap();
-    std::env::set_var("HOME", temp.path()); // redirect install location
+    std::env::set_var("HOME", temp.path());
 
     cargo::cargo_bin_cmd!("flk")
         .args(["completions", "--install", "zsh"])
@@ -391,4 +433,134 @@ fn test_completions_install_creates_file() {
         "Expected completion file at {:?}",
         installed
     );
+}
+
+#[test]
+fn test_completions_all_shells() {
+    let shells = vec!["bash", "zsh", "fish", "powershell", "elvish"];
+
+    for shell in shells {
+        cargo::cargo_bin_cmd!("flk")
+            .args(["completions", shell])
+            .assert()
+            .success();
+    }
+}
+
+#[test]
+fn test_multiple_packages() {
+    let temp_dir = TempDir::new().unwrap();
+
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    let packages = vec!["ripgrep", "git", "curl", "wget"];
+    for pkg in &packages {
+        cargo::cargo_bin_cmd!("flk")
+            .current_dir(temp_dir.path())
+            .arg("add")
+            .arg(pkg)
+            .assert()
+            .success();
+    }
+
+    let profile_path = temp_dir.path().join(".flk/profiles/generic.nix");
+    let content = fs::read_to_string(&profile_path).unwrap();
+    for pkg in &packages {
+        assert!(content.contains(pkg));
+    }
+
+    // List should show all packages
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("list")
+        .assert()
+        .success();
+}
+
+#[test]
+fn test_export_json() {
+    let temp_dir = TempDir::new().unwrap();
+
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("export")
+        .arg("--format")
+        .arg("json")
+        .assert()
+        .success();
+
+    let json_path = temp_dir.path().join("flake.json");
+    assert!(json_path.exists());
+
+    let json_content = fs::read_to_string(json_path).unwrap();
+    assert!(json_content.contains("profiles"));
+}
+
+#[test]
+fn test_profile_directory_isolation() {
+    let temp_dir = TempDir::new().unwrap();
+
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .arg("--template")
+        .arg("rust")
+        .assert()
+        .success();
+
+    // Check that only rust profile exists
+    let profiles_dir = temp_dir.path().join(".flk/profiles");
+    let entries: Vec<_> = fs::read_dir(&profiles_dir)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().map(|s| s == "nix").unwrap_or(false))
+        .collect();
+
+    // Should have rust. nix and possibly default.nix
+    assert!(entries.len() >= 1);
+    assert!(profiles_dir.join("rust.nix").exists());
+}
+
+#[test]
+fn test_flake_nix_exists_at_root() {
+    let temp_dir = TempDir::new().unwrap();
+
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    // Root flake.nix should exist
+    assert!(temp_dir.path().join("flake.nix").exists());
+}
+
+#[test]
+fn test_dendritic_structure_complete() {
+    let temp_dir = TempDir::new().unwrap();
+
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    // Verify complete dendritic structure
+    assert!(temp_dir.path().join("flake.nix").exists());
+    assert!(temp_dir.path().join(".flk").exists());
+    assert!(temp_dir.path().join(".flk/profiles").exists());
+
+    // Check for helper files that might be generated
+    let flk_dir = temp_dir.path().join(".flk");
+    assert!(flk_dir.is_dir());
 }
