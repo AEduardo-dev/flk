@@ -2,6 +2,9 @@ use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+pub const INDENT_IN: &str = "    "; // 4 spaces
+pub const INDENT_OUT: &str = "  "; // 2 spaces
+
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct FlakeConfig {
     pub inputs: Vec<String>,
