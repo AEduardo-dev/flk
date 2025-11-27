@@ -1,14 +1,9 @@
-use crate::flake::interface::Package;
-use crate::flake::parser::extract_packages_from_output;
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 
-use crate::utils::visual::{display_list, display_table};
-
-use crate::{
-    nix::{check_nix_available, run_nix_command},
-    utils::visual::with_spinner,
-};
+use crate::flake::{interface::Package, parsers::packages::extract_packages_from_output};
+use crate::nix::{check_nix_available, run_nix_command};
+use crate::utils::visual::{display_list, display_table, with_spinner};
 
 pub async fn run_search(query: &str, limit: usize) -> Result<bool> {
     println!(
