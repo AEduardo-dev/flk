@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/rust-1.83%2B-blue.svg)](https://www.rust-lang.org)
 
-**flk** makes managing Nix flakes feel like using a package manager. No more manually editing `flake.nix` files—just use simple commands to add packages, create custom shell commands, and manage your development environment.
+**flk** makes managing Nix flakes feel like using a package manager. No more manually editing `flake.nix` files—just use simple commands to add packages, create custom shell commands, and manage your development environment with ease.
 
 ## ✨ Features
 
@@ -23,6 +23,8 @@
 ### Prerequisites
 
 - [Nix](https://nixos.org/download.html) with flakes enabled
+  - We recommend the Lix package manager for easy Nix installation: [Lix](https://lix.systems/install/) since it comes with flakes enabled by default.
+  - Or using the Determinate System installer: [Determinate](https://determinate.systems/nix-installer/), as it provides a user-friendly way to install (and uninstall) Nix.
 - Rust 1.83+ (if building from source)
 
 ### From Source
@@ -439,7 +441,7 @@ build  # Build the service
 
 ### Prerequisites
 
-- Rust 1.70+
+- Rust 1.83+
 - Nix with flakes enabled
 
 ### Building
@@ -456,12 +458,20 @@ cargo build
 # Run all tests
 cargo test
 
-# Run integration tests
+# Run unit tests only
+cargo test --test unit_tests
+
+# Run integration tests only
 cargo test --test integration_tests
 
 # Run with output
 cargo test -- --nocapture
+
+# Run a specific test
+cargo test test_name
 ```
+
+The test suite includes comprehensive unit tests for the parser, generator, and interface modules, as well as integration tests covering the complete CLI workflow including the dendritic `. flk/profiles/` architecture.
 
 ### Installing Locally
 
@@ -503,14 +513,20 @@ flk/
 │       ├── mod.rs
 │       └── visual.rs         # Visual enhancements
 ├── templates/                # Flake templates
-│   ├── default_flake.nix
-│   ├── rust_flake.nix
-│   ├── python_flake.nix
-│   ├── node_flake.nix
-│   └── go_flake.nix
+│   ├── flake.nix             # Root flake template
+│   ├── default.nix           # Helper module
+│   ├── overlays.nix          # Overlays configuration
+│   ├── pins.nix              # Pin configuration
+│   └── profiles/             # Profile templates
+│       ├── base.nix          # Generic template
+│       ├── default.nix       # Importer module
+│       ├── rust.nix          # Rust template
+│       ├── python.nix        # Python template
+│       ├── node.nix          # Node.js template
+│       └── go.nix            # Go template
 └── tests/                    # Test files
-    ├── integration_tests.rs
-    └── unit_tests.rs
+    ├── integration_tests.rs  # CLI integration tests
+    └── unit_tests.rs         # Module unit tests
 ```
 
 ## 🗺️ Roadmap
@@ -565,4 +581,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Made with ❤️ by [AEduardo-dev](https://github.com/AEduardo-dev)**
 
-**Note:** This project is under active development (v0.1.0). While all core features are implemented and working, some advanced features like version pinning are still in progress. See the [roadmap](#-roadmap) for details.
+**Note:** This project is under active development (v0.3.0). While all core features are implemented and working, some advanced features like version pinning are still in progress. See the [roadmap](#-roadmap) for details.
