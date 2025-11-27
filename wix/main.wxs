@@ -69,7 +69,7 @@
 
         <Package Id='*'
             Keywords='Installer'
-            Description='A CLI tool for managing flake.nix files like Jetify Devbox'
+            Description='A CLI tool for managing flake.nix devShell environments'
             Manufacturer='AEduardo-dev'
             InstallerVersion='450'
             Languages='1033'

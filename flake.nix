@@ -1,5 +1,5 @@
 {
-  description = "Development environment managed by flk (dendritic)";
+  description = "Development environment managed by flk";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
