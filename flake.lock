@@ -36,11 +36,11 @@
     },
     "profile-lib": {
       "locked": {
-        "lastModified": 1764166858,
-        "narHash": "sha256-kN9r6NEOqSW6lit4RMNYBjVMPMrzJP7tIyAYK8TPE0c=",
+        "lastModified": 1764167888,
+        "narHash": "sha256-mz9qlM+sRur3cvZjSQYeLcXOvk5sILmypaX3Ew6dxsQ=",
         "owner": "AEduardo-dev",
         "repo": "nix-profile-lib",
-        "rev": "175c3a1b9ab97e1a97c24f1991549c23ac130e5f",
+        "rev": "120964642cad8c4f1cef1da206e82a196ba7901b",
         "type": "github"
       },
       "original": {
