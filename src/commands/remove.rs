@@ -3,13 +3,15 @@ use colored::Colorize;
 use std::fs;
 use std::path::Path;
 
-use crate::flake::parser;
+use crate::flake::parsers::{
+    packages::{package_exists, remove_package_from_profile},
+    utils::get_default_shell_profile,
+};
 
 pub fn run_remove(package: &str) -> Result<()> {
     let flake_path = Path::new(".flk/profiles/").join(format!(
         "{}.nix",
-        parser::get_default_shell_profile()
-            .context("Could not find default shell profile (flake.nix)")?
+        get_default_shell_profile().context("Could not find default shell profile (flake.nix)")?
     ));
 
     if package.trim().is_empty() {
@@ -18,14 +20,14 @@ pub fn run_remove(package: &str) -> Result<()> {
 
     let flake_content = fs::read_to_string(&flake_path).context("Failed to read flake.nix")?;
 
-    if !parser::package_exists(&flake_content, package, None)? {
+    if !package_exists(&flake_content, package, None)? {
         bail!(
             "Package '{}' is not present in the packages declaration",
             package
         );
     }
 
-    let updated_content = parser::remove_package_from_profile(&flake_content, package, None)?;
+    let updated_content = remove_package_from_profile(&flake_content, package, None)?;
     fs::write(flake_path, updated_content).context("Failed to write flake.nix")?;
 
     println!(

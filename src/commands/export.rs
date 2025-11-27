@@ -1,11 +1,11 @@
 use std::{path::Path, process::Command};
 
-use crate::{flake::parser::parse_flake, nix::run_nix_command, utils::visual::with_spinner};
 use anyhow::{Context, Ok, Result};
 use clap::ValueEnum;
 use std::fs::File;
 
-use crate::flake::parser;
+use crate::flake::parsers::{flake::parse_flake, utils::get_default_shell_profile};
+use crate::{nix::run_nix_command, utils::visual::with_spinner};
 
 #[derive(Debug, Clone, ValueEnum)]
 #[value(rename_all = "lowercase")]
@@ -16,8 +16,8 @@ pub enum ExportType {
 }
 
 pub fn run_export(export_type: &ExportType) -> Result<()> {
-    let profile: String = parser::get_default_shell_profile()
-        .context("Could not find default shell profile (flake.nix)")?;
+    let profile: String =
+        get_default_shell_profile().context("Could not find default shell profile (flake.nix)")?;
     match export_type {
         ExportType::Docker => {
             println!("Exporting flake.nix to Docker image...");

@@ -1,9 +1,11 @@
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
-use flk::flake::parser;
 use std::{fs, path};
 
-use crate::flake::parser::{add_package_to_profile, get_default_shell_profile};
+use crate::flake::parsers::{
+    packages::{add_package_to_profile, package_exists},
+    utils::get_default_shell_profile,
+};
 use crate::nix::run_nix_command;
 use crate::utils::visual::with_spinner;
 
@@ -28,24 +30,22 @@ pub fn run_add(package: &str, version: Option<String>) -> Result<()> {
         validate_package_exists(package).context("Failed to execute nix search. Is nix installed?")
     })?;
 
-    let package_to_add = if let Some(ver) = version {
+    let package_to_add = if let Some(ver) = &version {
         println!(
             "{} Adding package: {} (pinned to version {})",
             "→".blue().bold(),
             package.green(),
             ver.yellow()
         );
-        // TODO: Implement version pinning in Issue #5
-        bail!(
-            "Version pinning is not yet implemented. Track progress at: https://github.com/AEduardo-dev/flk/issues/5"
-        );
+        let package = format!("{}@{}", package, version.unwrap());
+        package
     } else {
         println!("{} Adding package: {}", "→".blue().bold(), package.green());
         package.to_string()
     };
 
     // Check if package already exists
-    if parser::package_exists(&flake_content, &package_to_add, None)? {
+    if package_exists(&flake_content, &package_to_add, None)? {
         bail!(
             "Package '{}' is already in the packages declaration",
             package_to_add
@@ -54,6 +54,10 @@ pub fn run_add(package: &str, version: Option<String>) -> Result<()> {
 
     // Add the package to buildInputs
     let updated_content = add_package_to_profile(&flake_content, &package_to_add, None)?;
+
+    // TODO: generate overlay for packade in overlays.nix
+    // NOTE: package then needs to be generated under a name
+    // so if possible let's use <package>@<version>
 
     // Write back to file
     fs::write(flake_path, updated_content).context("Failed to write flake.nix")?;
@@ -71,12 +75,10 @@ pub fn run_add(package: &str, version: Option<String>) -> Result<()> {
 }
 
 fn validate_package_exists(package: &str) -> Result<()> {
-    let query = format!("nixpkgs#{}", package);
+    let (_, stderr, success) = run_nix_command(&["run", "github:vic/nix-versions", package])
+        .context("Failed to execute nix eval")?;
 
-    let (_, stderr, success) =
-        run_nix_command(&["eval", &query, "--json"]).context("Failed to execute nix eval")?;
-
-    if !success || stderr.contains("error") {
+    if !success || stderr.contains("no packages found") {
         bail!(
             "Package {} does not exist or is marked as insecure. Aborting",
             package

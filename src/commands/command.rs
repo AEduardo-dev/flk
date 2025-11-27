@@ -3,13 +3,16 @@ use colored::Colorize;
 use std::fs;
 use std::path::Path;
 
-use crate::flake::parser;
+use crate::flake::parsers::{
+    commands::{add_command_to_shell_hook, command_exists, remove_command_from_shell_hook},
+    flake::parse_flake,
+    utils::get_default_shell_profile,
+};
 
 pub fn run_add(name: &str, command: &str, file: Option<String>) -> Result<()> {
     let flake_path = Path::new(".flk/profiles/").join(format!(
         "{}.nix",
-        parser::get_default_shell_profile()
-            .context("Could not find default shell profile (flake.nix)")?
+        get_default_shell_profile().context("Could not find default shell profile (flake.nix)")?
     ));
 
     // Validate command name
@@ -38,7 +41,7 @@ pub fn run_add(name: &str, command: &str, file: Option<String>) -> Result<()> {
     let flake_content = fs::read_to_string(&flake_path).context("Failed to read flake.nix")?;
 
     // Check if command already exists
-    if parser::command_exists(&flake_content, name) {
+    if command_exists(&flake_content, name) {
         bail!(
             "Command '{}' already exists. Remove it with: {}",
             name.cyan(),
@@ -47,8 +50,7 @@ pub fn run_add(name: &str, command: &str, file: Option<String>) -> Result<()> {
     }
 
     // Add the command to shellHook
-    let updated_content =
-        parser::add_command_to_shell_hook(&flake_content, name, &command_content, None)?;
+    let updated_content = add_command_to_shell_hook(&flake_content, name, &command_content, None)?;
 
     // Write back to file
     fs::write(flake_path, updated_content).context("Failed to write flake.nix")?;
@@ -68,8 +70,7 @@ pub fn run_add(name: &str, command: &str, file: Option<String>) -> Result<()> {
 pub fn run_remove(name: &str) -> Result<()> {
     let flake_path = Path::new(".flk/profiles/").join(format!(
         "{}.nix",
-        parser::get_default_shell_profile()
-            .context("Could not find default shell profile (flake.nix)")?
+        get_default_shell_profile().context("Could not find default shell profile (flake.nix)")?
     ));
 
     if !flake_path.exists() {
@@ -82,12 +83,12 @@ pub fn run_remove(name: &str) -> Result<()> {
     let flake_content = fs::read_to_string(&flake_path).context("Failed to read flake.nix")?;
 
     // Check if command exists
-    if !parser::command_exists(&flake_content, name) {
+    if !command_exists(&flake_content, name) {
         bail!("Command '{}' not found in flake.nix", name.cyan());
     }
 
     // Remove the command from shellHook
-    let updated_content = parser::remove_command_from_shell_hook(&flake_content, name, None)?;
+    let updated_content = remove_command_from_shell_hook(&flake_content, name, None)?;
 
     // Write back to file
     fs::write(&flake_path, updated_content).context("Failed to write flake.nix")?;
@@ -112,7 +113,7 @@ pub fn list() -> Result<()> {
         );
     }
 
-    let flake_info = parser::parse_flake(flake_path.to_str().unwrap())?;
+    let flake_info = parse_flake(flake_path.to_str().unwrap())?;
 
     flake_info.display_shell_hooks();
 
