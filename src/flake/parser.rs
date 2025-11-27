@@ -316,7 +316,7 @@ pub fn package_exists(content: &str, package: &str, profile_name: Option<&str>) 
 
     for line in packages_content.lines() {
         let trimmed = line.trim();
-        if trimmed == package || trimmed.starts_with(&format!("{}.", package)) {
+        if trimmed == package || trimmed.ends_with(&format!(".{}", package)) {
             return Ok(true);
         }
     }
