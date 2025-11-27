@@ -1,4 +1,7 @@
-{pkgs}: let
+{
+  pkgs,
+  system,
+}: let
 in {
   description = "Go development environment";
 
