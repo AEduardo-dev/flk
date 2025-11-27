@@ -582,3 +582,21 @@ pub fn remove_command_from_shell_hook(
 
     Ok(result)
 }
+
+pub fn extract_packages_from_output(output: &str) -> Result<Vec<Package>> {
+    Ok(output
+        .lines()
+        .skip(1) // Skip header line
+        .filter_map(|line| {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() >= 4 {
+                Some(Package {
+                    name: parts[0].to_string(),
+                    version: Some(parts[1].to_string()),
+                })
+            } else {
+                None
+            }
+        })
+        .collect())
+}

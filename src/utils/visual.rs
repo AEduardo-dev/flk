@@ -1,4 +1,6 @@
+use crate::flake::interface::Package;
 use anyhow::Result;
+use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 
 pub fn with_spinner<F, T>(message: &str, f: F) -> Result<T>
@@ -19,4 +21,34 @@ where
 
     spinner.finish_and_clear();
     result
+}
+
+pub fn display_table(packages: &[Package]) -> String {
+    if packages.is_empty() {
+        return String::new();
+    }
+
+    let max_name_len = packages
+        .iter()
+        .map(|p| p.name.len())
+        .max()
+        .unwrap_or(0)
+        .max(4);
+
+    let mut output = format!("{:<width$}  Version\n", "Name", width = max_name_len);
+
+    for pkg in packages {
+        if let Some(version) = &pkg.version {
+            output.push_str(&format!(
+                "{:<width$}  {}\n",
+                pkg.name.cyan().bold(),
+                version.bright_black(),
+                width = max_name_len
+            ));
+        } else {
+            output.push_str(&format!("{}\n", pkg.name.cyan().bold()));
+        }
+    }
+
+    output
 }
