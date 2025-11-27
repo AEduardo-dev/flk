@@ -38,11 +38,11 @@ pub fn run_activate() -> Result<()> {
         if refresh_requested.load(Ordering::Relaxed) {
             let action_file = "/tmp/devshell-expected-profile";
 
-            if let Ok(new_profile) = std::fs::read_to_string(&action_file) {
+            if let Ok(new_profile) = std::fs::read_to_string(action_file) {
                 let new_profile = new_profile.trim().to_string();
                 println!("🔄 Switching to profile: {}", new_profile);
                 current_profile = Some(new_profile);
-                std::fs::remove_file(&action_file).ok();
+                std::fs::remove_file(action_file).ok();
             } else {
                 println!("🔄 Reloading current shell...");
             }

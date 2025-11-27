@@ -126,7 +126,7 @@ pub fn find_packages_in_profile(content: &str, profile_name: &str) -> Result<(us
 
     let list_start = packages_start + bracket_pos;
 
-    let closing_bracket = find_matching_brace(&content, list_start, b'[', b']')
+    let closing_bracket = find_matching_brace(content, list_start, b'[', b']')
         .context("Could not find closing bracket for packages")?;
 
     let list_end = closing_bracket;
@@ -524,8 +524,8 @@ pub fn find_command(content: &str, name: &str, profile_name: &str) -> Option<(us
         0
     };
     let search_start = marker_start + marker.len();
-    let function_end = content[search_start..].find(&format!("{}}}\n", &*INDENT_IN))?;
-    let end_point = search_start + function_end + format!("{}}}\n", &*INDENT_IN).len();
+    let function_end = content[search_start..].find(&format!("{}}}\n", INDENT_IN))?;
+    let end_point = search_start + function_end + format!("{}}}\n", INDENT_IN).len();
     Some((line_start, end_point))
 }
 

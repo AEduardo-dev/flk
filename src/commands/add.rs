@@ -24,7 +24,7 @@ pub fn run_add(package: &str, version: Option<String>) -> Result<()> {
         bail!("Package name cannot be empty");
     }
 
-    let _ = with_spinner("Validating package...", || {
+    with_spinner("Validating package...", || {
         validate_package_exists(package).context("Failed to execute nix search. Is nix installed?")
     })?;
 
