@@ -3,7 +3,20 @@
 
 #[cfg(test)]
 mod parser_tests {
-    use flk::flake;
+    use flk::flake::parsers::{
+        commands::{
+            add_command_to_shell_hook, command_exists, parse_shell_hook_from_profile,
+            remove_command_from_shell_hook,
+        },
+        env::{
+            add_env_var_to_profile, env_var_exists, parse_env_vars_from_profile,
+            remove_env_var_from_profile,
+        },
+        packages::{
+            add_package_to_profile, find_packages_in_profile, package_exists,
+            parse_packages_from_profile, remove_package_from_profile,
+        },
+    };
 
     const CONTENT: &str = r#"
     {
@@ -67,10 +80,10 @@ mod parser_tests {
     #[test]
     fn test_package_exists() {
         // Test that package_exists correctly identifies packages
-        let exists = flake::parser::package_exists(CONTENT, "git", None).unwrap();
+        let exists = package_exists(CONTENT, "git", None).unwrap();
         assert!(exists);
 
-        let not_exists = flake::parser::package_exists(CONTENT, "nonexistent", None).unwrap();
+        let not_exists = package_exists(CONTENT, "nonexistent", None).unwrap();
         assert!(!not_exists);
     }
 
@@ -82,7 +95,7 @@ mod parser_tests {
             pkgs.curl
           ];
         "#;
-        let exists = flake::parser::package_exists(content, "git", Some("test")).unwrap();
+        let exists = package_exists(content, "git", Some("test")).unwrap();
         assert!(exists);
     }
 
@@ -107,14 +120,14 @@ mod parser_tests {
 ... 
 "#;
         // Test adding a package to empty list
-        let result = flake::parser::add_package_to_profile(content, "ripgrep", None).unwrap();
+        let result = add_package_to_profile(content, "ripgrep", None).unwrap();
         assert!(result.contains("ripgrep"));
     }
 
     #[test]
     fn test_add_package_to_existing_list() {
         // Test adding a package to existing list
-        let result = flake::parser::add_package_to_profile(CONTENT, "ripgrep", None).unwrap();
+        let result = add_package_to_profile(CONTENT, "ripgrep", None).unwrap();
         assert!(result.contains("ripgrep"));
         assert!(result.contains("git"));
         assert!(result.contains("curl"));
@@ -122,7 +135,7 @@ mod parser_tests {
 
     #[test]
     fn test_add_package_preserves_formatting() {
-        let result = flake::parser::add_package_to_profile(CONTENT, "ripgrep", None).unwrap();
+        let result = add_package_to_profile(CONTENT, "ripgrep", None).unwrap();
         // Check that proper indentation is maintained
         assert!(result.contains("    ") || result.contains("  "));
     }
@@ -130,7 +143,7 @@ mod parser_tests {
     #[test]
     fn test_remove_package() {
         // Test removing a package
-        let result = flake::parser::remove_package_from_profile(CONTENT, "curl", None).unwrap();
+        let result = remove_package_from_profile(CONTENT, "curl", None).unwrap();
         println!("{}", result);
         assert!(result.contains("git"));
         assert!(!result.contains("curl"));
@@ -145,7 +158,7 @@ mod parser_tests {
             wget
           ];
         "#;
-        let result = flake::parser::remove_package_from_profile(content, "curl", None).unwrap();
+        let result = remove_package_from_profile(content, "curl", None).unwrap();
         assert!(result.contains("git"));
         assert!(result.contains("wget"));
         assert!(!result.contains("curl"));
@@ -153,30 +166,25 @@ mod parser_tests {
 
     #[test]
     fn test_remove_nonexistent_package() {
-        let result = flake::parser::remove_package_from_profile(CONTENT, "nonexistent", None);
+        let result = remove_package_from_profile(CONTENT, "nonexistent", None);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_command_exists() {
         // Test command detection
-        let exists = flake::parser::command_exists(CONTENT, "test");
+        let exists = command_exists(CONTENT, "test");
         assert!(exists);
 
-        let not_exists = flake::parser::command_exists(CONTENT, "nonexistent");
+        let not_exists = command_exists(CONTENT, "nonexistent");
         assert!(!not_exists);
     }
 
     #[test]
     fn test_add_command() {
         // Test adding a command
-        let result = flake::parser::add_command_to_shell_hook(
-            CONTENT,
-            "test_add",
-            "echo 'test command'",
-            None,
-        )
-        .unwrap();
+        let result =
+            add_command_to_shell_hook(CONTENT, "test_add", "echo 'test command'", None).unwrap();
         assert!(result.contains("# flk-command: test_add"));
         assert!(result.contains("test_add ()"));
     }
@@ -184,9 +192,7 @@ mod parser_tests {
     #[test]
     fn test_add_command_with_multiline() {
         let multiline_cmd = "echo 'line 1'\necho 'line 2'\necho 'line 3'";
-        let result =
-            flake::parser::add_command_to_shell_hook(CONTENT, "multiline", multiline_cmd, None)
-                .unwrap();
+        let result = add_command_to_shell_hook(CONTENT, "multiline", multiline_cmd, None).unwrap();
         assert!(result.contains("# flk-command: multiline"));
         assert!(result.contains("line 1"));
         assert!(result.contains("line 2"));
@@ -196,7 +202,7 @@ mod parser_tests {
     #[test]
     fn test_add_command_with_special_chars() {
         let cmd = "cargo build --release && echo 'Done!'";
-        let result = flake::parser::add_command_to_shell_hook(CONTENT, "build", cmd, None).unwrap();
+        let result = add_command_to_shell_hook(CONTENT, "build", cmd, None).unwrap();
         assert!(result.contains("# flk-command: build"));
         assert!(result.contains("&&"));
     }
@@ -204,53 +210,46 @@ mod parser_tests {
     #[test]
     fn test_remove_command() {
         // Test removing a command
-        let result = flake::parser::remove_command_from_shell_hook(CONTENT, "test", None).unwrap();
+        let result = remove_command_from_shell_hook(CONTENT, "test", None).unwrap();
         assert!(!result.contains("# flk-command: test"));
         assert!(!result.contains("test ()"));
     }
 
     #[test]
     fn test_remove_nonexistent_command() {
-        let result = flake::parser::remove_command_from_shell_hook(CONTENT, "nonexistent", None);
+        let result = remove_command_from_shell_hook(CONTENT, "nonexistent", None);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_env_var_exists() {
         // Test env var detection
-        let exists = flake::parser::env_var_exists(CONTENT, "VAR2", "default").unwrap();
+        let exists = env_var_exists(CONTENT, "VAR2", "default").unwrap();
         assert!(exists);
 
-        let not_exists = flake::parser::env_var_exists(CONTENT, "NONEXISTENT", "default").unwrap();
+        let not_exists = env_var_exists(CONTENT, "NONEXISTENT", "default").unwrap();
         assert!(!not_exists);
     }
 
     #[test]
     fn test_add_env_var() {
         // Test adding an environment variable
-        let result =
-            flake::parser::add_env_var_to_profile(CONTENT, "MY_VAR", "test_value", None).unwrap();
+        let result = add_env_var_to_profile(CONTENT, "MY_VAR", "test_value", None).unwrap();
         assert!(result.contains(" MY_VAR = \"test_value\""));
     }
 
     #[test]
     fn test_add_env_var_with_quotes() {
         let result =
-            flake::parser::add_env_var_to_profile(CONTENT, "QUOTED", r#"value"with"quotes"#, None)
-                .unwrap();
+            add_env_var_to_profile(CONTENT, "QUOTED", r#"value"with"quotes"#, None).unwrap();
         assert!(result.contains("QUOTED"));
         assert!(result.contains(r#"value\"with\"quotes"#));
     }
 
     #[test]
     fn test_add_env_var_with_special_chars() {
-        let result = flake::parser::add_env_var_to_profile(
-            CONTENT,
-            "SPECIAL",
-            "value with $pecial ch@rs!",
-            None,
-        )
-        .unwrap();
+        let result =
+            add_env_var_to_profile(CONTENT, "SPECIAL", "value with $pecial ch@rs!", None).unwrap();
         assert!(result.contains("SPECIAL"));
         assert!(result.contains("value with $pecial ch@rs!"));
     }
@@ -258,13 +257,13 @@ mod parser_tests {
     #[test]
     fn test_remove_env_var() {
         // Test removing an environment variable
-        let result = flake::parser::remove_env_var_from_profile(CONTENT, "VAR1", None).unwrap();
+        let result = remove_env_var_from_profile(CONTENT, "VAR1", None).unwrap();
         assert!(!result.contains("VAR1"));
     }
 
     #[test]
     fn test_remove_env_var_middle() {
-        let result = flake::parser::remove_env_var_from_profile(CONTENT, "VAR2", None).unwrap();
+        let result = remove_env_var_from_profile(CONTENT, "VAR2", None).unwrap();
         assert!(result.contains("VAR1"));
         assert!(result.contains("VAR3"));
         assert!(!result.contains("VAR2"));
@@ -273,7 +272,7 @@ mod parser_tests {
     #[test]
     fn test_parse_env_vars() {
         // Test parsing all environment variables
-        let vars = flake::parser::parse_env_vars_from_profile(CONTENT, None).unwrap();
+        let vars = parse_env_vars_from_profile(CONTENT, None).unwrap();
         assert_eq!(vars.len(), 3);
         assert!(vars.contains(&("VAR1".to_string(), "value1".to_string())));
         assert!(vars.contains(&("VAR2".to_string(), "value2".to_string())));
@@ -286,7 +285,7 @@ mod parser_tests {
           envVars = {
           };
         "#;
-        let vars = flake::parser::parse_env_vars_from_profile(content, Some("test")).unwrap();
+        let vars = parse_env_vars_from_profile(content, Some("test")).unwrap();
         assert_eq!(vars.len(), 0);
     }
 
@@ -309,7 +308,7 @@ mod parser_tests {
             pkgs.curl
           ];
         "#;
-        let result = flake::parser::find_packages_in_profile(content, "test");
+        let result = find_packages_in_profile(content, "test");
         assert!(result.is_ok());
         let (start, end, has_with_pkgs) = result.unwrap();
         assert!(start < end);
@@ -318,7 +317,7 @@ mod parser_tests {
 
     #[test]
     fn test_find_packages_with_with_pkgs() {
-        let result = flake::parser::find_packages_in_profile(CONTENT, "default");
+        let result = find_packages_in_profile(CONTENT, "default");
         assert!(result.is_ok());
         let (start, end, has_with_pkgs) = result.unwrap();
         assert!(start < end);
@@ -327,7 +326,7 @@ mod parser_tests {
 
     #[test]
     fn test_parse_shell_hook() {
-        let hook = flake::parser::parse_shell_hook_from_profile(CONTENT, Some("default")).unwrap();
+        let hook = parse_shell_hook_from_profile(CONTENT, Some("default")).unwrap();
         assert!(hook.contains("Welcome to the development shell!"));
         assert!(hook.contains("# flk-command: test"));
     }
@@ -341,7 +340,7 @@ mod parser_tests {
             curl
           ];
         "#;
-        let packages = flake::parser::parse_packages_from_profile(content, Some("test")).unwrap();
+        let packages = parse_packages_from_profile(content, Some("test")).unwrap();
         assert_eq!(packages.len(), 2);
         assert!(packages.iter().any(|p| p.name == "git"));
         assert!(packages.iter().any(|p| p.name == "curl"));
@@ -349,7 +348,7 @@ mod parser_tests {
 
     #[test]
     fn test_indent_consistency() {
-        let result = flake::parser::add_package_to_profile(CONTENT, "test", None).unwrap();
+        let result = add_package_to_profile(CONTENT, "test", None).unwrap();
         // Check that lines are properly indented (either 2 or 4 spaces)
         let lines: Vec<&str> = result.lines().collect();
         for line in lines {
