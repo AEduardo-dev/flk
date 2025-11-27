@@ -166,7 +166,9 @@ fn test_add_package_without_init() {
         .arg("ripgrep")
         .assert()
         .failure()
-        .stderr(predicate::str::contains("No flake.nix found"));
+        .stderr(predicate::str::contains(
+            "Could not find default shell profile (flake.nix)",
+        ));
 }
 
 #[test]
@@ -178,7 +180,9 @@ fn test_remove_package_without_init() {
         .arg("ripgrep")
         .assert()
         .failure()
-        .stderr(predicate::str::contains("No flake.nix found"));
+        .stderr(predicate::str::contains(
+            "Could not find default shell profile (flake.nix)",
+        ));
 }
 
 #[test]
@@ -192,7 +196,9 @@ fn test_add_command_without_init() {
         .arg("echo hello")
         .assert()
         .failure()
-        .stderr(predicate::str::contains("No flake.nix found"));
+        .stderr(predicate::str::contains(
+            "Could not find default shell profile (flake.nix)",
+        ));
 }
 
 #[test]
@@ -206,7 +212,9 @@ fn test_env_add_without_init() {
         .arg("test_value")
         .assert()
         .failure()
-        .stderr(predicate::str::contains("No flake.nix found"));
+        .stderr(predicate::str::contains(
+            "Could not find default shell profile (flake.nix)",
+        ));
 }
 
 #[test]
@@ -231,7 +239,9 @@ fn test_remove_command_without_init() {
         .arg("test")
         .assert()
         .failure()
-        .stderr(predicate::str::contains("No flake.nix found"));
+        .stderr(predicate::str::contains(
+            "Could not find default shell profile (flake.nix)",
+        ));
 }
 
 #[test]
