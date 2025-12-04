@@ -23,6 +23,30 @@ where
     result
 }
 
+pub fn display_list(packages: &[Package]) -> String {
+    if packages.is_empty() {
+        return String::new();
+    }
+
+    let mut output = String::new();
+
+    for (i, pkg) in packages.iter().enumerate() {
+        output.push_str(&format!(
+            "{} {}\n",
+            format!("[{}]", i + 1).cyan().bold(),
+            pkg.name.green()
+        ));
+
+        if let Some(version) = &pkg.version {
+            output.push_str(&format!("  {} {}\n", "Version:".bold(), version.yellow()));
+        }
+
+        output.push('\n');
+    }
+
+    output
+}
+
 pub fn display_table(packages: &[Package]) -> String {
     if packages.is_empty() {
         return String::new();
