@@ -3,7 +3,7 @@ use crate::flake::parser::extract_packages_from_output;
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 
-use crate::utils::visual::display_table;
+use crate::utils::visual::{display_list, display_table};
 
 use crate::{
     nix::{check_nix_available, run_nix_command},
@@ -46,8 +46,14 @@ pub async fn run_search(query: &str, limit: usize) -> Result<bool> {
         return Ok(false);
     }
 
-    println!("\n{}", "Search Results:".bold().underline());
-    println!("{}", display_table(&packages[..packages.len().min(limit)]));
+    println!(
+        "\n{} Found {} package(s) (showing {}):\n",
+        "✓".green().bold(),
+        packages.len(),
+        packages.len()
+    );
+
+    println!("{}", display_list(&packages[..packages.len().min(limit)]));
 
     Ok(true)
 }
