@@ -505,7 +505,13 @@ flk/
 │   │   ├── generator.rs      # Generate flake.nix
 │   │   ├── interface.rs      # Data structures
 │   │   ├── mod.rs
-│   │   └── parser.rs         # Parse flake.nix
+│   │   └── parsers/          # Parse flake.nix sections
+│   │       ├── commands.rs   # Custom commands parser
+│   │       ├── env.rs        # Environment variables parser
+│   │       ├── flake.rs      # Flake parser
+│   │       ├── overlays.rs   # Overlays parser
+│   │       ├── packages.rs   # Packages parser
+│   │       └── utils.rs      # Utility functions
 │   ├── nix/                  # Nix command wrappers
 │   │   └── mod.rs
 │   └── utils/                # Utility functions
