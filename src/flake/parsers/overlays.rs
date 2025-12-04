@@ -1,6 +1,10 @@
 use anyhow::{Context, Result};
+use std::fs;
 
-use crate::flake::interface::{INDENT_IN, INDENT_OUT};
+use crate::flake::{
+    interface::{INDENT_IN, INDENT_OUT},
+    parsers::utils::find_matching_brace,
+};
 
 // NOTE: Process to follow when adding:
 // 1. Neither pin nor overlay pin_exists
@@ -24,33 +28,169 @@ use crate::flake::interface::{INDENT_IN, INDENT_OUT};
 // this would allow for clear representation of pinned packages in the subsequent flakes/profiles
 
 pub fn overlay_exists(name: &str) -> Result<bool> {
-    Ok(true)
+    let is_present = fs::read_to_string(".flk/default.nix")
+        .with_context(|| "Failed to read .flk/default.nix")?
+        .lines()
+        .any(|line| line.trim_start().starts_with(&format!("{}= [", name)))
+        .into();
+
+    Ok(is_present)
 }
 
-pub fn add_overlay(name: &str) -> Result<()> {
-    Ok(())
+pub fn add_overlay(name: &str) -> Result<String> {
+    // insert overlay into .flk/default.nix in the pinnedPackages section
+    let content = fs::read_to_string(".flk/default.nix")
+        .with_context(|| "Failed to read .flk/default.nix")?;
+
+    // search for the pinnedPackages section
+    let (_, section_end) = find_overlay_section(&content)?;
+    let insertion_point = section_end - INDENT_OUT.len(); // before the closing brace
+
+    let mut result = String::new();
+    result.push_str(&content[..insertion_point]);
+    result.push_str(&format!("{}{} = [\n{}];\n", INDENT_IN, name, INDENT_OUT));
+    result.push_str(&content[insertion_point..]);
+
+    Ok(result)
 }
 
-pub fn add_package_to_overlay(name: &str, package: &str, version: &str) -> Result<()> {
-    Ok(())
+pub fn add_package_to_overlay(name: &str, package: &str, version: &str) -> Result<String> {
+    // insert package into overlay list in .flk/default.nix
+    let content = fs::read_to_string(".flk/default.nix")
+        .with_context(|| "Failed to read .flk/default.nix")?;
+
+    let (_, list_end) = find_overlay_list(&content, name)?;
+    let insertion_point = list_end - INDENT_OUT.len(); // before the closing bracket
+    let package_entry = format!("{}{}@{}\n{}", INDENT_IN, package, version, INDENT_OUT);
+
+    let mut result = String::new();
+    result.push_str(&content[..insertion_point]);
+    result.push_str(&package_entry);
+    result.push_str(&content[insertion_point..]);
+
+    Ok(result)
 }
 
-pub fn remove_overlay(name: &str) -> Result<()> {
-    Ok(())
+pub fn remove_overlay(name: &str) -> Result<String> {
+    let content = fs::read_to_string(".flk/default.nix")
+        .with_context(|| "Failed to read .flk/default.nix")?;
+
+    let (section_start, section_end) = find_overlay_list(&content, name)?;
+
+    let mut result = String::new();
+    result.push_str(&content[..section_start - INDENT_IN.len() - name.len() - 4]); // -4 for " = ["
+    result.push_str(&content[section_end + 2..]); // +2 to move past the closing bracket and
+                                                  // semicolon
+
+    Ok(result)
 }
 
-pub fn remove_package_form_overlay(package: &str) -> Result<()> {
-    Ok(())
+pub fn remove_package_from_overlay(package: &str) -> Result<String> {
+    let content = fs::read_to_string(".flk/default.nix")
+        .with_context(|| "Failed to read .flk/default.nix")?;
+
+    let package_pattern = format!("{}@", package);
+    let package_pos = content
+        .find(&package_pattern)
+        .context("Could not find package in any overlay")?;
+    let line_start = content[..package_pos]
+        .rfind('\n')
+        .map(|pos| pos + 1)
+        .unwrap_or(0);
+    let line_end = content[package_pos..]
+        .find('\n')
+        .map(|pos| package_pos + pos + 1)
+        .unwrap_or(content.len());
+
+    let mut result = String::new();
+    result.push_str(&content[..line_start]);
+    result.push_str(&content[line_end..]);
+
+    Ok(result)
 }
 
 pub fn pin_exists(name: &str) -> Result<bool> {
-    Ok(true)
+    let content =
+        fs::read_to_string(".flk/pins.nix").with_context(|| "Failed to read .flk/pins.nix")?;
+
+    let is_present = content
+        .lines()
+        .any(|line| line.trim_start().starts_with(&format!("{} = ", name)))
+        .into();
+
+    Ok(is_present)
 }
 
-pub fn add_pin(name: &str) -> Result<bool> {
-    Ok(true)
+pub fn add_pin(name: &str, value: &str) -> Result<String> {
+    let content =
+        fs::read_to_string(".flk/pins.nix").with_context(|| "Failed to read .flk/pins.nix")?;
+
+    let closing_brace_pos = content
+        .rfind('}')
+        .context("Could not find closing brace in pins.nix")?;
+
+    let mut result = String::new();
+    result.push_str(&content[..closing_brace_pos]);
+    result.push_str(&format!("{}{} = {};\n", INDENT_IN, name, value));
+    result.push_str(&content[closing_brace_pos..]);
+
+    Ok(result)
 }
 
-pub fn remove_pin(name: &str) -> Result<bool> {
-    Ok(true)
+pub fn remove_pin(name: &str) -> Result<String> {
+    let content =
+        fs::read_to_string(".flk/pins.nix").with_context(|| "Failed to read .flk/pins.nix")?;
+
+    let pin_pattern = format!("{} =", name);
+    let pin_pos = content
+        .find(&pin_pattern)
+        .context("Could not find pin in pins.nix")?;
+    let line_start = content[..pin_pos]
+        .rfind('\n')
+        .map(|pos| pos + 1)
+        .unwrap_or(0);
+    let line_end = content[pin_pos..]
+        .find('\n')
+        .map(|pos| pin_pos + pos + 1)
+        .unwrap_or(content.len());
+
+    let mut result = String::new();
+    result.push_str(&content[..line_start]);
+    result.push_str(&content[line_end..]);
+
+    Ok(result)
+}
+
+fn find_overlay_section(content: &str) -> Result<(usize, usize)> {
+    let overlays_start = content
+        .find("pinnedPackages = {")
+        .context("Could not find pinnedPackages section")?;
+
+    let brace_pos = content[overlays_start..]
+        .find('{')
+        .context("Could not find opening brace for pinnedPackages")?;
+
+    let section_start = overlays_start + brace_pos;
+    let closing_brace = find_matching_brace(content, section_start, b'{', b'}')
+        .context("Could not find closing brace for pinnedPackages")?;
+
+    Ok((section_start, closing_brace))
+}
+
+fn find_overlay_list(content: &str, overlay_name: &str) -> Result<(usize, usize)> {
+    let (section_start, section_end) = find_overlay_section(content)?;
+
+    let overlay_start = content[section_start..section_end]
+        .find(&format!("{} = [", overlay_name))
+        .context("Could not find overlay in pinnedPackages section")?;
+
+    let list_start_pos = content[section_start + overlay_start..]
+        .find('[')
+        .context("Could not find opening bracket for overlay list")?;
+
+    let list_start = section_start + overlay_start + list_start_pos;
+    let closing_bracket = find_matching_brace(content, list_start, b'[', b']')
+        .context("Could not find closing bracket for overlay list")?;
+
+    Ok((list_start + 1, closing_bracket)) // +1 to move past the opening bracket
 }
