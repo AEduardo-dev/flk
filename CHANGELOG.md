@@ -31,6 +31,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make changelog follow git-cliff format
 - Update lockfile
 ## [unreleased]
+## [0.4.0] - 2025-12-04
+
+### 🚀 Features
+
+- Adapt search methods to use nix-version
+- Display search results as list in base search
+- Migrate all parsers to separate files
+- Update commands for new parsers struct
+- Update tests for new parsers struct
+
+### 🐛 Bug Fixes
+
+- Format issues
+
+### ⚙️ Miscellaneous Tasks
+
+- Add acknowledgements for nix-versions tool
+- Update filetree in README
 ## [0.3.1] - 2025-11-27
 
 ### 💼 Other
