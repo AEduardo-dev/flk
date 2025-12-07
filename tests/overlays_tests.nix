@@ -8,9 +8,9 @@ system: let
 
   # Define which packages to pin from which nixpkgs version
   pinnedPackages = {
-    # Key is the pin name from pins.nix, value is list of package names
-    # Add more as needed:
-    # pkgs-for-python = ["python311" "python311Packages.pip"];
+    existing-overlay = [
+      "git@latest"
+    ];
   };
 
   # Dynamically create overlays for pinned packages
