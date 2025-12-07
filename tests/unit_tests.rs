@@ -12,6 +12,10 @@ mod parser_tests {
             add_env_var_to_profile, env_var_exists, parse_env_vars_from_profile,
             remove_env_var_from_profile,
         },
+        overlays::{
+            add_overlay, add_package_to_overlay, add_pin, overlay_exists, pin_exists,
+            remove_overlay, remove_package_from_overlay, remove_pin,
+        },
         packages::{
             add_package_to_profile, find_packages_in_profile, package_exists,
             parse_packages_from_profile, remove_package_from_profile,
@@ -344,6 +348,66 @@ mod parser_tests {
         assert_eq!(packages.len(), 2);
         assert!(packages.iter().any(|p| p.name == "git"));
         assert!(packages.iter().any(|p| p.name == "curl"));
+    }
+
+    #[test]
+    fn test_parse_overlays_with_no_overlays() {
+        let content = r#"
+        "#;
+        let result = overlay_exists(content, "my-overlay").unwrap();
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_parse_overlays_with_existing_overlay() {
+        let content = r#"
+          overlays = {
+            my-overlay = [ pkgs.git pkgs.curl ];
+          };
+        "#;
+        let result = overlay_exists(content, "my-overlay").unwrap();
+        assert!(result);
+    }
+
+    #[test]
+    fn test_parse_overlays_with_nonexistent_overlay() {
+        let content = r#"
+          overlays = {
+            another-overlay = [ pkgs.git pkgs.curl ];
+          };
+        "#;
+        let result = overlay_exists(content, "my-overlay").unwrap();
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_parse_pins_with_no_pins() {
+        let content = r#"
+        "#;
+        let result = pin_exists(content, "my-pin").unwrap();
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_parse_pins_with_existing_pin() {
+        let content = r#"
+        {
+          my-pin = "some-value";
+        }
+        "#;
+        let result = pin_exists(content, "my-pin").unwrap();
+        assert!(result);
+    }
+
+    #[test]
+    fn test_parse_pins_with_nonexistent_pin() {
+        let content = r#"
+        {
+          another-pin = "some-value";
+        }
+        "#;
+        let result = pin_exists(content, "my-pin").unwrap();
+        assert!(!result);
     }
 
     #[test]

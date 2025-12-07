@@ -31,8 +31,7 @@ pub fn overlay_exists(name: &str) -> Result<bool> {
     let is_present = fs::read_to_string(".flk/default.nix")
         .with_context(|| "Failed to read .flk/default.nix")?
         .lines()
-        .any(|line| line.trim_start().starts_with(&format!("{}= [", name)))
-        .into();
+        .any(|line| line.trim_start().starts_with(&format!("{}= [", name)));
 
     Ok(is_present)
 }
@@ -115,8 +114,7 @@ pub fn pin_exists(name: &str) -> Result<bool> {
 
     let is_present = content
         .lines()
-        .any(|line| line.trim_start().starts_with(&format!("{} = ", name)))
-        .into();
+        .any(|line| line.trim_start().starts_with(&format!("{} = ", name)));
 
     Ok(is_present)
 }
