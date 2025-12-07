@@ -4,68 +4,28 @@
 #[cfg(test)]
 mod parser_tests {
     use flk::flake::parsers::{
-        commands::parse_shell_hook_section, env::parse_env_vars_section,
-        packages::parse_packages_section,
+        commands::{
+            add_command_to_shell_hook, command_exists, parse_shell_hook_from_profile,
+            remove_command_from_shell_hook,
+        },
+        env::{
+            add_env_var_to_profile, env_var_exists, parse_env_vars_from_profile,
+            remove_env_var_from_profile,
+        },
+        overlays::{
+            add_overlay, add_package_to_overlay, add_pin, overlay_exists, pin_exists,
+            remove_overlay, remove_package_from_overlay, remove_pin,
+        },
+        packages::{
+            add_package_to_profile, find_packages_in_profile, package_exists,
+            parse_packages_from_profile, remove_package_from_profile,
+        },
     };
 
-    const CONTENT: &str = r#"
-    {
-      description = "Test flake description";
-
-      inputs = {
-        nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-        flake-utils.url = "github:numtide/flake-utils";
-        profile-lib.url = "github:AEduardo-dev/nix-profile-lib";
-      };
-
-      outputs = {
-        self,
-        flake-utils,
-        nixpkgs,
-        profile-lib,
-      }:
-        flake-utils.lib.eachDefaultSystem (system: let
-          pkgs = import nixpkgs {
-            inherit system overlays;
-          };
-
-          profileLib = profile-lib.lib {inherit pkgs;};
-
-          profileDefinitions = {
-            default = {
-              packages = with pkgs; [
-                git
-                curl
-              ];
-
-              envVars = {
-                VAR1 = "value1";
-                VAR2 = "value2";
-                VAR3 = "value3";
-              };
-
-              shellHook = ''
-                echo "Welcome to the development shell!"
-
-                # flk-command: test
-                test () {
-                  echo "This is a test command"
-                }
-              '';
-
-              containerConfig = {
-                Cmd = ["${pkgs.bashInteractive}/bin/bash"];
-              };
-            };
-          };
-        in
-          profileLib.mkProfileOutputs {
-            inherit profileDefinitions;
-            defaultShell = "default";
-            defaultImage = "default";
-          });
-    }
-    "#;
+    const CONTENT: &str = include_str!("flake_tests.nix");
+    const PROFILE_CONTENT: &str = include_str!("profile_tests.nix");
+    const OVERLAY_CONTENT: &str = include_str!("overlays_tests.nix");
+    const PINS_CONTENT: &str = include_str!("pins_tests.nix");
 
     #[test]
     fn test_package_exists() {
@@ -323,6 +283,105 @@ mod parser_tests {
         assert_eq!(packages.len(), 2);
         assert!(packages.iter().any(|p| p.name == "git"));
         assert!(packages.iter().any(|p| p.name == "curl"));
+    }
+
+    #[test]
+    fn test_parse_overlays_with_no_overlays() {
+        let content = r#"
+        "#;
+        let result = overlay_exists(content, "my-overlay").unwrap();
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_parse_overlays_with_existing_overlay() {
+        let result = overlay_exists(OVERLAY_CONTENT, "existing-overlay").unwrap();
+        assert!(result);
+    }
+
+    #[test]
+    fn test_parse_overlays_with_nonexistent_overlay() {
+        let result = overlay_exists(OVERLAY_CONTENT, "another-overlay").unwrap();
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_add_overlays() {
+        let result = add_overlay(OVERLAY_CONTENT, "new-overlay").unwrap();
+
+        assert!(result.contains("existing-overlay"));
+        assert!(result.contains("new-overlay"));
+    }
+
+    #[test]
+    fn test_remove_overlay() {
+        let result = remove_overlay(OVERLAY_CONTENT, "existing-overlay").unwrap();
+        assert!(!result.contains("existing-overlay"));
+    }
+
+    #[test]
+    fn test_remove_nonexistent_overlay() {
+        let result = remove_overlay(OVERLAY_CONTENT, "nonexistent-overlay");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_add_package_to_overlay() {
+        let result =
+            add_package_to_overlay(OVERLAY_CONTENT, "existing-overlay", "curl", "latest").unwrap();
+        assert!(result.contains("git"));
+        assert!(result.contains("curl@latest"));
+    }
+
+    #[test]
+    fn test_remove_package_from_overlay() {
+        let result = remove_package_from_overlay(OVERLAY_CONTENT, "git").unwrap();
+        assert!(!result.contains("git"));
+    }
+
+    #[test]
+    fn test_remove_nonexistent_package_from_overlay() {
+        let result = remove_package_from_overlay(OVERLAY_CONTENT, "nonexistent");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_pins_with_no_pins() {
+        let content = r#"
+        "#;
+        let result = pin_exists(content, "my-pin").unwrap();
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_parse_pins_with_existing_pin() {
+        let result = pin_exists(PINS_CONTENT, "existing-pin").unwrap();
+        assert!(result);
+    }
+
+    #[test]
+    fn test_parse_pins_with_nonexistent_pin() {
+        let result = pin_exists(PINS_CONTENT, "nonexistent-pin").unwrap();
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_add_pins() {
+        let result = add_pin(PINS_CONTENT, "new-pin", "\"value\"").unwrap();
+        assert!(result.contains("existing-pin"));
+        assert!(result.contains("new-pin = \"value\";"));
+    }
+
+    #[test]
+    fn test_remove_pin() {
+        let result = remove_pin(PINS_CONTENT, "existing-pin").unwrap();
+        assert!(!result.contains("existing-pin"));
+    }
+
+    #[test]
+    fn test_remove_nonexistent_pin() {
+        let result = remove_pin(PINS_CONTENT, "nonexistent-pin");
+        assert!(result.is_err());
     }
 
     #[test]
