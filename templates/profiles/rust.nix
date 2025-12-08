@@ -2,14 +2,14 @@
   pkgs,
   system,
 }: {
-  packages = with pkgs; [
-    rust-bin.stable.latest.default # From rust-overlay
-    rust-analyzer
-    pkg-config
-    openssl
-    cargo-watch
-    cargo-edit
-    cargo-dist
+  packages = [
+    pkgs.rust-bin.stable.latest.default # From rust-overlay
+    pkgs.rust-analyzer
+    pkgs.pkg-config
+    pkgs.openssl
+    pkgs.cargo-watch
+    pkgs.cargo-edit
+    pkgs.cargo-dist
   ];
 
   envVars = {
