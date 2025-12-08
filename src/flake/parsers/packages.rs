@@ -106,7 +106,7 @@ pub fn add_package_to_profile(
 
     let prefix = if !has_with_pkgs { "pkgs." } else { "" };
 
-    let package_entry = format!("{}{}{}\n{}", INDENT_IN, prefix, package, INDENT_OUT);
+    let package_entry = format!("{}{}\"{}\"\n{}", INDENT_IN, prefix, package, INDENT_OUT);
     let insertion_point = list_end - INDENT_OUT.len();
 
     let mut result = String::new();

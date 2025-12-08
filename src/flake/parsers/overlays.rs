@@ -1,61 +1,153 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 
 use crate::flake::{
     interface::{INDENT_IN, INDENT_OUT},
     parsers::utils::find_matching_brace,
 };
 
-// NOTE: Process to follow when adding:
-// 1. Neither pin nor overlay pin_exists
-// 1.1. Pin gets generated with ref and name
-// 1.2. Overlays get updated with new name/list matching the new pin
-// 1.3. Package is added to the list for the overlay to process
-// 2. Pin already pin_exists
-// 2.1 Check if overlay pin_exists
-// 2.2 Add package to list in overlay
-// 3. Pin and overlay exist
-// 3.1. Check if they match current ref
-// 3.2. Check if package is named the exact name
-// 3.2.1 If package is not the same, add to list
-// 3.2.2 If package is the same, nothing changes
+// ============================================================================
+// SOURCES SECTION (pins.nix - sources = { ... })
+// ============================================================================
 
-// NOTE: Pins shall be named pkgs-<hash>, where sha is the commit hash of the nixpkgs version to be
-// pinned. This allows for more than one package to share the same pin, reducing the amount of pins
-// if a match is found.
+/// Check if a source exists in the sources section
+pub fn source_exists(content: &str, source_name: &str) -> Result<bool> {
+    let (section_start, section_end) = find_sources_section(content)?;
+    let section_content = &content[section_start..section_end];
 
-// FIXME: The list of packages would be ideal if it contained names such as <package>@<version>,
-// this would allow for clear representation of pinned packages in the subsequent flakes/profiles
-
-pub fn overlay_exists(content: &str, name: &str) -> Result<bool> {
-    let is_present = content
+    Ok(section_content
         .lines()
-        .any(|line| line.trim_start().starts_with(&format!("{} = [", name)));
-
-    Ok(is_present)
+        .any(|line| line.trim_start().starts_with(&format!("{} =", source_name))))
 }
 
-pub fn add_overlay(content: &str, name: &str) -> Result<String> {
-    // search for the pinnedPackages section
-    let (_, section_end) = find_overlay_section(content)?;
+/// Add a new source to the sources section
+pub fn add_source(content: &str, source_name: &str, source_ref: &str) -> Result<String> {
+    let (_, section_end) = find_sources_section(content)?;
     let insertion_point = section_end - INDENT_OUT.len(); // before the closing brace
 
     let mut result = String::new();
     result.push_str(&content[..insertion_point]);
-    result.push_str(&format!("{}{} = [\n{}];\n", INDENT_IN, name, INDENT_IN));
+    result.push_str(&format!(
+        "{}{} = \"{}\";\n{}",
+        INDENT_IN, source_name, source_ref, INDENT_OUT
+    ));
     result.push_str(&content[insertion_point..]);
 
     Ok(result)
 }
 
-pub fn add_package_to_overlay(
+/// Remove a source from the sources section
+pub fn remove_source(content: &str, source_name: &str) -> Result<String> {
+    let source_pattern = format!("{} =", source_name);
+    let source_pos = content
+        .find(&source_pattern)
+        .context("Could not find source in sources section")?;
+
+    let line_start = content[..source_pos]
+        .rfind('\n')
+        .map(|pos| pos + 1)
+        .unwrap_or(0);
+    let line_end = content[source_pos..]
+        .find('\n')
+        .map(|pos| source_pos + pos + 1)
+        .unwrap_or(content.len());
+
+    let mut result = String::new();
+    result.push_str(&content[..line_start]);
+    result.push_str(&content[line_end..]);
+
+    Ok(result)
+}
+
+// ============================================================================
+// PINNED PACKAGES SECTION (pins. nix - pinnedPackages = { ... })
+// ============================================================================
+
+/// Check if a pin entry exists in pinnedPackages
+pub fn pin_entry_exists(content: &str, pin_name: &str) -> Result<bool> {
+    let (section_start, section_end) = find_pinned_packages_section(content)?;
+    let section_content = &content[section_start..section_end];
+
+    Ok(section_content
+        .lines()
+        .any(|line| line.trim_start().starts_with(&format!("{} = [", pin_name))))
+}
+
+/// Add a new pin entry with an empty package list
+pub fn add_pin_entry(content: &str, pin_name: &str) -> Result<String> {
+    let (_, section_end) = find_pinned_packages_section(content)?;
+    let insertion_point = section_end - INDENT_OUT.len(); // before the closing brace
+
+    let mut result = String::new();
+    result.push_str(&content[..insertion_point]);
+    result.push_str(&format!(
+        "{}{} = [\n{}];\n{}",
+        INDENT_IN, pin_name, INDENT_IN, INDENT_OUT
+    ));
+    result.push_str(&content[insertion_point..]);
+
+    Ok(result)
+}
+
+/// Remove a pin entry from pinnedPackages
+pub fn remove_pin_entry(content: &str, pin_name: &str) -> Result<String> {
+    let (section_start, section_end) = find_pinned_packages_section(content)?;
+    let section_content = &content[section_start..section_end];
+
+    let entry_pattern = format!("{} = [", pin_name);
+    let entry_pos = section_content
+        .find(&entry_pattern)
+        .context("Could not find pin entry in pinnedPackages section")?;
+
+    let absolute_entry_pos = section_start + entry_pos;
+
+    // Find the line start (including indentation)
+    let line_start = content[..absolute_entry_pos]
+        .rfind('\n')
+        .map(|pos| pos + 1)
+        .unwrap_or(0);
+
+    // Find the closing bracket and semicolon
+    let bracket_start = absolute_entry_pos + entry_pattern.len() - 1;
+    let bracket_end = find_matching_brace(content, bracket_start, b'[', b']')
+        .context("Could not find closing bracket for pin entry")?;
+
+    let line_end = content[bracket_end..]
+        .find('\n')
+        .map(|pos| bracket_end + pos + 1)
+        .unwrap_or(content.len());
+
+    let mut result = String::new();
+    result.push_str(&content[..line_start]);
+    result.push_str(&content[line_end..]);
+
+    Ok(result)
+}
+
+/// Check if a specific package exists in a pin's package list
+pub fn package_in_pin_exists(content: &str, pin_name: &str, package_name: &str) -> Result<bool> {
+    let (list_start, list_end) = find_pin_package_list(content, pin_name)?;
+    let list_content = &content[list_start..list_end];
+
+    Ok(list_content.contains(&format!("name = \"{}\"", package_name)))
+}
+
+/// Add a package to a pin's package list
+pub fn add_package_to_pin(
     content: &str,
-    name: &str,
+    pin_name: &str,
     package: &str,
-    version: &str,
+    package_alias: &str, // e.g., "git@2. 51.2"
 ) -> Result<String> {
-    let (_, list_end) = find_overlay_list(content, name)?;
+    let (_, list_end) = find_pin_package_list(content, pin_name)?;
     let insertion_point = list_end; // before the closing bracket
-    let package_entry = format!("{}{}@{}\n{}", INDENT_IN, package, version, INDENT_IN);
+
+    let package_entry = format!(
+        "{}{{ pkg = \"{}\"; name = \"{}\"; }}\n{}",
+        INDENT_IN.repeat(2), // Double indent for nested list items
+        package,
+        package_alias,
+        INDENT_IN
+    );
 
     let mut result = String::new();
     result.push_str(&content[..insertion_point]);
@@ -65,29 +157,33 @@ pub fn add_package_to_overlay(
     Ok(result)
 }
 
-pub fn remove_overlay(content: &str, name: &str) -> Result<String> {
-    let (section_start, section_end) = find_overlay_list(content, name)?;
+/// Remove a package from a pin's package list
+pub fn remove_package_from_pin(
+    content: &str,
+    pin_name: &str,
+    package_alias: &str,
+) -> Result<String> {
+    let (list_start, list_end) = find_pin_package_list(content, pin_name)?;
+    let list_content = &content[list_start..list_end];
 
-    let mut result = String::new();
-    result.push_str(&content[..section_start - INDENT_IN.len() - name.len() - 4]); // -4 for " = ["
-    result.push_str(&content[section_end + 2..]); // +2 to move past the closing bracket and
-                                                  // semicolon
+    let package_pattern = format!("name = \"{}\"", package_alias);
+    let package_pos = list_content.find(&package_pattern).context(format!(
+        "Could not find package '{}' in pin '{}'",
+        package_alias, pin_name
+    ))?;
 
-    Ok(result)
-}
+    let absolute_package_pos = list_start + package_pos;
 
-pub fn remove_package_from_overlay(content: &str, package: &str) -> Result<String> {
-    let package_pattern = format!("{}@", package);
-    let package_pos = content
-        .find(&package_pattern)
-        .context("Could not find package in any overlay")?;
-    let line_start = content[..package_pos]
+    // Find the start of the line containing this package
+    let line_start = content[..absolute_package_pos]
         .rfind('\n')
         .map(|pos| pos + 1)
         .unwrap_or(0);
-    let line_end = content[package_pos..]
+
+    // Find the end of the line (after the closing brace)
+    let line_end = content[absolute_package_pos..]
         .find('\n')
-        .map(|pos| package_pos + pos + 1)
+        .map(|pos| absolute_package_pos + pos + 1)
         .unwrap_or(content.len());
 
     let mut result = String::new();
@@ -97,78 +193,157 @@ pub fn remove_package_from_overlay(content: &str, package: &str) -> Result<Strin
     Ok(result)
 }
 
-pub fn pin_exists(content: &str, name: &str) -> Result<bool> {
-    let is_present = content
-        .lines()
-        .any(|line| line.trim_start().starts_with(&format!("{} = ", name)));
+/// Check if a pin entry has any packages
+pub fn pin_has_packages(content: &str, pin_name: &str) -> Result<bool> {
+    let (list_start, list_end) = find_pin_package_list(content, pin_name)?;
+    let list_content = &content[list_start..list_end].trim();
 
-    Ok(is_present)
+    Ok(!list_content.is_empty())
 }
 
-pub fn add_pin(content: &str, name: &str, value: &str) -> Result<String> {
-    let closing_brace_pos = content
-        .rfind('}')
-        .context("Could not find closing brace in pins.nix")?;
+/// Find which pin a package belongs to (by package alias)
+pub fn find_pin_for_package(content: &str, package_alias: &str) -> Result<String> {
+    let (section_start, section_end) = find_pinned_packages_section(content)?;
+    let section_content = &content[section_start..section_end];
 
-    let mut result = String::new();
-    result.push_str(&content[..closing_brace_pos]);
-    result.push_str(&format!("{}{} = {};\n", INDENT_IN, name, value));
-    result.push_str(&content[closing_brace_pos..]);
+    let package_pattern = format!("name = \"{}\"", package_alias);
+    let package_pos = section_content.find(&package_pattern).context(format!(
+        "Could not find package '{}' in any pin",
+        package_alias
+    ))?;
 
-    Ok(result)
-}
+    // Search backwards to find the pin name
+    let before_package = &section_content[..package_pos];
 
-pub fn remove_pin(content: &str, name: &str) -> Result<String> {
-    let pin_pattern = format!("{} =", name);
-    let pin_pos = content
-        .find(&pin_pattern)
-        .context("Could not find pin in pins.nix")?;
-    let line_start = content[..pin_pos]
+    // Find the most recent "pin-name = [" pattern
+    let pin_pattern_end = before_package
+        .rfind(" = [")
+        .context("Could not find pin entry before package")?;
+
+    let pin_name_start = before_package[..pin_pattern_end]
         .rfind('\n')
         .map(|pos| pos + 1)
         .unwrap_or(0);
-    let line_end = content[pin_pos..]
-        .find('\n')
-        .map(|pos| pin_pos + pos + 1)
-        .unwrap_or(content.len());
 
-    let mut result = String::new();
-    result.push_str(&content[..line_start]);
-    result.push_str(&content[line_end..]);
+    let pin_name = before_package[pin_name_start..pin_pattern_end]
+        .trim()
+        .to_string();
+
+    Ok(pin_name)
+}
+
+// ============================================================================
+// COMBINED OPERATIONS
+// ============================================================================
+
+/// Add a pinned package (adds source if needed, creates pin entry if needed, adds package)
+pub fn add_pinned_package(
+    content: &str,
+    pin_hash: &str,
+    source_ref: &str,
+    package: &str,
+    version: &str,
+) -> Result<String> {
+    let pin_name = format!("pkgs-{}", pin_hash);
+    let package_alias = format!("{}@{}", package, version);
+
+    // Step 1: Ensure source exists
+    let mut result = if !source_exists(content, &pin_name)? {
+        add_source(content, &pin_name, source_ref)?
+    } else {
+        content.to_string()
+    };
+
+    // Step 2: Ensure pin entry exists
+    result = if !pin_entry_exists(&result, &pin_name)? {
+        add_pin_entry(&result, &pin_name)?
+    } else {
+        result
+    };
+
+    // Step 3: Check if package already exists
+    if package_in_pin_exists(&result, &pin_name, &package_alias)? {
+        bail!(
+            "Package '{}' already exists in pin '{}'",
+            package_alias,
+            pin_name
+        );
+    }
+
+    // Step 4: Add the package
+    add_package_to_pin(&result, &pin_name, package, &package_alias)
+}
+
+/// Remove a pinned package and cleanup if pin is empty
+pub fn remove_pinned_package_with_cleanup(content: &str, package_alias: &str) -> Result<String> {
+    // Step 1: Find which pin this package belongs to
+    let pin_name = find_pin_for_package(content, package_alias)?;
+
+    // Step 2: Remove the package
+    let mut result = remove_package_from_pin(content, &pin_name, package_alias)?;
+
+    // Step 3: If pin has no more packages, remove pin entry and source
+    if !pin_has_packages(&result, &pin_name)? {
+        result = remove_pin_entry(&result, &pin_name)?;
+        result = remove_source(&result, &pin_name)?;
+    }
 
     Ok(result)
 }
 
-fn find_overlay_section(content: &str) -> Result<(usize, usize)> {
-    let overlays_start = content
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+fn find_sources_section(content: &str) -> Result<(usize, usize)> {
+    let sources_start = content
+        .find("sources = {")
+        .context("Could not find sources section in pins.nix")?;
+
+    let brace_pos = content[sources_start..]
+        .find('{')
+        .context("Could not find opening brace for sources")?;
+
+    let section_start = sources_start + brace_pos;
+    let section_end = find_matching_brace(content, section_start, b'{', b'}')
+        .context("Could not find closing brace for sources")?;
+
+    Ok((section_start + 1, section_end)) // +1 to move past opening brace
+}
+
+fn find_pinned_packages_section(content: &str) -> Result<(usize, usize)> {
+    let section_start = content
         .find("pinnedPackages = {")
-        .context("Could not find pinnedPackages section")?;
+        .context("Could not find pinnedPackages section in pins. nix")?;
 
-    let brace_pos = content[overlays_start..]
+    let brace_pos = content[section_start..]
         .find('{')
         .context("Could not find opening brace for pinnedPackages")?;
 
-    let section_start = overlays_start + brace_pos;
-    let closing_brace = find_matching_brace(content, section_start, b'{', b'}')
+    let section_start_abs = section_start + brace_pos;
+    let section_end = find_matching_brace(content, section_start_abs, b'{', b'}')
         .context("Could not find closing brace for pinnedPackages")?;
 
-    Ok((section_start, closing_brace))
+    Ok((section_start_abs + 1, section_end)) // +1 to move past opening brace
 }
 
-fn find_overlay_list(content: &str, overlay_name: &str) -> Result<(usize, usize)> {
-    let (section_start, section_end) = find_overlay_section(content)?;
+fn find_pin_package_list(content: &str, pin_name: &str) -> Result<(usize, usize)> {
+    let (section_start, section_end) = find_pinned_packages_section(content)?;
+    let section_content = &content[section_start..section_end];
 
-    let overlay_start = content[section_start..section_end]
-        .find(&format!("{} = [", overlay_name))
-        .context("Could not find overlay in pinnedPackages section")?;
+    let entry_pattern = format!("{} = [", pin_name);
+    let entry_pos = section_content.find(&entry_pattern).context(format!(
+        "Could not find pin entry '{}' in pinnedPackages",
+        pin_name
+    ))?;
 
-    let list_start_pos = content[section_start + overlay_start..]
+    let list_start_pos = section_content[entry_pos..]
         .find('[')
-        .context("Could not find opening bracket for overlay list")?;
+        .context("Could not find opening bracket for pin's package list")?;
 
-    let list_start = section_start + overlay_start + list_start_pos;
-    let closing_bracket = find_matching_brace(content, list_start, b'[', b']')
-        .context("Could not find closing bracket for overlay list")?;
+    let absolute_list_start = section_start + entry_pos + list_start_pos;
+    let list_end = find_matching_brace(content, absolute_list_start, b'[', b']')
+        .context("Could not find closing bracket for pin's package list")?;
 
-    Ok((list_start + 1, closing_bracket)) // +1 to move past the opening bracket
+    Ok((absolute_list_start + 1, list_end)) // +1 to move past opening bracket
 }
