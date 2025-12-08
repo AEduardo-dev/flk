@@ -1,7 +1,4 @@
-{
-  pkgs,
-  system,
-}: let
+{pkgs, ...}: let
 in {
   description = "Generic Development Environment";
 

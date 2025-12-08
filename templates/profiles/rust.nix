@@ -1,7 +1,4 @@
-{
-  pkgs,
-  system,
-}: {
+{pkgs, ...}: {
   packages = [
     pkgs.rust-bin.stable.latest.default # From rust-overlay
     pkgs.rust-analyzer
