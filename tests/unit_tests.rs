@@ -13,8 +13,9 @@ mod parser_tests {
             remove_env_var_from_profile,
         },
         overlays::{
-            add_overlay, add_package_to_overlay, add_pin, overlay_exists, pin_exists,
-            remove_overlay, remove_package_from_overlay, remove_pin,
+            add_package_to_pin, add_pin_entry, add_source, find_pin_for_package,
+            package_in_pin_exists, pin_entry_exists, pin_has_packages, remove_package_from_pin,
+            remove_pin_entry, remove_source, source_exists,
         },
         packages::{
             add_package_to_profile, find_packages_in_profile, package_exists,
@@ -22,9 +23,7 @@ mod parser_tests {
         },
     };
 
-    const CONTENT: &str = include_str!("flake_tests.nix");
     const PROFILE_CONTENT: &str = include_str!("profile_tests.nix");
-    const OVERLAY_CONTENT: &str = include_str!("overlays_tests.nix");
     const PINS_CONTENT: &str = include_str!("pins_tests.nix");
 
     #[test]
@@ -54,22 +53,18 @@ mod parser_tests {
     #[test]
     fn test_add_package_to_empty_list() {
         let content = r#"
-    ... 
-      test_package_existskgs = import nixpkgs {
-        inherit system overlays;
-      };
+pkgs = import nixpkgs {
+    inherit system overlays;
+  };
 
-      profileLib = profile-lib.lib {inherit pkgs;};
+  profileLib = profile-lib. lib {inherit pkgs;};
 
-      profileDefinitions = {
-        default = {
-          packages = with pkgs; [
-          ];
-        };
-      };
-    in
-      profileLib.mkProfileOutputs {
-... 
+  profileDefinitions = {
+    default = {
+      packages = with pkgs; [
+      ];
+    };
+  };
 "#;
         let section = parse_packages_section(content).unwrap();
         // Test adding a package to empty list
@@ -285,104 +280,184 @@ mod parser_tests {
         assert!(packages.iter().any(|p| p.name == "curl"));
     }
 
-    #[test]
-    fn test_parse_overlays_with_no_overlays() {
-        let content = r#"
-        "#;
-        let result = overlay_exists(content, "my-overlay").unwrap();
-        assert!(!result);
-    }
+    // ========================================================================
+    // SOURCES TESTS
+    // ========================================================================
 
     #[test]
-    fn test_parse_overlays_with_existing_overlay() {
-        let result = overlay_exists(OVERLAY_CONTENT, "existing-overlay").unwrap();
+    fn test_source_exists_with_existing_source() {
+        let result = source_exists(PINS_CONTENT, "pkgs-abc1234").unwrap();
         assert!(result);
     }
 
     #[test]
-    fn test_parse_overlays_with_nonexistent_overlay() {
-        let result = overlay_exists(OVERLAY_CONTENT, "another-overlay").unwrap();
+    fn test_source_exists_with_nonexistent_source() {
+        let result = source_exists(PINS_CONTENT, "pkgs-nonexistent").unwrap();
         assert!(!result);
     }
 
     #[test]
-    fn test_add_overlays() {
-        let result = add_overlay(OVERLAY_CONTENT, "new-overlay").unwrap();
-
-        assert!(result.contains("existing-overlay"));
-        assert!(result.contains("new-overlay"));
+    fn test_source_exists_with_empty_content() {
+        let content = r#"{
+  sources = {
+  };
+  pinnedPackages = {
+  };
+}"#;
+        let result = source_exists(content, "my-source").unwrap();
+        assert!(!result);
     }
 
     #[test]
-    fn test_remove_overlay() {
-        let result = remove_overlay(OVERLAY_CONTENT, "existing-overlay").unwrap();
-        assert!(!result.contains("existing-overlay"));
-    }
-
-    #[test]
-    fn test_remove_nonexistent_overlay() {
-        let result = remove_overlay(OVERLAY_CONTENT, "nonexistent-overlay");
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_add_package_to_overlay() {
+    fn test_add_source() {
         let result =
-            add_package_to_overlay(OVERLAY_CONTENT, "existing-overlay", "curl", "latest").unwrap();
-        assert!(result.contains("git"));
-        assert!(result.contains("curl@latest"));
+            add_source(PINS_CONTENT, "pkgs-new123", "github:NixOS/nixpkgs/new123").unwrap();
+
+        assert!(result.contains("pkgs-abc1234"));
+        assert!(result.contains("pkgs-new123 = \"github:NixOS/nixpkgs/new123\";"));
     }
 
     #[test]
-    fn test_remove_package_from_overlay() {
-        let result = remove_package_from_overlay(OVERLAY_CONTENT, "git").unwrap();
-        assert!(!result.contains("git"));
+    fn test_remove_source() {
+        let result = remove_source(PINS_CONTENT, "pkgs-abc1234").unwrap();
+        assert!(!result.contains("pkgs-abc1234 = \""));
+        assert!(result.contains("rust-overlay")); // Other sources still there
     }
 
     #[test]
-    fn test_remove_nonexistent_package_from_overlay() {
-        let result = remove_package_from_overlay(OVERLAY_CONTENT, "nonexistent");
+    fn test_remove_nonexistent_source() {
+        let result = remove_source(PINS_CONTENT, "pkgs-nonexistent");
         assert!(result.is_err());
     }
 
-    #[test]
-    fn test_parse_pins_with_no_pins() {
-        let content = r#"
-        "#;
-        let result = pin_exists(content, "my-pin").unwrap();
-        assert!(!result);
-    }
+    // ========================================================================
+    // PIN ENTRY TESTS
+    // ========================================================================
 
     #[test]
-    fn test_parse_pins_with_existing_pin() {
-        let result = pin_exists(PINS_CONTENT, "existing-pin").unwrap();
+    fn test_pin_entry_exists_with_existing_entry() {
+        let result = pin_entry_exists(PINS_CONTENT, "pkgs-abc1234").unwrap();
         assert!(result);
     }
 
     #[test]
-    fn test_parse_pins_with_nonexistent_pin() {
-        let result = pin_exists(PINS_CONTENT, "nonexistent-pin").unwrap();
+    fn test_pin_entry_exists_with_nonexistent_entry() {
+        let result = pin_entry_exists(PINS_CONTENT, "pkgs-nonexistent").unwrap();
         assert!(!result);
     }
 
     #[test]
-    fn test_add_pins() {
-        let result = add_pin(PINS_CONTENT, "new-pin", "\"value\"").unwrap();
-        assert!(result.contains("existing-pin"));
-        assert!(result.contains("new-pin = \"value\";"));
+    fn test_pin_entry_exists_with_empty_content() {
+        let content = r#"{
+  sources = {
+  };
+  pinnedPackages = {
+  };
+}"#;
+        let result = pin_entry_exists(content, "my-pin").unwrap();
+        assert!(!result);
     }
 
     #[test]
-    fn test_remove_pin() {
-        let result = remove_pin(PINS_CONTENT, "existing-pin").unwrap();
-        assert!(!result.contains("existing-pin"));
+    fn test_add_pin_entry() {
+        let result = add_pin_entry(PINS_CONTENT, "pkgs-new456").unwrap();
+
+        assert!(result.contains("pkgs-abc1234"));
+        assert!(result.contains("pkgs-new456 = ["));
     }
 
     #[test]
-    fn test_remove_nonexistent_pin() {
-        let result = remove_pin(PINS_CONTENT, "nonexistent-pin");
+    fn test_remove_pin_entry() {
+        let result = remove_pin_entry(PINS_CONTENT, "pkgs-abc1234").unwrap();
+        assert!(!result.contains("pkgs-abc1234 = ["));
+        assert!(result.contains("pkgs-def5678")); // Other entries still there
+    }
+
+    #[test]
+    fn test_remove_nonexistent_pin_entry() {
+        let result = remove_pin_entry(PINS_CONTENT, "pkgs-nonexistent");
         assert!(result.is_err());
     }
+
+    // ========================================================================
+    // PACKAGE TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_package_in_pin_exists_with_existing_package() {
+        let result = package_in_pin_exists(PINS_CONTENT, "pkgs-abc1234", "git@2.51.2").unwrap();
+        assert!(result);
+    }
+
+    #[test]
+    fn test_package_in_pin_exists_with_nonexistent_package() {
+        let result = package_in_pin_exists(PINS_CONTENT, "pkgs-abc1234", "python@3.11").unwrap();
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_add_package_to_pin() {
+        let result =
+            add_package_to_pin(PINS_CONTENT, "pkgs-abc1234", "wget", "wget@1.21.0").unwrap();
+
+        assert!(result.contains("git@2.51.2")); // Existing packages still there
+        assert!(result.contains("curl@8.0.0"));
+        assert!(result.contains("wget@1.21.0")); // New package added
+    }
+
+    #[test]
+    fn test_remove_package_from_pin() {
+        let result = remove_package_from_pin(PINS_CONTENT, "pkgs-abc1234", "git@2.51.2").unwrap();
+        assert!(!result.contains("git@2.51. 2"));
+        assert!(result.contains("curl@8.0.0")); // Other packages still there
+    }
+
+    #[test]
+    fn test_remove_nonexistent_package_from_pin() {
+        let result = remove_package_from_pin(PINS_CONTENT, "pkgs-abc1234", "nonexistent@1.0");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_pin_has_packages_with_packages() {
+        let result = pin_has_packages(PINS_CONTENT, "pkgs-abc1234").unwrap();
+        assert!(result);
+    }
+
+    #[test]
+    fn test_pin_has_packages_with_empty_pin() {
+        let content = r#"{
+  sources = {
+    pkgs-empty = "github:NixOS/nixpkgs/empty";
+  };
+  
+  pinnedPackages = {
+    pkgs-empty = [
+    ];
+  };
+}"#;
+        let result = pin_has_packages(content, "pkgs-empty").unwrap();
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_find_pin_for_package() {
+        let result = find_pin_for_package(PINS_CONTENT, "git@2.51.2").unwrap();
+        assert_eq!(result, "pkgs-abc1234");
+
+        let result = find_pin_for_package(PINS_CONTENT, "ripgrep@14.1.0").unwrap();
+        assert_eq!(result, "pkgs-def5678");
+    }
+
+    #[test]
+    fn test_find_pin_for_nonexistent_package() {
+        let result = find_pin_for_package(PINS_CONTENT, "nonexistent@1.0");
+        assert!(result.is_err());
+    }
+
+    // ========================================================================
+    // INDENT TESTS
+    // ========================================================================
 
     #[test]
     fn test_indent_consistency() {
