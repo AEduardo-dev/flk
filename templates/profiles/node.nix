@@ -5,15 +5,15 @@
 in {
   description = "Node.js development environment";
 
-  packages = with pkgs; [
-    nodejs_20
-    nodePackages.npm
-    nodePackages.pnpm
-    yarn
-    nodePackages.typescript
-    nodePackages.javascript
-    nodePackages.eslint
-    nodePackages.prettier
+  packages = [
+    pkgs.nodejs_20
+    pkgs.nodePackages.npm
+    pkgs.nodePackages.pnpm
+    pkgs.yarn
+    pkgs.nodePackages.typescript
+    pkgs.nodePackages.javascript
+    pkgs.nodePackages.eslint
+    pkgs.nodePackages.prettier
   ];
 
   envVars = {

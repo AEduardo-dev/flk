@@ -5,7 +5,7 @@
 in {
   description = "Generic Development Environment";
 
-  packages = with pkgs; [
+  packages = [
     # User packages
   ];
 

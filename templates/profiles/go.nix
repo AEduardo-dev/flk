@@ -5,13 +5,13 @@
 in {
   description = "Go development environment";
 
-  packages = with pkgs; [
-    go
-    gopls
-    gotools
-    go-tools
-    delve
-    golangci-lint
+  packages = [
+    pkgs.go
+    pkgs.gopls
+    pkgs.gotools
+    pkgs.go-tools
+    pkgs.delve
+    pkgs.golangci-lint
   ];
 
   envVars = {
