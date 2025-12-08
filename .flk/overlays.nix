@@ -1,17 +1,11 @@
 system: let
-  # Load pins
-  pins = import ./pins.nix;
+  pinsData = import ./pins.nix;
+  pins = pinsData.sources;
+  pinnedPackages = pinsData.pinnedPackages;
 
-  fetchPin = ref: builtins. getFlake ref;
+  fetchPin = ref: builtins.getFlake ref;
 
-  rust-overlay = fetchPin pins. rust-overlay;
-
-  # Define which packages to pin from which nixpkgs version
-  pinnedPackages = {
-    # Key is the pin name from pins.nix, value is list of package names
-    # Add more as needed:
-    # pkgs-for-python = ["python311" "python311Packages.pip"];
-  };
+  rust-overlay = fetchPin pins.rust-overlay;
 
   # Dynamically create overlays for pinned packages
   createPinnedOverlays = pinnedPackages:
@@ -22,9 +16,9 @@ system: let
       in
         final: prev:
           builtins.listToAttrs (
-            builtins.map (pkgName: {
-              name = pkgName;
-              value = pinnedPkgs.${pkgName};
+            builtins.map (pkgDef: {
+              name = pkgDef.name;
+              value = pinnedPkgs.${pkgDef.pkg};
             })
             pkgNames
           )
