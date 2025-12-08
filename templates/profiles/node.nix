@@ -1,7 +1,4 @@
-{
-  pkgs,
-  system,
-}: let
+{pkgs, ...}: let
 in {
   description = "Node.js development environment";
 
