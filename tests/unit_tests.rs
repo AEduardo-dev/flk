@@ -327,10 +327,21 @@ mod parser_tests {
     #[test]
     fn test_add_overlays() {
         let result = add_overlay(OVERLAY_CONTENT, "new-overlay").unwrap();
-        println!("{}", result);
-        assert!(false);
+
         assert!(result.contains("existing-overlay"));
         assert!(result.contains("new-overlay"));
+    }
+
+    #[test]
+    fn test_remove_overlay() {
+        let result = remove_overlay(OVERLAY_CONTENT, "existing-overlay").unwrap();
+        assert!(!result.contains("existing-overlay"));
+    }
+
+    #[test]
+    fn test_remove_nonexistent_overlay() {
+        let result = remove_overlay(OVERLAY_CONTENT, "nonexistent-overlay");
+        assert!(result.is_err());
     }
 
     #[test]
@@ -339,6 +350,18 @@ mod parser_tests {
             add_package_to_overlay(OVERLAY_CONTENT, "existing-overlay", "curl", "latest").unwrap();
         assert!(result.contains("git"));
         assert!(result.contains("curl@latest"));
+    }
+
+    #[test]
+    fn test_remove_package_from_overlay() {
+        let result = remove_package_from_overlay(OVERLAY_CONTENT, "git").unwrap();
+        assert!(!result.contains("git"));
+    }
+
+    #[test]
+    fn test_remove_nonexistent_package_from_overlay() {
+        let result = remove_package_from_overlay(OVERLAY_CONTENT, "nonexistent");
+        assert!(result.is_err());
     }
 
     #[test]
@@ -351,24 +374,33 @@ mod parser_tests {
 
     #[test]
     fn test_parse_pins_with_existing_pin() {
-        let content = r#"
-        {
-          my-pin = "some-value";
-        }
-        "#;
-        let result = pin_exists(content, "my-pin").unwrap();
+        let result = pin_exists(PINS_CONTENT, "existing-pin").unwrap();
         assert!(result);
     }
 
     #[test]
     fn test_parse_pins_with_nonexistent_pin() {
-        let content = r#"
-        {
-          another-pin = "some-value";
-        }
-        "#;
-        let result = pin_exists(content, "my-pin").unwrap();
+        let result = pin_exists(PINS_CONTENT, "nonexistent-pin").unwrap();
         assert!(!result);
+    }
+
+    #[test]
+    fn test_add_pins() {
+        let result = add_pin(PINS_CONTENT, "new-pin", "\"value\"").unwrap();
+        assert!(result.contains("existing-pin"));
+        assert!(result.contains("new-pin = \"value\";"));
+    }
+
+    #[test]
+    fn test_remove_pin() {
+        let result = remove_pin(PINS_CONTENT, "existing-pin").unwrap();
+        assert!(!result.contains("existing-pin"));
+    }
+
+    #[test]
+    fn test_remove_nonexistent_pin() {
+        let result = remove_pin(PINS_CONTENT, "nonexistent-pin");
+        assert!(result.is_err());
     }
 
     #[test]

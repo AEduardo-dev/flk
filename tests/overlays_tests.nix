@@ -9,7 +9,7 @@ system: let
   # Define which packages to pin from which nixpkgs version
   pinnedPackages = {
     existing-overlay = [
-      "pkgs.git"
+      "git@latest"
     ];
   };
 
