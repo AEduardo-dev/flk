@@ -5,15 +5,15 @@
 in {
   description = "Python development environment";
 
-  packages = with pkgs; [
-    poetry
-    python311
-    python311Packages.pip
-    python311Packages.virtualenv
-    black
-    pyright
-    mypy
-    ruff
+  packages = [
+    pkgs.poetry
+    pkgs.python311
+    pkgs.python311Packages.pip
+    pkgs.python311Packages.virtualenv
+    pkgs.black
+    pkgs.pyright
+    pkgs.mypy
+    pkgs.ruff
   ];
 
   envVars = {
