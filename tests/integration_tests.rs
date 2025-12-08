@@ -209,7 +209,7 @@ fn test_add_package_without_init() {
         .assert()
         .failure()
         .stderr(predicate::str::contains(
-            "Could not find default shell profile (flake.nix)",
+            "Could not find default shell profile",
         ));
 }
 
