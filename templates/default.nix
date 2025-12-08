@@ -3,7 +3,7 @@ inputs: let
 in
   flake-utils.lib.eachDefaultSystem (
     system: let
-      overlays = import ./overlays.nix {inherit system;};
+      overlays = import ./overlays.nix system;
 
       pkgs = import nixpkgs {
         inherit system overlays;
