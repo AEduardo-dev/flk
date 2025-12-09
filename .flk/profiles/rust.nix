@@ -3,10 +3,10 @@
     pkgs.rust-bin.stable.latest.default # From rust-overlay
     pkgs.rust-analyzer
     pkgs.pkg-config
-    pkgs.openssl
     pkgs.cargo-watch
     pkgs.cargo-edit
     pkgs.cargo-dist
+    pkgs."openssl@3.6.0"
   ];
 
   envVars = {

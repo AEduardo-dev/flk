@@ -8,6 +8,9 @@ use crate::flake::parsers::{
     utils::get_default_shell_profile,
 };
 
+// TODO: check for quoted and non-quoted package names. Add utility function for that or adjust all
+// parsers to handle both cases.
+// preferably add tests for both cases.
 pub fn run_remove(package: &str) -> Result<()> {
     let flake_path = Path::new(".flk/profiles/").join(format!(
         "{}.nix",
