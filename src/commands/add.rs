@@ -2,10 +2,7 @@ use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use std::{fs, path};
 
-use crate::flake::parsers::{
-    packages::{add_package_to_profile, package_exists},
-    utils::get_default_shell_profile,
-};
+use crate::flake::parsers::{packages::parse_packages_section, utils::get_default_shell_profile};
 use crate::nix::run_nix_command;
 use crate::utils::visual::with_spinner;
 
@@ -20,6 +17,8 @@ pub fn run_add(package: &str, version: Option<String>) -> Result<()> {
             flake_path.to_str().unwrap()
         )
     })?;
+    let section = parse_packages_section(&flake_content)
+        .context("Failed to parse packages section in flake file")?;
 
     // Validate package name
     if package.trim().is_empty() {
@@ -45,7 +44,7 @@ pub fn run_add(package: &str, version: Option<String>) -> Result<()> {
     };
 
     // Check if package already exists
-    if package_exists(&flake_content, &package_to_add, None)? {
+    if section.package_exists(&package_to_add) {
         bail!(
             "Package '{}' is already in the packages declaration",
             package_to_add
@@ -53,11 +52,7 @@ pub fn run_add(package: &str, version: Option<String>) -> Result<()> {
     }
 
     // Add the package to buildInputs
-    let updated_content = add_package_to_profile(&flake_content, &package_to_add, None)?;
-
-    // TODO: generate overlay for packade in overlays.nix
-    // NOTE: package then needs to be generated under a name
-    // so if possible let's use <package>@<version>
+    let updated_content = section.add_package(&flake_content, &package_to_add, None);
 
     // Write back to file
     fs::write(flake_path, updated_content).context("Failed to write flake.nix")?;

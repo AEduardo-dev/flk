@@ -4,9 +4,7 @@ use std::fs;
 use std::path::Path;
 
 use crate::flake::parsers::{
-    commands::{add_command_to_shell_hook, command_exists, remove_command_from_shell_hook},
-    flake::parse_flake,
-    utils::get_default_shell_profile,
+    commands::parse_shell_hook_section, flake::parse_flake, utils::get_default_shell_profile,
 };
 
 pub fn run_add(name: &str, command: &str, file: Option<String>) -> Result<()> {
@@ -39,9 +37,11 @@ pub fn run_add(name: &str, command: &str, file: Option<String>) -> Result<()> {
 
     // Read the current flake.nix
     let flake_content = fs::read_to_string(&flake_path).context("Failed to read flake.nix")?;
+    let section = parse_shell_hook_section(&flake_content)
+        .context("Failed to parse shellHook section in flake.nix")?;
 
     // Check if command already exists
-    if command_exists(&flake_content, name) {
+    if section.command_exists(&flake_content, name) {
         bail!(
             "Command '{}' already exists. Remove it with: {}",
             name.cyan(),
@@ -50,7 +50,7 @@ pub fn run_add(name: &str, command: &str, file: Option<String>) -> Result<()> {
     }
 
     // Add the command to shellHook
-    let updated_content = add_command_to_shell_hook(&flake_content, name, &command_content, None)?;
+    let updated_content = section.add_command(&flake_content, name, &command_content);
 
     // Write back to file
     fs::write(flake_path, updated_content).context("Failed to write flake.nix")?;
@@ -81,14 +81,16 @@ pub fn run_remove(name: &str) -> Result<()> {
 
     // Read the current flake.nix
     let flake_content = fs::read_to_string(&flake_path).context("Failed to read flake.nix")?;
+    let section = parse_shell_hook_section(&flake_content)
+        .context("Failed to parse shellHook section in flake.nix")?;
 
     // Check if command exists
-    if !command_exists(&flake_content, name) {
+    if !section.command_exists(&flake_content, name) {
         bail!("Command '{}' not found in flake.nix", name.cyan());
     }
 
     // Remove the command from shellHook
-    let updated_content = remove_command_from_shell_hook(&flake_content, name, None)?;
+    let updated_content = section.remove_command(&flake_content, name)?;
 
     // Write back to file
     fs::write(&flake_path, updated_content).context("Failed to write flake.nix")?;
