@@ -14,7 +14,7 @@ use nom::{
 #[derive(Debug, Clone)]
 pub struct PackageEntry {
     pub name: String,
-    pub comment: Option<String>,
+    pub _comment: Option<String>,
     pub start_pos: usize,
     pub end_pos: usize,
 }
@@ -22,11 +22,11 @@ pub struct PackageEntry {
 #[derive(Debug)]
 pub struct PackagesSection {
     pub entries: Vec<PackageEntry>,
-    pub section_start: usize,
-    pub list_start: usize,
-    pub list_end: usize,
-    pub section_end: usize,
     pub indentation: String,
+    pub _list_start: usize,
+    pub list_end: usize,
+    pub _section_start: usize,
+    pub _section_end: usize,
 }
 
 /// Parse "with pkgs;" prefix (optional)
@@ -35,21 +35,27 @@ fn with_pkgs(input: &str) -> IResult<&str, Option<&str>> {
 }
 
 /// Parse a single package entry with optional comment
-fn package_entry<'a>(input: &'a str, base_offset: usize) -> IResult<&'a str, PackageEntry> {
-    let start_pos = base_offset + byte_offset(input, input);
+fn package_entry<'a>(
+    input: &'a str,
+    base_offset: usize,
+    original_input: &'a str,
+) -> IResult<&'a str, PackageEntry> {
+    let start_pos = base_offset + byte_offset(original_input, input);
 
-    let (input, _) = multiws(input)?;
-    let (input, name) = attribute_path(input)?;
-    let (input, comment) = opt_inline_comment(input)?;
-    let (input, _) = opt(line_ending)(input)?;
+    let (remaining, _) = multiws(input)?;
+    let (remaining, name) = attribute_path(remaining)?;
+    let (remaining, comment) = opt_inline_comment(remaining)?;
+    let (remaining, _) = opt(line_ending)(remaining)?;
 
-    let end_pos = base_offset + byte_offset(input, input);
+    let end_pos = base_offset + byte_offset(original_input, remaining);
+
+    println!("{}", name);
 
     Ok((
-        input,
+        remaining,
         PackageEntry {
             name: name.to_string(),
-            comment: comment.map(|c| c.trim().to_string()),
+            _comment: comment.map(|c| c.trim().to_string()),
             start_pos,
             end_pos,
         },
@@ -58,12 +64,12 @@ fn package_entry<'a>(input: &'a str, base_offset: usize) -> IResult<&'a str, Pac
 
 /// Parse the full packages section with nom
 fn parse_packages(input: &str, base_offset: usize) -> IResult<&str, Vec<PackageEntry>> {
+    let original_input = input; // Store original for offset calculations
+
     let (input, _) = ws(input)?;
     let (input, _) = with_pkgs(input)?;
     let (input, _) = ws(input)?;
     let (input, _) = char('[')(input)?;
-
-    let _list_content_start = base_offset + byte_offset(input, input);
 
     // Parse all package entries
     let mut entries = Vec::new();
@@ -80,7 +86,7 @@ fn parse_packages(input: &str, base_offset: usize) -> IResult<&str, Vec<PackageE
         }
 
         // Try to parse package entry
-        match package_entry(rest, base_offset) {
+        match package_entry(rest, base_offset, original_input) {
             Ok((rest, entry)) => {
                 entries.push(entry);
                 remaining = rest;
@@ -132,11 +138,11 @@ pub fn parse_packages_section(content: &str) -> Result<PackagesSection> {
 
             Ok(PackagesSection {
                 entries,
-                section_start,
-                list_start,
-                list_end,
-                section_end,
                 indentation,
+                _list_start: list_start,
+                list_end,
+                _section_start: section_start,
+                _section_end: section_end,
             })
         }
         Err(e) => Err(anyhow::anyhow!("Failed to parse packages section: {:?}", e)),
@@ -184,18 +190,16 @@ impl PackagesSection {
         let before = &original_content[..entry.start_pos];
         let after = &original_content[entry.end_pos..];
 
-        let after = if after.starts_with('\n') {
-            &after[1..]
-        } else {
-            after
-        };
+        let after = after.strip_prefix('\n').unwrap_or(after);
 
         Ok(format!("{}{}", before, after))
     }
 
     /// Check if a package exists
     pub fn package_exists(&self, name: &str) -> bool {
-        self.entries.iter().any(|e| e.name == name)
+        self.entries
+            .iter()
+            .any(|e| e.name == name || e.name == format!("pkgs.{}", name))
     }
 }
 
@@ -233,9 +237,9 @@ mod tests {
 
         let section = parse_packages_section(content).unwrap();
         assert_eq!(section.entries.len(), 3);
-        assert_eq!(section.entries[0].name, "rust-bin. stable.latest.default");
+        assert_eq!(section.entries[0].name, "rust-bin.stable.latest.default");
         assert_eq!(
-            section.entries[0].comment,
+            section.entries[0]._comment,
             Some("From rust-overlay".to_string())
         );
         assert_eq!(section.entries[1].name, "rust-analyzer");
