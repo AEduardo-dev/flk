@@ -22,11 +22,11 @@ pub struct EnvVarEntry {
 #[derive(Debug)]
 pub struct EnvVarsSection {
     pub entries: Vec<EnvVarEntry>,
-    pub section_start: usize,
-    pub content_start: usize,
-    pub content_end: usize,
-    pub section_end: usize,
+    pub _content_start: usize,
+    pub _content_end: usize,
     pub indentation: String,
+    pub _section_start: usize,
+    pub _section_end: usize,
 }
 
 /// Parse a value (quoted string or unquoted identifier)
@@ -34,21 +34,25 @@ fn env_value(input: &str) -> IResult<&str, &str> {
     alt((string_literal, identifier))(input)
 }
 
-/// Parse a single env var entry:  NAME = "value";
-fn env_var_entry<'a>(input: &'a str, base_offset: usize) -> IResult<&'a str, EnvVarEntry> {
-    let start_pos = base_offset + byte_offset(input, input);
+/// Parse a single env var entry:   NAME = "value";
+fn env_var_entry<'a>(
+    input: &'a str,
+    base_offset: usize,
+    original_input: &'a str,
+) -> IResult<&'a str, EnvVarEntry> {
+    let start_pos = base_offset + byte_offset(original_input, input);
 
-    let (input, _) = multiws(input)?;
-    let (input, (name, value)) =
-        separated_pair(identifier, tuple((ws, char('='), ws)), env_value)(input)?;
-    let (input, _) = ws(input)?;
-    let (input, _) = char(';')(input)?;
-    let (input, _) = opt(line_ending)(input)?;
+    let (remaining, _) = multiws(input)?;
+    let (remaining, (name, value)) =
+        separated_pair(identifier, tuple((ws, char('='), ws)), env_value)(remaining)?;
+    let (remaining, _) = ws(remaining)?;
+    let (remaining, _) = char(';')(remaining)?;
+    let (remaining, _) = opt(line_ending)(remaining)?;
 
-    let end_pos = base_offset + byte_offset(input, input);
+    let end_pos = base_offset + byte_offset(original_input, remaining);
 
     Ok((
-        input,
+        remaining,
         EnvVarEntry {
             name: name.to_string(),
             value: value.to_string(),
@@ -57,9 +61,9 @@ fn env_var_entry<'a>(input: &'a str, base_offset: usize) -> IResult<&'a str, Env
         },
     ))
 }
-
 /// Parse the full envVars section with nom
 fn parse_env_vars(input: &str, base_offset: usize) -> IResult<&str, Vec<EnvVarEntry>> {
+    let original_input = input; // Store original for offset calculations
     let (input, _) = ws(input)?;
     let (input, _) = char('{')(input)?;
 
@@ -77,7 +81,7 @@ fn parse_env_vars(input: &str, base_offset: usize) -> IResult<&str, Vec<EnvVarEn
         }
 
         // Try to parse env var entry
-        match env_var_entry(rest, base_offset) {
+        match env_var_entry(rest, base_offset, original_input) {
             Ok((rest, entry)) => {
                 entries.push(entry);
                 remaining = rest;
@@ -129,11 +133,11 @@ pub fn parse_env_vars_section(content: &str) -> Result<EnvVarsSection> {
 
             Ok(EnvVarsSection {
                 entries,
-                section_start,
-                content_start,
-                content_end,
-                section_end,
+                _content_start: content_start,
+                _content_end: content_end,
                 indentation,
+                _section_start: section_start,
+                _section_end: section_end,
             })
         }
         Err(e) => Err(anyhow::anyhow!("Failed to parse envVars section: {:?}", e)),
@@ -158,9 +162,9 @@ impl EnvVarsSection {
         let new_entry = format!("{}{} = \"{}\";\n", self.indentation, name, value);
 
         let mut result = String::new();
-        result.push_str(&original_content[..self.content_end]);
+        result.push_str(&original_content[..self._content_end]);
         result.push_str(&new_entry);
-        result.push_str(&original_content[self.content_end..]);
+        result.push_str(&original_content[self._content_end..]);
 
         result
     }
@@ -176,11 +180,7 @@ impl EnvVarsSection {
         let before = &original_content[..entry.start_pos];
         let after = &original_content[entry.end_pos..];
 
-        let after = if after.starts_with('\n') {
-            &after[1..]
-        } else {
-            after
-        };
+        let after = after.strip_prefix('\n').unwrap_or(after);
 
         Ok(format!("{}{}", before, after))
     }

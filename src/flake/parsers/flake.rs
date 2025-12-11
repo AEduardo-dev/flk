@@ -90,7 +90,7 @@ pub fn parse_flake(path: &str) -> Result<FlakeConfig> {
 }
 
 /// Parse a single profile file (useful for testing or individual operations)
-pub fn parse_profile_file(path: &str) -> Result<Profile> {
+pub fn _parse_profile_file(path: &str) -> Result<Profile> {
     let content = fs::read_to_string(path).context("Failed to read profile file")?;
 
     let packages_section =
@@ -119,53 +119,58 @@ pub fn parse_profile_file(path: &str) -> Result<Profile> {
 #[derive(Debug, Clone)]
 pub struct InputEntry {
     pub name: String,
-    pub url: String,
-    pub start_pos: usize,
-    pub end_pos: usize,
+    pub _url: String,
+    pub _start_pos: usize,
+    pub _end_pos: usize,
 }
 
 #[derive(Debug)]
 pub struct InputsSection {
     pub entries: Vec<InputEntry>,
-    pub section_start: usize,
-    pub content_start: usize,
-    pub content_end: usize,
-    pub section_end: usize,
-    pub indentation: String,
+    pub _section_start: usize,
+    pub _content_start: usize,
+    pub _content_end: usize,
+    pub _section_end: usize,
+    pub _indentation: String,
 }
 
 /// Parse a single input entry:   name. url = "value";
-fn input_entry<'a>(input: &'a str, base_offset: usize) -> IResult<&'a str, InputEntry> {
-    let start_pos = base_offset + byte_offset(input, input);
+fn input_entry<'a>(
+    input: &'a str,
+    base_offset: usize,
+    original_input: &'a str,
+) -> IResult<&'a str, InputEntry> {
+    let start_pos = base_offset + byte_offset(original_input, input);
 
-    let (input, _) = multiws(input)?;
-    let (input, name) = identifier(input)?;
-    let (input, _) = ws(input)?;
-    let (input, _) = char('.')(input)?;
-    let (input, _) = tag("url")(input)?;
-    let (input, _) = ws(input)?;
-    let (input, _) = char('=')(input)?;
-    let (input, _) = ws(input)?;
-    let (input, url) = string_literal(input)?;
-    let (input, _) = ws(input)?;
-    let (input, _) = char(';')(input)?;
-    let (input, _) = opt(line_ending)(input)?;
+    let (remaining, _) = multiws(input)?;
+    let (remaining, name) = identifier(remaining)?;
+    let (remaining, _) = ws(remaining)?;
+    let (remaining, _) = char('.')(remaining)?;
+    let (remaining, _) = tag("url")(remaining)?;
+    let (remaining, _) = ws(remaining)?;
+    let (remaining, _) = char('=')(remaining)?;
+    let (remaining, _) = ws(remaining)?;
+    let (remaining, url) = string_literal(remaining)?;
+    let (remaining, _) = ws(remaining)?;
+    let (remaining, _) = char(';')(remaining)?;
+    let (remaining, _) = opt(line_ending)(remaining)?;
 
-    let end_pos = base_offset + byte_offset(input, input);
+    let end_pos = base_offset + byte_offset(original_input, remaining);
 
     Ok((
-        input,
+        remaining,
         InputEntry {
             name: name.to_string(),
-            url: url.to_string(),
-            start_pos,
-            end_pos,
+            _url: url.to_string(),
+            _start_pos: start_pos,
+            _end_pos: end_pos,
         },
     ))
 }
 
 /// Parse the full inputs section with nom
 fn parse_inputs_with_nom(input: &str, base_offset: usize) -> IResult<&str, Vec<InputEntry>> {
+    let original_input = input; // Store original for offset calculations
     let (input, _) = ws(input)?;
     let (input, _) = char('{')(input)?;
 
@@ -183,7 +188,7 @@ fn parse_inputs_with_nom(input: &str, base_offset: usize) -> IResult<&str, Vec<I
         }
 
         // Try to parse input entry
-        match input_entry(rest, base_offset) {
+        match input_entry(rest, base_offset, original_input) {
             Ok((rest, entry)) => {
                 entries.push(entry);
                 remaining = rest;
@@ -235,11 +240,11 @@ pub fn parse_inputs_section(content: &str) -> Result<InputsSection> {
 
             Ok(InputsSection {
                 entries,
-                section_start,
-                content_start,
-                content_end,
-                section_end,
-                indentation,
+                _section_start: section_start,
+                _content_start: content_start,
+                _content_end: content_end,
+                _section_end: section_end,
+                _indentation: indentation,
             })
         }
         Err(e) => Err(anyhow::anyhow!("Failed to parse inputs section: {:?}", e)),
@@ -253,44 +258,40 @@ impl InputsSection {
     }
 
     /// Add a new input
-    pub fn add_input(&self, original_content: &str, name: &str, url: &str) -> String {
+    pub fn _add_input(&self, original_content: &str, name: &str, url: &str) -> String {
         // Check if exists
         if self.entries.iter().any(|e| e.name == name) {
             return original_content.to_string();
         }
 
-        let new_entry = format!("{}{}. url = \"{}\";\n", self.indentation, name, url);
+        let new_entry = format!("{}{}.url = \"{}\";\n", self._indentation, name, url);
 
         let mut result = String::new();
-        result.push_str(&original_content[..self.content_end]);
+        result.push_str(&original_content[..self._content_end]);
         result.push_str(&new_entry);
-        result.push_str(&original_content[self.content_end..]);
+        result.push_str(&original_content[self._content_end..]);
 
         result
     }
 
     /// Remove an input
-    pub fn remove_input(&self, original_content: &str, name: &str) -> Result<String> {
+    pub fn _remove_input(&self, original_content: &str, name: &str) -> Result<String> {
         let entry = self
             .entries
             .iter()
             .find(|e| e.name == name)
             .context(format!("Input '{}' not found", name))?;
 
-        let before = &original_content[..entry.start_pos];
-        let after = &original_content[entry.end_pos..];
+        let before = &original_content[..entry._start_pos];
+        let after = &original_content[entry._end_pos..];
 
-        let after = if after.starts_with('\n') {
-            &after[1..]
-        } else {
-            after
-        };
+        let after = after.strip_prefix('\n').unwrap_or(after);
 
         Ok(format!("{}{}", before, after))
     }
 
     /// Update an input's URL
-    pub fn update_input(
+    pub fn _update_input(
         &self,
         original_content: &str,
         name: &str,
@@ -302,12 +303,12 @@ impl InputsSection {
             .find(|e| e.name == name)
             .context(format!("Input '{}' not found", name))?;
 
-        let new_line = format!("{}{}.url = \"{}\";\n", self.indentation, name, new_url);
+        let new_line = format!("{}{}.url = \"{}\";\n", self._indentation, name, new_url);
 
         let mut result = String::new();
-        result.push_str(&original_content[..entry.start_pos]);
+        result.push_str(&original_content[..entry._start_pos]);
         result.push_str(&new_line);
-        result.push_str(&original_content[entry.end_pos..]);
+        result.push_str(&original_content[entry._end_pos..]);
 
         Ok(result)
     }
@@ -324,11 +325,11 @@ mod tests {
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    flake-utils. url = "github:numtide/flake-utils";
+    flake-utils.url = "github:numtide/flake-utils";
     profile-lib.url = "github:AEduardo-dev/nix-profile-lib";
   };
 
-  outputs = inputs:  import . /. flk/default.nix inputs;
+  outputs = inputs:  import ./.flk/default.nix inputs;
 }"#;
 
         let section = parse_inputs_section(content).unwrap();
@@ -336,7 +337,7 @@ mod tests {
         assert_eq!(section.entries.len(), 3);
         assert_eq!(section.entries[0].name, "nixpkgs");
         assert_eq!(
-            section.entries[0].url,
+            section.entries[0]._url,
             "github:NixOS/nixpkgs/nixos-unstable"
         );
         assert_eq!(section.entries[1].name, "flake-utils");
@@ -350,12 +351,13 @@ mod tests {
     fn test_add_input() {
         let content = r#"{
   inputs = {
-    nixpkgs. url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   };
 }"#;
 
         let section = parse_inputs_section(content).unwrap();
-        let new_content = section.add_input(content, "rust-overlay", "github:oxalica/rust-overlay");
+        let new_content =
+            section._add_input(content, "rust-overlay", "github:oxalica/rust-overlay");
 
         assert!(new_content.contains("rust-overlay.url"));
         assert!(new_content.contains("oxalica/rust-overlay"));
@@ -365,13 +367,13 @@ mod tests {
     fn test_remove_input() {
         let content = r#"{
   inputs = {
-    nixpkgs. url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
   };
 }"#;
 
         let section = parse_inputs_section(content).unwrap();
-        let new_content = section.remove_input(content, "flake-utils").unwrap();
+        let new_content = section._remove_input(content, "flake-utils").unwrap();
 
         assert!(!new_content.contains("flake-utils"));
         assert!(new_content.contains("nixpkgs"));
@@ -381,13 +383,13 @@ mod tests {
     fn test_update_input() {
         let content = r#"{
   inputs = {
-    nixpkgs. url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   };
 }"#;
 
         let section = parse_inputs_section(content).unwrap();
         let new_content = section
-            .update_input(content, "nixpkgs", "github:NixOS/nixpkgs/nixos-24.05")
+            ._update_input(content, "nixpkgs", "github:NixOS/nixpkgs/nixos-24.05")
             .unwrap();
 
         assert!(new_content.contains("nixos-24.05"));
