@@ -6,11 +6,11 @@ use nom::{character::complete::char, IResult};
 #[derive(Debug)]
 pub struct ShellHookSection {
     pub content: String,
-    pub section_start: usize,
     pub content_start: usize,
     pub content_end: usize,
-    pub section_end: usize,
-    pub indentation: String,
+    pub _indentation: String,
+    pub _section_start: usize,
+    pub _section_end: usize,
 }
 
 /// Parse shellHook with nom
@@ -53,11 +53,11 @@ pub fn parse_shell_hook_section(content: &str) -> Result<ShellHookSection> {
 
             Ok(ShellHookSection {
                 content: hook_content.trim().to_string(),
-                section_start,
                 content_start,
                 content_end,
-                section_end,
-                indentation,
+                _indentation: indentation,
+                _section_start: section_start,
+                _section_end: section_end,
             })
         }
         Err(e) => Err(anyhow::anyhow!(
@@ -103,7 +103,7 @@ impl ShellHookSection {
         let insertion_point = self.content_end;
 
         let command_block = format!(
-            "\n{}# flk-command:  {}\n{}{} () {{\n{}{}\n{}{}\n",
+            "\n{}# flk-command: {}\n{}{} () {{\n{}{}\n{}{}\n",
             INDENT_IN,
             name,
             INDENT_IN,
@@ -136,11 +136,11 @@ impl ShellHookSection {
     }
 
     /// Replace entire shell hook content
-    pub fn replace_content(&self, original_content: &str, new_content: &str) -> String {
+    pub fn _replace_content(&self, original_content: &str, new_content: &str) -> String {
         let mut result = String::new();
         result.push_str(&original_content[..self.content_start]);
-        result.push_str("\n");
-        result.push_str(&new_content.trim());
+        result.push('\n');
+        result.push_str(new_content.trim());
         result.push_str("\n  ");
         result.push_str(&original_content[self.content_end..]);
 
