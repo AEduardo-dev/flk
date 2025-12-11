@@ -4,18 +4,8 @@
 #[cfg(test)]
 mod parser_tests {
     use flk::flake::parsers::{
-        commands::{
-            add_command_to_shell_hook, command_exists, parse_shell_hook_from_profile,
-            remove_command_from_shell_hook,
-        },
-        env::{
-            add_env_var_to_profile, env_var_exists, parse_env_vars_from_profile,
-            remove_env_var_from_profile,
-        },
-        packages::{
-            add_package_to_profile, find_packages_in_profile, package_exists,
-            parse_packages_from_profile, remove_package_from_profile,
-        },
+        commands::parse_shell_hook_section, env::parse_env_vars_section,
+        packages::parse_packages_section,
     };
 
     const CONTENT: &str = r#"
@@ -80,10 +70,11 @@ mod parser_tests {
     #[test]
     fn test_package_exists() {
         // Test that package_exists correctly identifies packages
-        let exists = package_exists(CONTENT, "git", None).unwrap();
+        let section = parse_packages_section(CONTENT).unwrap();
+        let exists = section.package_exists("git");
         assert!(exists);
 
-        let not_exists = package_exists(CONTENT, "nonexistent", None).unwrap();
+        let not_exists = section.package_exists("nonexistent").unwrap();
         assert!(!not_exists);
     }
 
@@ -95,7 +86,8 @@ mod parser_tests {
             pkgs.curl
           ];
         "#;
-        let exists = package_exists(content, "git", Some("test")).unwrap();
+        let section = parse_packages_section(content).unwrap();
+        let exists = section.package_exists("git");
         assert!(exists);
     }
 
@@ -119,15 +111,17 @@ mod parser_tests {
       profileLib.mkProfileOutputs {
 ... 
 "#;
+        let section = parse_packages_section(content).unwrap();
         // Test adding a package to empty list
-        let result = add_package_to_profile(content, "ripgrep", None).unwrap();
+        let result = section.add_package(content, "ripgrep", None);
         assert!(result.contains("ripgrep"));
     }
 
     #[test]
     fn test_add_package_to_existing_list() {
+        let section = parse_packages_section(CONTENT).unwrap();
         // Test adding a package to existing list
-        let result = add_package_to_profile(CONTENT, "ripgrep", None).unwrap();
+        let result = section.add_package(CONTENT, "ripgrep", None);
         assert!(result.contains("ripgrep"));
         assert!(result.contains("git"));
         assert!(result.contains("curl"));
@@ -135,15 +129,17 @@ mod parser_tests {
 
     #[test]
     fn test_add_package_preserves_formatting() {
-        let result = add_package_to_profile(CONTENT, "ripgrep", None).unwrap();
+        let section = parse_packages_section(CONTENT).unwrap();
+        let result = section.add_package(CONTENT, "ripgrep", None);
         // Check that proper indentation is maintained
         assert!(result.contains("    ") || result.contains("  "));
     }
 
     #[test]
     fn test_remove_package() {
+        let section = parse_packages_section(CONTENT).unwrap();
         // Test removing a package
-        let result = remove_package_from_profile(CONTENT, "curl", None).unwrap();
+        let result = section.remove_package(CONTENT, "curl").unwrap();
         println!("{}", result);
         assert!(result.contains("git"));
         assert!(!result.contains("curl"));
@@ -158,7 +154,8 @@ mod parser_tests {
             wget
           ];
         "#;
-        let result = remove_package_from_profile(content, "curl", None).unwrap();
+        let section = parse_packages_section(content).unwrap();
+        let result = section.remove_package(content, "curl").unwrap();
         assert!(result.contains("git"));
         assert!(result.contains("wget"));
         assert!(!result.contains("curl"));
@@ -166,7 +163,8 @@ mod parser_tests {
 
     #[test]
     fn test_remove_nonexistent_package() {
-        let result = remove_package_from_profile(CONTENT, "nonexistent", None);
+        let section = parse_packages_section(CONTENT).unwrap();
+        let result = section.remove_package(CONTENT, "nonexistent");
         assert!(result.is_err());
     }
 
