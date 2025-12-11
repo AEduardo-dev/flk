@@ -1,11 +1,12 @@
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 
-use crate::flake::{interface::Package, parsers::packages::extract_packages_from_output};
+use crate::flake::interface::Package;
+use crate::flake::parsers::packages::extract_packages_from_output;
 use crate::nix::{check_nix_available, run_nix_command};
 use crate::utils::visual::{display_list, display_table, with_spinner};
 
-pub async fn run_search(query: &str, limit: usize) -> Result<bool> {
+pub fn run_search(query: &str, limit: usize) -> Result<bool> {
     println!(
         "{} Searching nixpkgs for: {}",
         "→".blue().bold(),
@@ -53,7 +54,7 @@ pub async fn run_search(query: &str, limit: usize) -> Result<bool> {
     Ok(true)
 }
 
-pub async fn run_deep_search(package: &str) -> Result<()> {
+pub fn run_deep_search(package: &str) -> Result<()> {
     println!(
         "{} Getting details for: {}",
         "→".blue().bold(),
