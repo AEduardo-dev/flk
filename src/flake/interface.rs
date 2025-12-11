@@ -125,7 +125,7 @@ impl fmt::Display for Profile {
 }
 
 impl FlakeConfig {
-    pub fn display_packages(&self) {
+    pub fn _display_packages(&self) {
         if self.profiles.is_empty() {
             println!("{}", "No profiles defined".yellow());
             return;

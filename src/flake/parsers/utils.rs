@@ -1,4 +1,4 @@
-use crate::flake::interface::INDENT_IN;
+use crate::flake::interface::INDENT_OUT;
 use anyhow::{Context, Result};
 use clap::builder::OsStr;
 use nom::{
@@ -30,7 +30,7 @@ pub fn identifier(input: &str) -> IResult<&str, &str> {
 /// Parse a Nix attribute path (e.g., rust-bin. stable.latest.default)
 pub fn attribute_path(input: &str) -> IResult<&str, &str> {
     recognize(tuple((take_while1(|c: char| {
-        c.is_alphanumeric() || c == '_' || c == '-' || c == '.'
+        c.is_alphanumeric() || c == '_' || c == '-' || c == '.' || c == '\"' || c == '@'
     }),)))(input)
 }
 
@@ -64,11 +64,11 @@ pub fn detect_indentation(content: &str) -> String {
             }
         }
     }
-    INDENT_IN.to_string()
+    INDENT_OUT.to_string()
 }
 
 /// Find the byte position of a substring in the original content
-pub fn find_position(original: &str, substring: &str) -> Option<usize> {
+pub fn _find_position(original: &str, substring: &str) -> Option<usize> {
     Some(original.as_ptr() as usize - substring.as_ptr() as usize)
 }
 
@@ -142,19 +142,4 @@ pub fn list_profiles() -> Result<Vec<PathBuf>> {
         .filter(|e| e.path().file_name() != Some(&OsStr::from("default.nix")))
         .map(|e| e.path())
         .collect())
-}
-
-/// Indent lines by a specified number of spaces
-pub fn indent_lines(text: &str, spaces: usize) -> String {
-    let indent = " ".repeat(spaces);
-    text.lines()
-        .map(|line| {
-            if line.trim().is_empty() {
-                String::new()
-            } else {
-                format!("{}{}", indent, line)
-            }
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
 }
