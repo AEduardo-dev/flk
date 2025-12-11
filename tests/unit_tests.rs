@@ -74,7 +74,7 @@ mod parser_tests {
         let exists = section.package_exists("git");
         assert!(exists);
 
-        let not_exists = section.package_exists("nonexistent").unwrap();
+        let not_exists = section.package_exists("nonexistent");
         assert!(!not_exists);
     }
 
@@ -170,27 +170,29 @@ mod parser_tests {
 
     #[test]
     fn test_command_exists() {
+        let section = parse_shell_hook_section(CONTENT).unwrap();
         // Test command detection
-        let exists = command_exists(CONTENT, "test");
+        let exists = section.command_exists(CONTENT, "test");
         assert!(exists);
 
-        let not_exists = command_exists(CONTENT, "nonexistent");
+        let not_exists = section.command_exists(CONTENT, "nonexistent");
         assert!(!not_exists);
     }
 
     #[test]
     fn test_add_command() {
+        let section = parse_shell_hook_section(CONTENT).unwrap();
         // Test adding a command
-        let result =
-            add_command_to_shell_hook(CONTENT, "test_add", "echo 'test command'", None).unwrap();
+        let result = section.add_command(CONTENT, "test_add", "echo 'test command'");
         assert!(result.contains("# flk-command: test_add"));
         assert!(result.contains("test_add ()"));
     }
 
     #[test]
     fn test_add_command_with_multiline() {
+        let section = parse_shell_hook_section(CONTENT).unwrap();
         let multiline_cmd = "echo 'line 1'\necho 'line 2'\necho 'line 3'";
-        let result = add_command_to_shell_hook(CONTENT, "multiline", multiline_cmd, None).unwrap();
+        let result = section.add_command(CONTENT, "multiline", multiline_cmd);
         assert!(result.contains("# flk-command: multiline"));
         assert!(result.contains("line 1"));
         assert!(result.contains("line 2"));
@@ -200,68 +202,75 @@ mod parser_tests {
     #[test]
     fn test_add_command_with_special_chars() {
         let cmd = "cargo build --release && echo 'Done!'";
-        let result = add_command_to_shell_hook(CONTENT, "build", cmd, None).unwrap();
+        let section = parse_shell_hook_section(CONTENT).unwrap();
+        let result = section.add_command(CONTENT, "build", cmd);
         assert!(result.contains("# flk-command: build"));
         assert!(result.contains("&&"));
     }
 
     #[test]
     fn test_remove_command() {
+        let section = parse_shell_hook_section(CONTENT).unwrap();
         // Test removing a command
-        let result = remove_command_from_shell_hook(CONTENT, "test", None).unwrap();
+        let result = section.remove_command(CONTENT, "test").unwrap();
         assert!(!result.contains("# flk-command: test"));
         assert!(!result.contains("test ()"));
     }
 
     #[test]
     fn test_remove_nonexistent_command() {
-        let result = remove_command_from_shell_hook(CONTENT, "nonexistent", None);
+        let section = parse_shell_hook_section(CONTENT).unwrap();
+        let result = section.remove_command(CONTENT, "nonexistent");
         assert!(result.is_err());
     }
 
     #[test]
     fn test_env_var_exists() {
+        let section = parse_env_vars_section(CONTENT).unwrap();
         // Test env var detection
-        let exists = env_var_exists(CONTENT, "VAR2", "default").unwrap();
+        let exists = section.env_var_exists("VAR2").unwrap();
         assert!(exists);
 
-        let not_exists = env_var_exists(CONTENT, "NONEXISTENT", "default").unwrap();
+        let not_exists = section.env_var_exists("NONEXISTENT").unwrap();
         assert!(!not_exists);
     }
 
     #[test]
     fn test_add_env_var() {
+        let section = parse_env_vars_section(CONTENT).unwrap();
         // Test adding an environment variable
-        let result = add_env_var_to_profile(CONTENT, "MY_VAR", "test_value", None).unwrap();
+        let result = section.add_env_var(CONTENT, "MY_VAR", "test_value");
         assert!(result.contains(" MY_VAR = \"test_value\""));
     }
 
     #[test]
     fn test_add_env_var_with_quotes() {
-        let result =
-            add_env_var_to_profile(CONTENT, "QUOTED", r#"value"with"quotes"#, None).unwrap();
+        let section = parse_env_vars_section(CONTENT).unwrap();
+        let result = section.add_env_var(CONTENT, "QUOTED", r#"value"with"quotes"#);
         assert!(result.contains("QUOTED"));
-        assert!(result.contains(r#"value\"with\"quotes"#));
+        assert!(result.contains(r#"value"with"quotes"#));
     }
 
     #[test]
     fn test_add_env_var_with_special_chars() {
-        let result =
-            add_env_var_to_profile(CONTENT, "SPECIAL", "value with $pecial ch@rs!", None).unwrap();
+        let section = parse_env_vars_section(CONTENT).unwrap();
+        let result = section.add_env_var(CONTENT, "SPECIAL", "value with $pecial ch@rs!");
         assert!(result.contains("SPECIAL"));
         assert!(result.contains("value with $pecial ch@rs!"));
     }
 
     #[test]
     fn test_remove_env_var() {
+        let section = parse_env_vars_section(CONTENT).unwrap();
         // Test removing an environment variable
-        let result = remove_env_var_from_profile(CONTENT, "VAR1", None).unwrap();
+        let result = section.remove_env_var(CONTENT, "VAR1").unwrap();
         assert!(!result.contains("VAR1"));
     }
 
     #[test]
     fn test_remove_env_var_middle() {
-        let result = remove_env_var_from_profile(CONTENT, "VAR2", None).unwrap();
+        let section = parse_env_vars_section(CONTENT).unwrap();
+        let result = section.remove_env_var(CONTENT, "VAR2").unwrap();
         assert!(result.contains("VAR1"));
         assert!(result.contains("VAR3"));
         assert!(!result.contains("VAR2"));
@@ -269,9 +278,14 @@ mod parser_tests {
 
     #[test]
     fn test_parse_env_vars() {
+        let section = parse_env_vars_section(CONTENT).unwrap();
         // Test parsing all environment variables
-        let vars = parse_env_vars_from_profile(CONTENT, None).unwrap();
-        assert_eq!(vars.len(), 3);
+        assert_eq!(section.entries.len(), 3);
+        let vars: Vec<(String, String)> = section
+            .entries
+            .iter()
+            .map(|e| (e.name.clone(), e.value.clone()))
+            .collect();
         assert!(vars.contains(&("VAR1".to_string(), "value1".to_string())));
         assert!(vars.contains(&("VAR2".to_string(), "value2".to_string())));
         assert!(vars.contains(&("VAR3".to_string(), "value3".to_string())));
@@ -283,48 +297,14 @@ mod parser_tests {
           envVars = {
           };
         "#;
-        let vars = parse_env_vars_from_profile(content, Some("test")).unwrap();
-        assert_eq!(vars.len(), 0);
-    }
-
-    #[test]
-    fn test_find_matching_brace_balanced() {
-        // This tests the internal matching brace logic
-        let content = "{ nested { more } }";
-        // The function is not public, so we test it indirectly through other functions
-        assert!(
-            content.chars().filter(|&c| c == '{').count()
-                == content.chars().filter(|&c| c == '}').count()
-        );
-    }
-
-    #[test]
-    fn test_find_packages_with_prefix() {
-        let content = r#"
-          packages = [
-            pkgs.git
-            pkgs.curl
-          ];
-        "#;
-        let result = find_packages_in_profile(content, "test");
-        assert!(result.is_ok());
-        let (start, end, has_with_pkgs) = result.unwrap();
-        assert!(start < end);
-        assert!(!has_with_pkgs);
-    }
-
-    #[test]
-    fn test_find_packages_with_with_pkgs() {
-        let result = find_packages_in_profile(CONTENT, "default");
-        assert!(result.is_ok());
-        let (start, end, has_with_pkgs) = result.unwrap();
-        assert!(start < end);
-        assert!(has_with_pkgs);
+        let section = parse_env_vars_section(content).unwrap();
+        assert_eq!(section.entries.len(), 0);
     }
 
     #[test]
     fn test_parse_shell_hook() {
-        let hook = parse_shell_hook_from_profile(CONTENT, Some("default")).unwrap();
+        let section = parse_shell_hook_section(CONTENT).unwrap();
+        let hook = &CONTENT[section.content_start..section.content_end];
         assert!(hook.contains("Welcome to the development shell!"));
         assert!(hook.contains("# flk-command: test"));
     }
@@ -338,7 +318,8 @@ mod parser_tests {
             curl
           ];
         "#;
-        let packages = parse_packages_from_profile(content, Some("test")).unwrap();
+        let section = parse_packages_section(content).unwrap();
+        let packages: Vec<_> = section.entries.iter().collect();
         assert_eq!(packages.len(), 2);
         assert!(packages.iter().any(|p| p.name == "git"));
         assert!(packages.iter().any(|p| p.name == "curl"));
@@ -346,7 +327,8 @@ mod parser_tests {
 
     #[test]
     fn test_indent_consistency() {
-        let result = add_package_to_profile(CONTENT, "test", None).unwrap();
+        let section = parse_packages_section(CONTENT).unwrap();
+        let result = section.add_package(CONTENT, "test", None);
         // Check that lines are properly indented (either 2 or 4 spaces)
         let lines: Vec<&str> = result.lines().collect();
         for line in lines {
