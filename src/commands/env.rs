@@ -4,9 +4,7 @@ use std::fs;
 use std::path::Path;
 
 use crate::flake::parsers::{
-    env::{add_env_var_to_profile, env_var_exists, remove_env_var_from_profile},
-    flake::parse_flake,
-    utils::get_default_shell_profile,
+    env::parse_env_vars_section, flake::parse_flake, utils::get_default_shell_profile,
 };
 
 /// Add an environment variable to the dev shell
@@ -39,8 +37,9 @@ pub fn add(name: &str, value: &str) -> Result<()> {
 
     // Read the current flake.nix
     let flake_content = fs::read_to_string(&flake_path).context("Failed to read flake.nix")?;
+    let section = parse_env_vars_section(&flake_content)?;
 
-    if env_var_exists(&flake_content, name, profile_to_parse.as_str())? {
+    if section.env_var_exists(name)? {
         bail!(
             "Environment variable '{}' already exists in profile '{}'",
             name.cyan(),
@@ -49,7 +48,7 @@ pub fn add(name: &str, value: &str) -> Result<()> {
     }
 
     // Add the environment variable to shellHook
-    let updated_content = add_env_var_to_profile(&flake_content, name, value, None)?;
+    let updated_content = section.add_env_var(&flake_content, name, value);
 
     // Write back to file
     fs::write(flake_path, updated_content).context("Failed to write flake.nix")?;
@@ -78,8 +77,9 @@ pub fn remove(name: &str) -> Result<()> {
 
     // Read the current flake.nix
     let flake_content = fs::read_to_string(&flake_path).context("Failed to read flake.nix")?;
+    let section = parse_env_vars_section(&flake_content)?;
 
-    if !env_var_exists(&flake_content, name, profile_to_parse.as_str())? {
+    if !section.env_var_exists(name)? {
         bail!(
             "Environment variable '{}' does not exist in profile '{}'",
             name.cyan(),
@@ -87,7 +87,7 @@ pub fn remove(name: &str) -> Result<()> {
         );
     }
     // Remove the environment variable
-    let updated_content = remove_env_var_from_profile(&flake_content, name, None)?;
+    let updated_content = section.remove_env_var(&flake_content, name)?;
 
     // Write back to file
     fs::write(flake_path, updated_content).context("Failed to write flake.nix")?;
