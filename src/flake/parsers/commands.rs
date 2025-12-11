@@ -1,112 +1,183 @@
+use crate::flake::interface::INDENT_IN;
+use crate::flake::parsers::utils::{byte_offset, detect_indentation, multiline_string, ws};
 use anyhow::{Context, Result};
+use nom::{character::complete::char, IResult};
 
-use crate::flake::interface::{INDENT_IN, INDENT_OUT};
-use crate::flake::parsers::utils::{get_default_shell_profile, indent_lines};
-
-/// Find shellHook section within a profile
-pub fn find_shell_hook_in_profile(content: &str, profile_name: &str) -> Result<(usize, usize)> {
-    let shell_hook_start = content
-        .find("shellHook = ''")
-        .or_else(|| content.find("shellHook=''"))
-        .context(format!(
-            "Could not find 'shellHook' in profile '{}'",
-            profile_name
-        ))?;
-
-    let search_start = shell_hook_start + "shellHook = ''".len();
-    let shell_hook_end = content[search_start..]
-        .find("'';")
-        .context("Could not find closing \"'';\" for shellHook")?;
-
-    let absolute_start = shell_hook_start;
-    let absolute_end = search_start + shell_hook_end;
-
-    Ok((absolute_start, absolute_end))
+#[derive(Debug)]
+pub struct ShellHookSection {
+    pub content: String,
+    pub section_start: usize,
+    pub content_start: usize,
+    pub content_end: usize,
+    pub section_end: usize,
+    pub indentation: String,
 }
 
-/// Parse shellHook from a specific profile (or first one if None)
-pub fn parse_shell_hook_from_profile(content: &str, profile_name: Option<&str>) -> Result<String> {
-    let profile_to_parse = match profile_name {
-        Some(name) => name.to_string(),
-        None => get_default_shell_profile()?,
-    };
+/// Parse shellHook with nom
+fn parse_shell_hook(input: &str) -> IResult<&str, &str> {
+    let (input, _) = ws(input)?;
+    let (input, _) = char('=')(input)?;
+    let (input, _) = ws(input)?;
+    let (input, content) = multiline_string(input)?;
+    let (input, _) = ws(input)?;
+    let (input, _) = char(';')(input)?;
 
-    let (shell_hook_start, shell_hook_end) =
-        find_shell_hook_in_profile(content, &profile_to_parse)?;
-
-    let hook_start = shell_hook_start + "shellHook = ''".len();
-    let hook_content = &content[hook_start..shell_hook_end];
-
-    Ok(hook_content.trim().to_string())
+    Ok((input, content))
 }
 
-pub fn find_command(content: &str, name: &str, profile_name: &str) -> Option<(usize, usize)> {
-    let (shell_hook_start, shell_hook_end) =
-        find_shell_hook_in_profile(content, profile_name).ok()?;
-    let marker = format!("# flk-command: {}", name);
-    let shell_hook_content = &content[shell_hook_start..shell_hook_end];
-    let marker_start = shell_hook_content.find(&marker)? + shell_hook_start;
-    let line_start = if marker_start > 0 {
-        content[..marker_start].rfind('\n').unwrap_or(0)
-    } else {
-        0
-    };
-    let search_start = marker_start + marker.len();
-    let function_end = content[search_start..].find(&format!("{}}}\n", INDENT_IN))?;
-    let end_point = search_start + function_end + format!("{}}}\n", INDENT_IN).len();
-    Some((line_start, end_point))
+/// Main parser for shellHook section
+pub fn parse_shell_hook_section(content: &str) -> Result<ShellHookSection> {
+    let section_start = content
+        .find("shellHook")
+        .context("Could not find 'shellHook'")?;
+
+    let parse_from = section_start + "shellHook".len();
+    let to_parse = &content[parse_from..];
+
+    match parse_shell_hook(to_parse) {
+        Ok((remaining, hook_content)) => {
+            // Find positions of '' delimiters
+            let content_start_marker = content[parse_from..]
+                .find("''")
+                .context("Could not find opening \"''\"")?;
+            let content_start = parse_from + content_start_marker + 2;
+
+            let section_end = parse_from + byte_offset(to_parse, remaining);
+
+            let content_end = content[content_start..section_end]
+                .rfind("''")
+                .context("Could not find closing \"''\"")?
+                + content_start;
+
+            let indentation = detect_indentation(hook_content);
+
+            Ok(ShellHookSection {
+                content: hook_content.trim().to_string(),
+                section_start,
+                content_start,
+                content_end,
+                section_end,
+                indentation,
+            })
+        }
+        Err(e) => Err(anyhow::anyhow!(
+            "Failed to parse shellHook section: {:?}",
+            e
+        )),
+    }
 }
 
-pub fn command_exists(content: &str, name: &str) -> bool {
-    content.contains(&format!("# flk-command: {}", name))
+impl ShellHookSection {
+    /// Find a command within the shell hook
+    pub fn find_command(&self, full_content: &str, name: &str) -> Option<(usize, usize)> {
+        let marker = format!("# flk-command: {}", name);
+        let hook_content = &full_content[self.content_start..self.content_end];
+
+        let marker_pos = hook_content.find(&marker)?;
+        let marker_start = self.content_start + marker_pos;
+
+        // Find line start
+        let line_start = if marker_start > 0 {
+            full_content[..marker_start].rfind('\n').unwrap_or(0)
+        } else {
+            0
+        };
+
+        // Find end of function block
+        let search_from = marker_start + marker.len();
+        let function_end = full_content[search_from..].find(&format!("{}}}", INDENT_IN))?;
+
+        let end_point = search_from + function_end + format!("{}}}\n", INDENT_IN).len();
+
+        Some((line_start, end_point))
+    }
+
+    /// Check if command exists
+    pub fn command_exists(&self, full_content: &str, name: &str) -> bool {
+        let marker = format!("# flk-command: {}", name);
+        full_content.contains(&marker)
+    }
+
+    /// Add a command to shell hook
+    pub fn add_command(&self, original_content: &str, name: &str, command: &str) -> String {
+        let insertion_point = self.content_end;
+
+        let command_block = format!(
+            "\n{}# flk-command:  {}\n{}{} () {{\n{}{}\n{}{}\n",
+            INDENT_IN,
+            name,
+            INDENT_IN,
+            name,
+            INDENT_IN,
+            command.trim(),
+            INDENT_IN,
+            "}"
+        );
+
+        let mut result = String::new();
+        result.push_str(&original_content[..insertion_point]);
+        result.push_str(&command_block);
+        result.push_str(&original_content[insertion_point..]);
+
+        result
+    }
+
+    /// Remove a command from shell hook
+    pub fn remove_command(&self, original_content: &str, name: &str) -> Result<String> {
+        let (line_start, end_point) = self
+            .find_command(original_content, name)
+            .context(format!("Command '{}' not found in shellHook", name))?;
+
+        let mut result = String::new();
+        result.push_str(&original_content[..line_start]);
+        result.push_str(&original_content[end_point..]);
+
+        Ok(result)
+    }
+
+    /// Replace entire shell hook content
+    pub fn replace_content(&self, original_content: &str, new_content: &str) -> String {
+        let mut result = String::new();
+        result.push_str(&original_content[..self.content_start]);
+        result.push_str("\n");
+        result.push_str(&new_content.trim());
+        result.push_str("\n  ");
+        result.push_str(&original_content[self.content_end..]);
+
+        result
+    }
 }
 
-pub fn add_command_to_shell_hook(
-    content: &str,
-    name: &str,
-    command: &str,
-    profile_name: Option<&str>,
-) -> Result<String> {
-    let profile_to_parse = match profile_name {
-        Some(name) => name.to_string(),
-        None => get_default_shell_profile()?,
-    };
-    let (_, shell_hook_end) = find_shell_hook_in_profile(content, profile_to_parse.as_str())?;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    let insertion_point = shell_hook_end - INDENT_OUT.len();
+    #[test]
+    fn test_parse_shell_hook() {
+        let content = r#"{
+  shellHook = ''
+    echo "🦀 Rust development environment ready!"
+    echo "Rust version: $(rustc --version)"
+  '';
+}"#;
 
-    let command_block = format!(
-        "\n{}{}\n{} () {{\n{}\n{}\n",
-        indent_lines("# flk-command: ", INDENT_IN.len()),
-        name,
-        indent_lines(name, INDENT_IN.len()),
-        indent_lines(command.trim(), INDENT_IN.len() + 2),
-        indent_lines("}", INDENT_IN.len())
-    );
+        let section = parse_shell_hook_section(content).unwrap();
+        assert!(section.content.contains("Rust development environment"));
+        assert!(section.content.contains("rustc --version"));
+    }
 
-    let mut result = String::new();
-    result.push_str(&content[..insertion_point]);
-    result.push_str(&command_block);
-    result.push_str(&content[insertion_point..]);
+    #[test]
+    fn test_add_command() {
+        let content = r#"{
+  shellHook = ''
+    echo "Hello"
+  '';
+}"#;
 
-    Ok(result)
-}
+        let section = parse_shell_hook_section(content).unwrap();
+        let new_content = section.add_command(content, "test", "echo 'test command'");
 
-pub fn remove_command_from_shell_hook(
-    content: &str,
-    name: &str,
-    profile_name: Option<&str>,
-) -> Result<String> {
-    let profile_to_parse = match profile_name {
-        Some(name) => name.to_string(),
-        None => get_default_shell_profile()?,
-    };
-    let (line_start, end_point) = find_command(content, name, profile_to_parse.as_str())
-        .context("Command marker not found")?;
-
-    let mut result = String::new();
-    result.push_str(&content[..line_start]);
-    result.push_str(&content[end_point..]);
-
-    Ok(result)
+        assert!(new_content.contains("# flk-command: test"));
+        assert!(new_content.contains("test () {"));
+    }
 }
