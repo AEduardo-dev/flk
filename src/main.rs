@@ -174,8 +174,7 @@ enum LockAction {
     },
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
@@ -183,10 +182,10 @@ async fn main() -> Result<()> {
             init::run(template, force)?;
         }
         Commands::Search { query, limit } => {
-            search::run_search(&query, limit).await?;
+            search::run_search(&query, limit)?;
         }
         Commands::DeepSearch { package } => {
-            search::run_deep_search(&package).await?;
+            search::run_deep_search(&package)?;
         }
         Commands::List {} => {
             list::run_list()?;
