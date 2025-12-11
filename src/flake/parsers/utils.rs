@@ -1,31 +1,112 @@
+use crate::flake::interface::INDENT_IN;
 use anyhow::{Context, Result};
 use clap::builder::OsStr;
+use nom::{
+    bytes::complete::{tag, take_until, take_while, take_while1},
+    character::complete::{char, multispace0, space0},
+    combinator::{opt, recognize},
+    sequence::{delimited, preceded, tuple},
+    IResult,
+};
 use std::{fs, path::PathBuf};
 
-/// Find matching closing brace for an opening brace
-pub fn find_matching_brace(
-    content: &str,
-    start: usize,
-    open_char: u8,
-    close_char: u8,
-) -> Result<usize> {
-    let mut depth = 0;
-    let bytes = content.as_bytes();
-    for (i, _) in bytes.iter().enumerate().skip(start) {
-        match bytes[i] {
-            c if c == open_char => {
-                depth += 1;
+/// Parse whitespace (spaces and tabs, not newlines)
+pub fn ws(input: &str) -> IResult<&str, &str> {
+    space0(input)
+}
+
+/// Parse whitespace including newlines
+pub fn multiws(input: &str) -> IResult<&str, &str> {
+    multispace0(input)
+}
+
+/// Parse a Nix identifier (alphanumeric + dashes + underscores)
+pub fn identifier(input: &str) -> IResult<&str, &str> {
+    recognize(take_while1(|c: char| {
+        c.is_alphanumeric() || c == '_' || c == '-'
+    }))(input)
+}
+
+/// Parse a Nix attribute path (e.g., rust-bin. stable.latest.default)
+pub fn attribute_path(input: &str) -> IResult<&str, &str> {
+    recognize(tuple((take_while1(|c: char| {
+        c.is_alphanumeric() || c == '_' || c == '-' || c == '.'
+    }),)))(input)
+}
+
+/// Parse a string literal in double quotes, handling escaped quotes
+pub fn string_literal(input: &str) -> IResult<&str, &str> {
+    delimited(char('"'), take_until("\""), char('"'))(input)
+}
+
+/// Parse a Nix multiline string ('' ...  '')
+pub fn multiline_string(input: &str) -> IResult<&str, &str> {
+    delimited(tag("''"), take_until("''"), tag("''"))(input)
+}
+
+/// Parse an inline comment starting with #
+pub fn inline_comment(input: &str) -> IResult<&str, &str> {
+    preceded(tuple((ws, char('#'))), take_while(|c| c != '\n'))(input)
+}
+
+/// Parse optional inline comment
+pub fn opt_inline_comment(input: &str) -> IResult<&str, Option<&str>> {
+    opt(inline_comment)(input)
+}
+
+/// Detect indentation pattern from content
+pub fn detect_indentation(content: &str) -> String {
+    for line in content.lines() {
+        if !line.trim().is_empty() {
+            let indent = line.len() - line.trim_start().len();
+            if indent > 0 {
+                return line[..indent].to_string();
             }
-            c if c == close_char => {
-                depth -= 1;
-                if depth == 0 {
-                    return Ok(i);
-                }
-            }
-            _ => {}
         }
     }
-    Err(anyhow::anyhow!("No matching closing brace found"))
+    INDENT_IN.to_string()
+}
+
+/// Find the byte position of a substring in the original content
+pub fn find_position(original: &str, substring: &str) -> Option<usize> {
+    Some(original.as_ptr() as usize - substring.as_ptr() as usize)
+}
+
+/// Calculate byte offset between two string slices
+pub fn byte_offset(original: &str, remaining: &str) -> usize {
+    remaining.as_ptr() as usize - original.as_ptr() as usize
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_identifier() {
+        assert_eq!(identifier("rust-analyzer").unwrap().1, "rust-analyzer");
+        assert_eq!(identifier("my_var").unwrap().1, "my_var");
+    }
+
+    #[test]
+    fn test_attribute_path() {
+        assert_eq!(
+            attribute_path("rust-bin.stable.latest.default").unwrap().1,
+            "rust-bin.stable.latest.default"
+        );
+    }
+
+    #[test]
+    fn test_string_literal() {
+        assert_eq!(string_literal("\"hello world\"").unwrap().1, "hello world");
+    }
+
+    #[test]
+    fn test_inline_comment() {
+        assert_eq!(
+            inline_comment("# This is a comment").unwrap().1,
+            " This is a comment"
+        );
+    }
 }
 
 /// Get the default shell profile from default.nix helper
