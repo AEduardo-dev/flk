@@ -1,165 +1,226 @@
+use crate::flake::interface::EnvVar;
+use crate::flake::parsers::utils::{
+    byte_offset, detect_indentation, identifier, multiws, string_literal, ws,
+};
 use anyhow::{Context, Result};
-use colored::Colorize;
+use nom::{
+    branch::alt,
+    character::complete::{char, line_ending},
+    combinator::opt,
+    sequence::{separated_pair, tuple},
+    IResult,
+};
 
-use crate::flake::interface::{INDENT_IN, INDENT_OUT};
-use crate::flake::parsers::utils::{find_matching_brace, get_default_shell_profile};
-
-/// Find envVars section within a profile
-pub fn find_env_vars_in_profile(content: &str, profile_name: &str) -> Result<(usize, usize)> {
-    let envvars_start = content.find("envVars = {").context(format!(
-        "Could not find 'envVars' section in profile '{}'",
-        profile_name
-    ))?;
-
-    let brace_start = envvars_start + "envVars = ".len();
-    let search_start = brace_start;
-
-    let envvars_end = find_matching_brace(content, search_start, b'{', b'}')
-        .context("Could not find closing brace for envVars")?;
-
-    let section_start = envvars_start + "envVars = {".len();
-    let section_end = envvars_end - INDENT_OUT.len();
-
-    Ok((section_start, section_end))
+#[derive(Debug, Clone)]
+pub struct EnvVarEntry {
+    pub name: String,
+    pub value: String,
+    pub start_pos: usize,
+    pub end_pos: usize,
 }
 
-/// Parse environment variables from a specific profile (or first one if None)
-pub fn parse_env_vars_from_profile(
-    content: &str,
-    profile_name: Option<&str>,
-) -> Result<Vec<(String, String)>> {
-    let mut env_vars = Vec::new();
+#[derive(Debug)]
+pub struct EnvVarsSection {
+    pub entries: Vec<EnvVarEntry>,
+    pub section_start: usize,
+    pub content_start: usize,
+    pub content_end: usize,
+    pub section_end: usize,
+    pub indentation: String,
+}
 
-    let profile_to_parse = match profile_name {
-        Some(name) => name.to_string(),
-        None => get_default_shell_profile()?,
-    };
+/// Parse a value (quoted string or unquoted identifier)
+fn env_value(input: &str) -> IResult<&str, &str> {
+    alt((string_literal, identifier))(input)
+}
 
-    let (envvars_start, envvars_end) = match find_env_vars_in_profile(content, &profile_to_parse) {
-        Ok(result) => result,
-        Err(_) => return Ok(env_vars),
-    };
+/// Parse a single env var entry:  NAME = "value";
+fn env_var_entry<'a>(input: &'a str, base_offset: usize) -> IResult<&'a str, EnvVarEntry> {
+    let start_pos = base_offset + byte_offset(input, input);
 
-    let envvars_content = &content[envvars_start..envvars_end];
+    let (input, _) = multiws(input)?;
+    let (input, (name, value)) =
+        separated_pair(identifier, tuple((ws, char('='), ws)), env_value)(input)?;
+    let (input, _) = ws(input)?;
+    let (input, _) = char(';')(input)?;
+    let (input, _) = opt(line_ending)(input)?;
 
-    for line in envvars_content.lines() {
-        let trimmed = line.trim();
+    let end_pos = base_offset + byte_offset(input, input);
 
-        if let Some(eq_pos) = trimmed.find('=') {
-            let name = trimmed[..eq_pos].trim();
-            let value_part = trimmed[eq_pos + 1..].trim();
+    Ok((
+        input,
+        EnvVarEntry {
+            name: name.to_string(),
+            value: value.to_string(),
+            start_pos,
+            end_pos,
+        },
+    ))
+}
 
-            let value = value_part
-                .trim_end_matches(';')
-                .trim_start_matches('"')
-                .trim_end_matches('"')
-                .trim_start_matches('\'')
-                .trim_end_matches('\'');
+/// Parse the full envVars section with nom
+fn parse_env_vars(input: &str, base_offset: usize) -> IResult<&str, Vec<EnvVarEntry>> {
+    let (input, _) = ws(input)?;
+    let (input, _) = char('{')(input)?;
 
-            env_vars.push((name.to_string(), value.to_string()));
+    let mut entries = Vec::new();
+    let mut remaining = input;
+
+    loop {
+        // Skip whitespace
+        let (rest, _) = multiws(remaining)?;
+
+        // Check for closing brace
+        if rest.starts_with('}') {
+            remaining = rest;
+            break;
+        }
+
+        // Try to parse env var entry
+        match env_var_entry(rest, base_offset) {
+            Ok((rest, entry)) => {
+                entries.push(entry);
+                remaining = rest;
+            }
+            Err(_) => {
+                // Skip this line if it doesn't parse
+                if let Some(newline_pos) = rest.find('\n') {
+                    remaining = &rest[newline_pos + 1..];
+                } else {
+                    break;
+                }
+            }
         }
     }
 
-    Ok(env_vars)
+    let (input, _) = char('}')(remaining)?;
+    let (input, _) = ws(input)?;
+    let (input, _) = char(';')(input)?;
+
+    Ok((input, entries))
 }
 
-/// Check if an environment variable exists in a profile
-pub fn env_var_exists(flake_content: &str, name: &str, profile_name: &str) -> Result<bool> {
-    let export_pattern = format!("{} = ", name);
-    let (envvars_start, envvars_end) = find_env_vars_in_profile(flake_content, profile_name)?;
-    let envvars_content = &flake_content[envvars_start..envvars_end];
+/// Main parser for envVars section
+pub fn parse_env_vars_section(content: &str) -> Result<EnvVarsSection> {
+    let section_start = content
+        .find("envVars =")
+        .context("Could not find 'envVars ='")?;
 
-    for line in envvars_content.lines() {
-        let trimmed = line.trim();
-        if trimmed.starts_with(&export_pattern) {
-            return Ok(true);
+    let parse_from = section_start + "envVars =".len();
+    let to_parse = &content[parse_from..];
+
+    match parse_env_vars(to_parse, parse_from) {
+        Ok((remaining, entries)) => {
+            let content_start = content[parse_from..]
+                .find('{')
+                .context("Could not find '{'")?
+                + parse_from
+                + 1;
+
+            let section_end = parse_from + byte_offset(to_parse, remaining);
+
+            let content_end = content[content_start..section_end]
+                .rfind('}')
+                .context("Could not find '}'")?
+                + content_start;
+
+            let env_content = &content[content_start..content_end];
+            let indentation = detect_indentation(env_content);
+
+            Ok(EnvVarsSection {
+                entries,
+                section_start,
+                content_start,
+                content_end,
+                section_end,
+                indentation,
+            })
         }
+        Err(e) => Err(anyhow::anyhow!("Failed to parse envVars section: {:?}", e)),
     }
-    Ok(false)
 }
 
-/// Add an environment variable to a profile
-pub fn add_env_var_to_profile(
-    content: &str,
-    name: &str,
-    value: &str,
-    profile_name: Option<&str>,
-) -> Result<String> {
-    let profile_to_parse = match profile_name {
-        Some(name) => name.to_string(),
-        None => get_default_shell_profile()?,
-    };
-
-    if env_var_exists(content, name, profile_to_parse.as_str())? {
-        println!(
-            "Environment variable '{}' already exists in profile '{}'",
-            name.cyan(),
-            profile_to_parse.yellow()
-        );
-        println!("Skipping addition.");
-        return Ok(content.to_string());
+impl EnvVarsSection {
+    /// Convert to EnvVar structs
+    pub fn to_env_vars(&self) -> Vec<EnvVar> {
+        self.entries
+            .iter()
+            .map(|e| EnvVar::new(e.name.clone(), e.value.clone()))
+            .collect()
     }
 
-    let (_, insertion_point) = find_env_vars_in_profile(content, profile_to_parse.as_str())?;
+    /// Add env var
+    pub fn add_env_var(&self, original_content: &str, name: &str, value: &str) -> String {
+        if self.entries.iter().any(|e| e.name == name) {
+            return original_content.to_string();
+        }
 
-    let escaped_value = value.replace('"', "\\\"");
-    let env_block = format!("{}{} = \"{}\";\n", INDENT_IN, name, escaped_value);
+        let new_entry = format!("{}{} = \"{}\";\n", self.indentation, name, value);
 
-    let mut result = String::new();
-    result.push_str(&content[..insertion_point]);
-    result.push_str(&env_block);
-    result.push_str(&content[insertion_point..]);
+        let mut result = String::new();
+        result.push_str(&original_content[..self.content_end]);
+        result.push_str(&new_entry);
+        result.push_str(&original_content[self.content_end..]);
 
-    println!(
-        "{} Environment variable '{}' added successfully!",
-        "✓".green().bold(),
-        name
-    );
+        result
+    }
 
-    Ok(result)
-}
+    /// Remove env var
+    pub fn remove_env_var(&self, original_content: &str, name: &str) -> Result<String> {
+        let entry = self
+            .entries
+            .iter()
+            .find(|e| e.name == name)
+            .context(format!("Environment variable '{}' not found", name))?;
 
-/// Remove an environment variable from a profile
-pub fn remove_env_var_from_profile(
-    flake_content: &str,
-    name: &str,
-    profile_name: Option<&str>,
-) -> Result<String> {
-    let profile_to_parse = match profile_name {
-        Some(name) => name.to_string(),
-        None => get_default_shell_profile()?,
-    };
-    let (envvars_start, envvars_end) =
-        match find_env_vars_in_profile(flake_content, profile_to_parse.as_str()) {
-            Ok(result) => result,
-            Err(_) => return Ok(flake_content.to_string()),
+        let before = &original_content[..entry.start_pos];
+        let after = &original_content[entry.end_pos..];
+
+        let after = if after.starts_with('\n') {
+            &after[1..]
+        } else {
+            after
         };
 
-    let envvars_content = &flake_content[envvars_start..envvars_end];
-    let var_pattern = format!("{} = ", name);
+        Ok(format!("{}{}", before, after))
+    }
 
-    let var_start = envvars_content
-        .find(&var_pattern)
-        .context("Could not find environment variable in envVars section")?;
+    /// Check if env var exists
+    pub fn env_var_exists(&self, name: &str) -> Result<bool> {
+        Ok(self.entries.iter().any(|e| e.name == name))
+    }
+}
 
-    let var_end = envvars_content[var_start..]
-        .find(';')
-        .context("Could not find semicolon ending for environment variable")?;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    let var_line_end = var_start + var_end + 1;
+    #[test]
+    fn test_parse_env_vars() {
+        let content = r#"{
+  envVars = {
+    RUST_BACKTRACE = "1";
+    MY_VAR = "value";
+  };
+}"#;
 
-    let absolute_var_start = envvars_start + var_start - (INDENT_IN.len() + 1);
-    let absolute_var_end = envvars_start + var_line_end;
+        let section = parse_env_vars_section(content).unwrap();
+        assert_eq!(section.entries.len(), 2);
+        assert_eq!(section.entries[0].name, "RUST_BACKTRACE");
+        assert_eq!(section.entries[0].value, "1");
+    }
 
-    let mut result = String::new();
-    result.push_str(&flake_content[..absolute_var_start]);
-    result.push_str(&flake_content[absolute_var_end..]);
+    #[test]
+    fn test_add_env_var() {
+        let content = r#"{
+  envVars = {
+    RUST_BACKTRACE = "1";
+  };
+}"#;
 
-    println!(
-        "{} Environment variable '{}' removed successfully!",
-        "✓".green().bold(),
-        name
-    );
+        let section = parse_env_vars_section(content).unwrap();
+        let new_content = section.add_env_var(content, "NEW_VAR", "new_value");
 
-    Ok(result)
+        assert!(new_content.contains("NEW_VAR = \"new_value\""));
+    }
 }
