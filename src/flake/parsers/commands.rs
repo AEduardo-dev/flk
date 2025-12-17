@@ -87,7 +87,7 @@ impl ShellHookSection {
         let search_from = marker_start + marker.len();
         let function_end = full_content[search_from..].find(&format!("{}}}", INDENT_IN))?;
 
-        let end_point = search_from + function_end + format!("{}}}\n", INDENT_IN).len();
+        let end_point = search_from + function_end + format!("{}}}", INDENT_IN).len();
 
         Some((line_start, end_point))
     }
@@ -100,18 +100,16 @@ impl ShellHookSection {
 
     /// Add a command to shell hook
     pub fn add_command(&self, original_content: &str, name: &str, command: &str) -> String {
-        let insertion_point = self.content_end;
+        let insertion_point = original_content[..self.content_end]
+            .rfind('\n')
+            .unwrap_or(self.content_end);
 
         let command_block = format!(
-            "\n{}# flk-command: {}\n{}{} () {{\n{}{}\n{}{}\n",
-            INDENT_IN,
-            name,
-            INDENT_IN,
-            name,
-            INDENT_IN,
-            command.trim(),
-            INDENT_IN,
-            "}"
+            "\n{indent_in}# flk-command: {name}\n{indent_in}{name} () {{\n{indent_cmd}{cmd}\n{indent_in}}}",
+            indent_in = INDENT_IN,
+            indent_cmd = " ".repeat(INDENT_IN.len() + 2),
+            name = name,
+            cmd = command.trim(),
         );
 
         let mut result = String::new();
