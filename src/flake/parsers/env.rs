@@ -159,12 +159,16 @@ impl EnvVarsSection {
             return original_content.to_string();
         }
 
-        let new_entry = format!("{}{} = \"{}\";\n", self.indentation, name, value);
+        let inserstion_point = original_content[..self._content_end]
+            .rfind('\n')
+            .unwrap_or(self._content_end);
+
+        let new_entry = format!("\n{}{} = \"{}\";", self.indentation, name, value);
 
         let mut result = String::new();
-        result.push_str(&original_content[..self._content_end]);
+        result.push_str(&original_content[..inserstion_point]);
         result.push_str(&new_entry);
-        result.push_str(&original_content[self._content_end..]);
+        result.push_str(&original_content[inserstion_point..]);
 
         result
     }
@@ -177,7 +181,12 @@ impl EnvVarsSection {
             .find(|e| e.name == name)
             .context(format!("Environment variable '{}' not found", name))?;
 
-        let before = &original_content[..entry.start_pos];
+        let start_line = original_content[..entry.start_pos]
+            .rfind('\n')
+            .map(|pos| pos + 1)
+            .unwrap_or(0);
+
+        let before = &original_content[..start_line];
         let after = &original_content[entry.end_pos..];
 
         let after = after.strip_prefix('\n').unwrap_or(after);

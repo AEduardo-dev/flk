@@ -49,8 +49,6 @@ fn package_entry<'a>(
 
     let end_pos = base_offset + byte_offset(original_input, remaining);
 
-    println!("{}", name);
-
     Ok((
         remaining,
         PackageEntry {
@@ -171,10 +169,15 @@ impl PackagesSection {
             format!("{}{}\n", self.indentation, name)
         };
 
+        let insertion_point = original_content[..self.list_end]
+            .rfind('\n')
+            .map(|pos| pos + 1)
+            .unwrap_or(self.list_end);
+
         let mut result = String::new();
-        result.push_str(&original_content[..self.list_end]);
+        result.push_str(&original_content[..insertion_point]);
         result.push_str(&new_entry);
-        result.push_str(&original_content[self.list_end..]);
+        result.push_str(&original_content[insertion_point..]);
 
         result
     }
@@ -187,7 +190,12 @@ impl PackagesSection {
             .find(|e| e.name == name)
             .context(format!("Package '{}' not found", name))?;
 
-        let before = &original_content[..entry.start_pos];
+        let start_line = original_content[..entry.start_pos]
+            .rfind('\n')
+            .map(|pos| pos + 1)
+            .unwrap_or(0);
+
+        let before = &original_content[..start_line];
         let after = &original_content[entry.end_pos..];
 
         let after = after.strip_prefix('\n').unwrap_or(after);
