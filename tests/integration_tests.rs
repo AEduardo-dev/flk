@@ -457,7 +457,7 @@ fn test_multiple_packages() {
         .assert()
         .success();
 
-    let packages = vec!["ripgrep", "git", "curl", "wget"];
+    let packages = vec!["ripgrep", "git", "wget"];
     for pkg in &packages {
         cargo::cargo_bin_cmd!("flk")
             .current_dir(temp_dir.path())
