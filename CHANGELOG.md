@@ -31,6 +31,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make changelog follow git-cliff format
 - Update lockfile
 ## [unreleased]
+## [0.5.0] - 2025-12-23
+
+### 🚀 Features
+
+- Update parsers implementation to use nom
+- Add utils for nom parsing
+- Update parsers for nom usage
+- Update packages listing method with new parsing
+- Update search operations with new parsing
+- Calculate insertion point for indentation consistency
+
+### 🐛 Bug Fixes
+
+- Dead code warnings
+- Remove curl from packages list for nix darwin compat
+
+### ⚙️ Miscellaneous Tasks
+
+- Adjust packages tests to use new parsing struct
+- Add nom dependency
+- Update tests for new parsers
+- Remove tokio dep
 ## [0.4.0] - 2025-12-04
 
 ### 🚀 Features
