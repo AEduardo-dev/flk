@@ -2,9 +2,9 @@
   pkgs,
   system,
 }: {
-  packages = with pkgs; [
-    git
-    curl
+  packages = [
+    pkgs.git
+    pkgs.curl
   ];
 
   envVars = {

@@ -3,6 +3,7 @@
     stable = "github:NixOS/nixpkgs/nixos-25.05";
     rust-overlay = "github:oxalica/rust-overlay";
     pkgs-abc1234 = "github:NixOS/nixpkgs/abc1234";
+    pkgs-def5678 = "github:NixOS/nixpkgs/def5678";
   };
 
   pinnedPackages = {
