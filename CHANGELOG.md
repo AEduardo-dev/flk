@@ -31,6 +31,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make changelog follow git-cliff format
 - Update lockfile
 ## [unreleased]
+## [0.5.0] - 2026-01-04
+
+### 🚀 Features
+
+- Update parsers implementation to use nom
+- Add utils for nom parsing
+- Update parsers for nom usage
+- Update packages listing method with new parsing
+- Update search operations with new parsing
+- Calculate insertion point for indentation consistency
+- Add skeleton for overlays parser and structure of future flow
+- Introduce overlays and pins parsers
+- Remove 'with pkgs' to support pin syntax
+- Pin packages in pins file
+- Update parsers and tests for overlays
+- Use new parsers for versioned packages input
+- Subdivide interfaces for easier usage
+- Expand parsing utilities
+- Use new parsing utilities for packages parsing
+- Adjust overlays file parsing for all sections
+- Add rendering utilities for nix file dumping
+- Update add and remove package commands to support pins interaction
+
+### 🐛 Bug Fixes
+
+- Dead code warnings
+- Remove curl from packages list for nix darwin compat
+- Use proper format for system args
+- Dead code warnings
+
+### ⚙️ Miscellaneous Tasks
+
+- Adjust packages tests to use new parsing struct
+- Add nom dependency
+- Update tests for new parsers
+- Remove tokio dep
+- Introduce overlays and pins tests
+- Update env
+- Update structure of control files for testing
+- Update unit tests
 ## [0.4.0] - 2025-12-04
 
 ### 🚀 Features
