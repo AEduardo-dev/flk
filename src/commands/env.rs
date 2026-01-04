@@ -3,7 +3,7 @@ use colored::Colorize;
 use std::fs;
 use std::path::Path;
 
-use crate::flake::parsers::{
+use flk::flake::parsers::{
     env::parse_env_vars_section, flake::parse_flake, utils::get_default_shell_profile,
 };
 

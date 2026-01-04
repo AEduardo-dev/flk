@@ -1,4 +1,3 @@
-use crate::flake::interfaces::utils::INDENT_OUT;
 use crate::flake::parsers::utils::{identifier, multiws, string_literal};
 use anyhow::{Context, Result};
 use nom::sequence::preceded;
@@ -11,8 +10,9 @@ use nom::{
     IResult,
 };
 
-use crate::flake::interfaces::overlays::{
-    OverlayEntry, OverlaysSection, PinnedPackage, SourceEntry, SourcesSection,
+use crate::flake::interfaces::{
+    overlays::{OverlayEntry, OverlaysSection, PinnedPackage, SourceEntry, SourcesSection},
+    utils::INDENT_OUT,
 };
 use crate::flake::nix_render::{indent_line, nix_attr_key, nix_string};
 
@@ -64,7 +64,7 @@ fn pinned_package_entry(input: &str) -> IResult<&str, PinnedPackage> {
     )(input)
 }
 
-fn _pinned_package_list(input: &str) -> IResult<&str, Vec<PinnedPackage>> {
+fn pinned_package_list(input: &str) -> IResult<&str, Vec<PinnedPackage>> {
     delimited(
         delimited(multiws, char('['), multiws),
         many0(pinned_package_entry),
@@ -73,14 +73,14 @@ fn _pinned_package_list(input: &str) -> IResult<&str, Vec<PinnedPackage>> {
 }
 
 /// Parse a pin entry: pin_name = [ ... ];
-fn _overlay_entry(input: &str) -> IResult<&str, OverlayEntry> {
+fn overlay_entry(input: &str) -> IResult<&str, OverlayEntry> {
     let (remaining, (_, name, _, _, _, packages, _, _)) = tuple((
         multiws,
         identifier,
         multiws,
         char('='),
         multiws,
-        _pinned_package_list,
+        pinned_package_list,
         multiws,
         char(';'),
     ))(input)?;
@@ -95,8 +95,8 @@ fn _overlay_entry(input: &str) -> IResult<&str, OverlayEntry> {
 }
 
 /// Parse the full overlays section: everything between braces `{ ... }`
-fn _parse_overlays_content(input: &str) -> IResult<&str, Vec<OverlayEntry>> {
-    many0(_overlay_entry)(input)
+fn parse_overlays_content(input: &str) -> IResult<&str, Vec<OverlayEntry>> {
+    many0(overlay_entry)(input)
 }
 
 /// Main parser for overlays section: pinnedPackages = { ... }
@@ -138,8 +138,7 @@ pub fn parse_overlay_section(content: &str) -> Result<OverlaysSection> {
     }
 
     let to_parse = &content[list_start..list_end];
-
-    match _parse_overlays_content(to_parse) {
+    match parse_overlays_content(to_parse) {
         Ok((_, entries)) => Ok(OverlaysSection {
             entries,
             indentation: INDENT_OUT.to_string(),
@@ -153,7 +152,7 @@ pub fn parse_overlay_section(content: &str) -> Result<OverlaysSection> {
 // ============================================================================
 
 /// Parse a single source entry:  name = "reference";
-fn _source_entry(input: &str) -> IResult<&str, SourceEntry> {
+fn source_entry(input: &str) -> IResult<&str, SourceEntry> {
     let (remaining, (_, name, _, _, _, reference, _, _)) = tuple((
         multiws,
         identifier,
@@ -175,8 +174,8 @@ fn _source_entry(input: &str) -> IResult<&str, SourceEntry> {
 }
 
 /// Parse the full sources section: everything between braces `{ ... }`
-fn _parse_sources_content(input: &str) -> IResult<&str, Vec<SourceEntry>> {
-    many0(_source_entry)(input)
+fn parse_sources_content(input: &str) -> IResult<&str, Vec<SourceEntry>> {
+    many0(source_entry)(input)
 }
 
 /// Main parser for sources section: sources = { ... }
@@ -217,7 +216,7 @@ pub fn parse_sources_section(content: &str) -> Result<SourcesSection> {
 
     let to_parse = &content[list_start..list_end];
 
-    match _parse_sources_content(to_parse) {
+    match parse_sources_content(to_parse) {
         Ok((_, entries)) => Ok(SourcesSection {
             entries,
             indentation: INDENT_OUT.to_string(),
@@ -358,7 +357,7 @@ impl OverlaysSection {
 // ============================================================================
 
 /// Normalize indentation between sections so `render_file` produces consistent output.
-fn _normalize_indentation(sources: &mut SourcesSection, overlays: &mut OverlaysSection) {
+fn normalize_indentation(sources: &mut SourcesSection, overlays: &mut OverlaysSection) {
     let indent = if !sources.indentation.is_empty() {
         sources.indentation.clone()
     } else if !overlays.indentation.is_empty() {
@@ -384,7 +383,7 @@ pub fn add_pinned_package(
 
     let mut sources_section = parse_sources_section(content)?;
     let mut overlays_section = parse_overlay_section(content)?;
-    _normalize_indentation(&mut sources_section, &mut overlays_section);
+    normalize_indentation(&mut sources_section, &mut overlays_section);
 
     // Step 1: Add source if it doesn't exist
     if !sources_section.source_exists(&pin_name) {
@@ -408,7 +407,7 @@ pub fn add_pinned_package(
 pub fn remove_pinned_package_with_cleanup(content: &str, package: &str) -> Result<String> {
     let mut sources_section = parse_sources_section(content)?;
     let mut overlays_section = parse_overlay_section(content)?;
-    _normalize_indentation(&mut sources_section, &mut overlays_section);
+    normalize_indentation(&mut sources_section, &mut overlays_section);
 
     // Find the pin entry that contains the package alias
     println!("Current overlays: {:?}", overlays_section.entries);

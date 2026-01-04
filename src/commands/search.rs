@@ -1,10 +1,10 @@
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 
-use crate::flake::interfaces::profiles::Package;
-use crate::flake::parsers::packages::extract_packages_from_output;
 use crate::nix::{check_nix_available, run_nix_command};
-use crate::utils::visual::{display_list, display_table, with_spinner};
+use flk::flake::interfaces::profiles::Package;
+use flk::flake::parsers::packages::extract_packages_from_output;
+use flk::utils::visual::{display_list, display_table, with_spinner};
 
 pub fn run_search(query: &str, limit: usize) -> Result<bool> {
     println!(

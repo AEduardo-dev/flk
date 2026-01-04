@@ -4,7 +4,7 @@ use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::utils::backup::{create_backup, get_backup_dir};
+use flk::utils::backup::{create_backup, get_backup_dir};
 
 /// Show detailed lock file information
 pub fn show() -> Result<()> {

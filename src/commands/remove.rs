@@ -4,7 +4,7 @@ use flk::flake::parsers::overlays::remove_pinned_package_with_cleanup;
 use std::fs;
 use std::path::Path;
 
-use crate::flake::parsers::{packages::parse_packages_section, utils::get_default_shell_profile};
+use flk::flake::parsers::{packages::parse_packages_section, utils::get_default_shell_profile};
 
 pub fn run_remove(package: &str) -> Result<()> {
     let flake_path = Path::new(".flk/profiles/").join(format!(

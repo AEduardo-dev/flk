@@ -3,7 +3,7 @@ use colored::Colorize;
 use std::fs;
 use std::path::Path;
 
-use crate::flake::generator;
+use flk::flake::generator;
 
 pub fn run(template: Option<String>, force: bool) -> Result<()> {
     let flake_path = Path::new("flake.nix");

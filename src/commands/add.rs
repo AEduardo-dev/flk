@@ -3,9 +3,9 @@ use colored::Colorize;
 use flk::flake::parsers::overlays::add_pinned_package;
 use std::{fs, path};
 
-use crate::flake::parsers::{packages::parse_packages_section, utils::get_default_shell_profile};
 use crate::nix::run_nix_command;
-use crate::utils::visual::with_spinner;
+use flk::flake::parsers::{packages::parse_packages_section, utils::get_default_shell_profile};
+use flk::utils::visual::with_spinner;
 
 pub fn run_add(package: &str, version: Option<String>) -> Result<()> {
     let flake_path = path::Path::new(".flk/profiles/").join(format!(
@@ -69,7 +69,7 @@ pub fn run_add(package: &str, version: Option<String>) -> Result<()> {
             &pins_content,
             &pin.hash,
             &pin.full_ref,
-            &package,
+            package,
             version
                 .as_deref()
                 .expect("version must be Some when package_pin is Some"),
