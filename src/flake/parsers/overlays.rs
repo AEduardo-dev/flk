@@ -1,240 +1,375 @@
-use anyhow::{bail, Context, Result};
-
-use crate::flake::{
-    interface::{INDENT_IN, INDENT_OUT},
-    parsers::utils::find_matching_brace,
+use crate::flake::interfaces::utils::INDENT_OUT;
+use crate::flake::parsers::utils::{identifier, multiws, string_literal};
+use anyhow::{Context, Result};
+use nom::sequence::preceded;
+use nom::{
+    bytes::complete::tag,
+    character::complete::char,
+    combinator::map,
+    multi::many0,
+    sequence::{delimited, tuple},
+    IResult,
 };
 
-// ============================================================================
-// SOURCES SECTION (pins.nix - sources = { ... })
-// ============================================================================
-
-/// Check if a source exists in the sources section
-pub fn source_exists(content: &str, source_name: &str) -> Result<bool> {
-    let (section_start, section_end) = find_sources_section(content)?;
-    let section_content = &content[section_start..section_end];
-
-    Ok(section_content
-        .lines()
-        .any(|line| line.trim_start().starts_with(&format!("{} =", source_name))))
-}
-
-/// Add a new source to the sources section
-pub fn add_source(content: &str, source_name: &str, source_ref: &str) -> Result<String> {
-    let (_, section_end) = find_sources_section(content)?;
-    let insertion_point = section_end - INDENT_OUT.len(); // before the closing brace
-
-    let mut result = String::new();
-    result.push_str(&content[..insertion_point]);
-    result.push_str(&format!(
-        "{}{} = \"{}\";\n{}",
-        INDENT_IN, source_name, source_ref, INDENT_OUT
-    ));
-    result.push_str(&content[insertion_point..]);
-
-    Ok(result)
-}
-
-/// Remove a source from the sources section
-pub fn remove_source(content: &str, source_name: &str) -> Result<String> {
-    let source_pattern = format!("{} =", source_name);
-    let source_pos = content
-        .find(&source_pattern)
-        .context("Could not find source in sources section")?;
-
-    let line_start = content[..source_pos]
-        .rfind('\n')
-        .map(|pos| pos + 1)
-        .unwrap_or(0);
-    let line_end = content[source_pos..]
-        .find('\n')
-        .map(|pos| source_pos + pos + 1)
-        .unwrap_or(content.len());
-
-    let mut result = String::new();
-    result.push_str(&content[..line_start]);
-    result.push_str(&content[line_end..]);
-
-    Ok(result)
-}
+use crate::flake::interfaces::overlays::{
+    OverlayEntry, OverlaysSection, PinnedPackage, SourceEntry, SourcesSection,
+};
+use crate::flake::nix_render::{indent_line, nix_attr_key, nix_string};
 
 // ============================================================================
-// PINNED PACKAGES SECTION (pins. nix - pinnedPackages = { ... })
+// PINNED PACKAGE PARSERS
 // ============================================================================
 
-/// Check if a pin entry exists in pinnedPackages
-pub fn pin_entry_exists(content: &str, pin_name: &str) -> Result<bool> {
-    let (section_start, section_end) = find_pinned_packages_section(content)?;
-    let section_content = &content[section_start..section_end];
-
-    Ok(section_content
-        .lines()
-        .any(|line| line.trim_start().starts_with(&format!("{} = [", pin_name))))
+/// Parse a single pinned package entry:  { pkg = "... "; name = "..."; }
+fn pinned_package_entry(input: &str) -> IResult<&str, PinnedPackage> {
+    map(
+        delimited(
+            multiws,
+            delimited(
+                char('{'),
+                delimited(
+                    multiws,
+                    tuple((
+                        preceded(
+                            tuple((tag("pkg"), multiws, char('='), multiws)),
+                            string_literal,
+                        ),
+                        preceded(
+                            tuple((
+                                multiws,
+                                char(';'),
+                                multiws,
+                                tag("name"),
+                                multiws,
+                                char('='),
+                                multiws,
+                            )),
+                            string_literal,
+                        ),
+                        preceded(
+                            tuple((multiws, char(';'), multiws)),
+                            nom::combinator::success(()),
+                        ),
+                    )),
+                    multiws,
+                ),
+                char('}'),
+            ),
+            multiws,
+        ),
+        |(pkg, pin_name, _)| PinnedPackage {
+            name: pkg.to_string(),
+            pin_name: pin_name.to_string(),
+        },
+    )(input)
 }
 
-/// Add a new pin entry with an empty package list
-pub fn add_pin_entry(content: &str, pin_name: &str) -> Result<String> {
-    let (_, section_end) = find_pinned_packages_section(content)?;
-    let insertion_point = section_end - INDENT_OUT.len(); // before the closing brace
-
-    let mut result = String::new();
-    result.push_str(&content[..insertion_point]);
-    result.push_str(&format!(
-        "{}{} = [\n{}];\n{}",
-        INDENT_IN, pin_name, INDENT_IN, INDENT_OUT
-    ));
-    result.push_str(&content[insertion_point..]);
-
-    Ok(result)
+fn _pinned_package_list(input: &str) -> IResult<&str, Vec<PinnedPackage>> {
+    delimited(
+        delimited(multiws, char('['), multiws),
+        many0(pinned_package_entry),
+        delimited(multiws, char(']'), multiws),
+    )(input)
 }
 
-/// Remove a pin entry from pinnedPackages
-pub fn remove_pin_entry(content: &str, pin_name: &str) -> Result<String> {
-    let (section_start, section_end) = find_pinned_packages_section(content)?;
-    let section_content = &content[section_start..section_end];
+/// Parse a pin entry: pin_name = [ ... ];
+fn _overlay_entry(input: &str) -> IResult<&str, OverlayEntry> {
+    let (remaining, (_, name, _, _, _, packages, _, _)) = tuple((
+        multiws,
+        identifier,
+        multiws,
+        char('='),
+        multiws,
+        _pinned_package_list,
+        multiws,
+        char(';'),
+    ))(input)?;
 
-    let entry_pattern = format!("{} = [", pin_name);
-    let entry_pos = section_content
-        .find(&entry_pattern)
-        .context("Could not find pin entry in pinnedPackages section")?;
-
-    let absolute_entry_pos = section_start + entry_pos;
-
-    // Find the line start (including indentation)
-    let line_start = content[..absolute_entry_pos]
-        .rfind('\n')
-        .map(|pos| pos + 1)
-        .unwrap_or(0);
-
-    // Find the closing bracket and semicolon
-    let bracket_start = absolute_entry_pos + entry_pattern.len() - 1;
-    let bracket_end = find_matching_brace(content, bracket_start, b'[', b']')
-        .context("Could not find closing bracket for pin entry")?;
-
-    let line_end = content[bracket_end..]
-        .find('\n')
-        .map(|pos| bracket_end + pos + 1)
-        .unwrap_or(content.len());
-
-    let mut result = String::new();
-    result.push_str(&content[..line_start]);
-    result.push_str(&content[line_end..]);
-
-    Ok(result)
+    Ok((
+        remaining,
+        OverlayEntry {
+            name: name.to_string(),
+            packages,
+        },
+    ))
 }
 
-/// Check if a specific package exists in a pin's package list
-pub fn package_in_pin_exists(content: &str, pin_name: &str, package_name: &str) -> Result<bool> {
-    let (list_start, list_end) = find_pin_package_list(content, pin_name)?;
-    let list_content = &content[list_start..list_end];
-
-    Ok(list_content.contains(&format!("name = \"{}\"", package_name)))
+/// Parse the full overlays section: everything between braces `{ ... }`
+fn _parse_overlays_content(input: &str) -> IResult<&str, Vec<OverlayEntry>> {
+    many0(_overlay_entry)(input)
 }
 
-/// Add a package to a pin's package list
-pub fn add_package_to_pin(
-    content: &str,
-    pin_name: &str,
-    package: &str,
-    package_alias: &str, // e.g., "git@2. 51.2"
-) -> Result<String> {
-    let (_, list_end) = find_pin_package_list(content, pin_name)?;
-    let insertion_point = list_end; // before the closing bracket
+/// Main parser for overlays section: pinnedPackages = { ... }
+pub fn parse_overlay_section(content: &str) -> Result<OverlaysSection> {
+    let section_start = content
+        .find("pinnedPackages")
+        .context("Could not find 'pinnedPackages'")?;
 
-    let package_entry = format!(
-        "{}{{ pkg = \"{}\"; name = \"{}\"; }}\n{}",
-        INDENT_IN.repeat(2), // Double indent for nested list items
-        package,
-        package_alias,
-        INDENT_IN
-    );
+    let after_pinned = &content[section_start..];
+    let brace_offset = after_pinned
+        .find('{')
+        .context("Could not find '{' after 'pinnedPackages'")?;
 
-    let mut result = String::new();
-    result.push_str(&content[..insertion_point]);
-    result.push_str(&package_entry);
-    result.push_str(&content[insertion_point..]);
+    let list_start = section_start + brace_offset + 1;
 
-    Ok(result)
-}
+    // Find the matching closing brace
+    let after_brace = &content[list_start..];
+    let mut brace_count = 1usize;
+    let mut list_end = list_start;
 
-/// Remove a package from a pin's package list
-pub fn remove_package_from_pin(
-    content: &str,
-    pin_name: &str,
-    package_alias: &str,
-) -> Result<String> {
-    let (list_start, list_end) = find_pin_package_list(content, pin_name)?;
-    let list_content = &content[list_start..list_end];
+    for (i, ch) in after_brace.char_indices() {
+        match ch {
+            '{' => brace_count += 1,
+            '}' => {
+                brace_count -= 1;
+                if brace_count == 0 {
+                    list_end = list_start + i;
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
 
-    let package_pattern = format!("name = \"{}\"", package_alias);
-    let package_pos = list_content.find(&package_pattern).context(format!(
-        "Could not find package '{}' in pin '{}'",
-        package_alias, pin_name
-    ))?;
+    if brace_count != 0 {
+        return Err(anyhow::anyhow!(
+            "Unmatched braces in pinnedPackages section"
+        ));
+    }
 
-    let absolute_package_pos = list_start + package_pos;
+    let to_parse = &content[list_start..list_end];
 
-    // Find the start of the line containing this package
-    let line_start = content[..absolute_package_pos]
-        .rfind('\n')
-        .map(|pos| pos + 1)
-        .unwrap_or(0);
-
-    // Find the end of the line (after the closing brace)
-    let line_end = content[absolute_package_pos..]
-        .find('\n')
-        .map(|pos| absolute_package_pos + pos + 1)
-        .unwrap_or(content.len());
-
-    let mut result = String::new();
-    result.push_str(&content[..line_start]);
-    result.push_str(&content[line_end..]);
-
-    Ok(result)
-}
-
-/// Check if a pin entry has any packages
-pub fn pin_has_packages(content: &str, pin_name: &str) -> Result<bool> {
-    let (list_start, list_end) = find_pin_package_list(content, pin_name)?;
-    let list_content = &content[list_start..list_end].trim();
-
-    Ok(!list_content.is_empty())
-}
-
-/// Find which pin a package belongs to (by package alias)
-pub fn find_pin_for_package(content: &str, package_alias: &str) -> Result<String> {
-    let (section_start, section_end) = find_pinned_packages_section(content)?;
-    let section_content = &content[section_start..section_end];
-
-    let package_pattern = format!("name = \"{}\"", package_alias);
-    let package_pos = section_content.find(&package_pattern).context(format!(
-        "Could not find package '{}' in any pin",
-        package_alias
-    ))?;
-
-    // Search backwards to find the pin name
-    let before_package = &section_content[..package_pos];
-
-    // Find the most recent "pin-name = [" pattern
-    let pin_pattern_end = before_package
-        .rfind(" = [")
-        .context("Could not find pin entry before package")?;
-
-    let pin_name_start = before_package[..pin_pattern_end]
-        .rfind('\n')
-        .map(|pos| pos + 1)
-        .unwrap_or(0);
-
-    let pin_name = before_package[pin_name_start..pin_pattern_end]
-        .trim()
-        .to_string();
-
-    Ok(pin_name)
+    match _parse_overlays_content(to_parse) {
+        Ok((_, entries)) => Ok(OverlaysSection {
+            entries,
+            indentation: INDENT_OUT.to_string(),
+        }),
+        Err(e) => Err(anyhow::anyhow!("Failed to parse overlays section: {:?}", e)),
+    }
 }
 
 // ============================================================================
-// COMBINED OPERATIONS
+// SOURCE ENTRY PARSERS
 // ============================================================================
+
+/// Parse a single source entry:  name = "reference";
+fn _source_entry(input: &str) -> IResult<&str, SourceEntry> {
+    let (remaining, (_, name, _, _, _, reference, _, _)) = tuple((
+        multiws,
+        identifier,
+        multiws,
+        char('='),
+        multiws,
+        string_literal,
+        multiws,
+        char(';'),
+    ))(input)?;
+
+    Ok((
+        remaining,
+        SourceEntry {
+            name: name.to_string(),
+            reference: reference.to_string(),
+        },
+    ))
+}
+
+/// Parse the full sources section: everything between braces `{ ... }`
+fn _parse_sources_content(input: &str) -> IResult<&str, Vec<SourceEntry>> {
+    many0(_source_entry)(input)
+}
+
+/// Main parser for sources section: sources = { ... }
+pub fn parse_sources_section(content: &str) -> Result<SourcesSection> {
+    let section_start = content
+        .find("sources")
+        .context("Could not find 'sources'")?;
+
+    let after_sources = &content[section_start..];
+    let brace_offset = after_sources
+        .find('{')
+        .context("Could not find '{' after 'sources'")?;
+
+    let list_start = section_start + brace_offset + 1;
+
+    // Find the matching closing brace
+    let after_brace = &content[list_start..];
+    let mut brace_count = 1usize;
+    let mut list_end = list_start;
+
+    for (i, ch) in after_brace.char_indices() {
+        match ch {
+            '{' => brace_count += 1,
+            '}' => {
+                brace_count -= 1;
+                if brace_count == 0 {
+                    list_end = list_start + i;
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    if brace_count != 0 {
+        return Err(anyhow::anyhow!("Unmatched braces in sources section"));
+    }
+
+    let to_parse = &content[list_start..list_end];
+
+    match _parse_sources_content(to_parse) {
+        Ok((_, entries)) => Ok(SourcesSection {
+            entries,
+            indentation: INDENT_OUT.to_string(),
+        }),
+        Err(e) => Err(anyhow::anyhow!("Failed to parse sources section: {:?}", e)),
+    }
+}
+
+// ============================================================================
+// MUTATION HELPERS (struct-level; render with nix_render afterwards)
+// ============================================================================
+
+impl SourcesSection {
+    pub fn source_exists(&self, source_name: &str) -> bool {
+        self.entries.iter().any(|entry| entry.name == source_name)
+    }
+
+    pub fn add_source(&mut self, source_name: &str, source_ref: &str) -> Result<()> {
+        if self.source_exists(source_name) {
+            return Err(anyhow::anyhow!("Source '{}' already exists", source_name));
+        }
+
+        self.entries.push(SourceEntry {
+            name: source_name.to_string(),
+            reference: source_ref.to_string(),
+        });
+
+        Ok(())
+    }
+
+    pub fn remove_source(&mut self, source_name: &str) -> Result<()> {
+        let before = self.entries.len();
+        self.entries.retain(|e| e.name != source_name);
+
+        if self.entries.len() == before {
+            return Err(anyhow::anyhow!(
+                "Source '{}' not found in sources section",
+                source_name
+            ));
+        }
+
+        Ok(())
+    }
+}
+
+impl OverlaysSection {
+    pub fn pin_entry_exists(&self, pin_name: &str) -> bool {
+        self.entries.iter().any(|entry| entry.name == pin_name)
+    }
+
+    pub fn add_pin_entry(&mut self, pin_name: &str) -> Result<()> {
+        if self.pin_entry_exists(pin_name) {
+            return Err(anyhow::anyhow!("Pin entry '{}' already exists", pin_name));
+        }
+
+        self.entries.push(OverlayEntry {
+            name: pin_name.to_string(),
+            packages: vec![],
+        });
+
+        Ok(())
+    }
+
+    pub fn remove_pin_entry(&mut self, pin_name: &str) -> Result<()> {
+        let before = self.entries.len();
+        self.entries.retain(|e| e.name != pin_name);
+
+        if self.entries.len() == before {
+            return Err(anyhow::anyhow!("Pin entry '{}' not found", pin_name));
+        }
+
+        Ok(())
+    }
+
+    pub fn package_in_pin_exists(&self, pin_name: &str, package_alias: &str) -> bool {
+        self.entries
+            .iter()
+            .find(|e| e.name == pin_name)
+            .is_some_and(|e| e.packages.iter().any(|p| p.name == package_alias))
+    }
+
+    pub fn add_package_to_pin(
+        &mut self,
+        pin_name: &str,
+        package: &str,
+        package_alias: &str,
+    ) -> Result<()> {
+        let pin_entry = self
+            .entries
+            .iter_mut()
+            .find(|e| e.name == pin_name)
+            .context(format!("Pin entry '{}' not found", pin_name))?;
+
+        if pin_entry
+            .packages
+            .iter()
+            .any(|pkg| pkg.pin_name == package_alias)
+        {
+            return Err(anyhow::anyhow!(
+                "Package '{}' already exists in pin '{}'",
+                package_alias,
+                pin_name
+            ));
+        }
+
+        pin_entry.packages.push(PinnedPackage {
+            name: package.to_string(),
+            pin_name: package_alias.to_string(),
+        });
+
+        Ok(())
+    }
+
+    pub fn remove_package_from_pin(&mut self, pin_name: &str, package: &str) -> Result<()> {
+        let pin_entry = self
+            .entries
+            .iter_mut()
+            .find(|e| e.name == pin_name)
+            .context(format!("Pin entry '{}' not found", pin_name))?;
+
+        let before = pin_entry.packages.len();
+        pin_entry.packages.retain(|p| p.name != package);
+
+        if pin_entry.packages.len() == before {
+            return Err(anyhow::anyhow!(
+                "Package '{}' not found in pin '{}'",
+                package,
+                pin_name
+            ));
+        }
+
+        Ok(())
+    }
+}
+
+// ============================================================================
+// COMBINED OPERATIONS (parse -> modify -> render)
+// ============================================================================
+
+/// Normalize indentation between sections so `render_file` produces consistent output.
+fn _normalize_indentation(sources: &mut SourcesSection, overlays: &mut OverlaysSection) {
+    let indent = if !sources.indentation.is_empty() {
+        sources.indentation.clone()
+    } else if !overlays.indentation.is_empty() {
+        overlays.indentation.clone()
+    } else {
+        "  ".to_string()
+    };
+
+    sources.indentation = indent.clone();
+    overlays.indentation = indent;
+}
 
 /// Add a pinned package (adds source if needed, creates pin entry if needed, adds package)
 pub fn add_pinned_package(
@@ -247,103 +382,277 @@ pub fn add_pinned_package(
     let pin_name = format!("pkgs-{}", pin_hash);
     let package_alias = format!("{}@{}", package, version);
 
-    // Step 1: Ensure source exists
-    let mut result = if !source_exists(content, &pin_name)? {
-        add_source(content, &pin_name, source_ref)?
-    } else {
-        content.to_string()
-    };
+    let mut sources_section = parse_sources_section(content)?;
+    let mut overlays_section = parse_overlay_section(content)?;
+    _normalize_indentation(&mut sources_section, &mut overlays_section);
 
-    // Step 2: Ensure pin entry exists
-    result = if !pin_entry_exists(&result, &pin_name)? {
-        add_pin_entry(&result, &pin_name)?
-    } else {
-        result
-    };
-
-    // Step 3: Check if package already exists
-    if package_in_pin_exists(&result, &pin_name, &package_alias)? {
-        bail!(
-            "Package '{}' already exists in pin '{}'",
-            package_alias,
-            pin_name
-        );
+    // Step 1: Add source if it doesn't exist
+    if !sources_section.source_exists(&pin_name) {
+        sources_section.add_source(&pin_name, source_ref)?;
     }
 
-    // Step 4: Add the package
-    add_package_to_pin(&result, &pin_name, package, &package_alias)
+    // Step 2: Add pin entry if it doesn't exist
+    if !overlays_section.pin_entry_exists(&pin_name) {
+        overlays_section.add_pin_entry(&pin_name)?;
+    }
+
+    // Step 3: Add package to pin if it doesn't exist
+    if !overlays_section.package_in_pin_exists(&pin_name, &package_alias) {
+        overlays_section.add_package_to_pin(&pin_name, package, &package_alias)?;
+    }
+
+    Ok(render_file(&sources_section, &overlays_section))
 }
 
 /// Remove a pinned package and cleanup if pin is empty
-pub fn remove_pinned_package_with_cleanup(content: &str, package_alias: &str) -> Result<String> {
-    // Step 1: Find which pin this package belongs to
-    let pin_name = find_pin_for_package(content, package_alias)?;
+pub fn remove_pinned_package_with_cleanup(content: &str, package: &str) -> Result<String> {
+    let mut sources_section = parse_sources_section(content)?;
+    let mut overlays_section = parse_overlay_section(content)?;
+    _normalize_indentation(&mut sources_section, &mut overlays_section);
 
-    // Step 2: Remove the package
-    let mut result = remove_package_from_pin(content, &pin_name, package_alias)?;
+    // Find the pin entry that contains the package alias
+    println!("Current overlays: {:?}", overlays_section.entries);
+    let pin_name = overlays_section
+        .entries
+        .iter()
+        .find(|entry| entry.packages.iter().any(|pkg| pkg.name == package))
+        .map(|e| e.name.clone())
+        .context(format!(
+            "Could not find pin entry containing package '{}'",
+            package
+        ))?;
 
-    // Step 3: If pin has no more packages, remove pin entry and source
-    if !pin_has_packages(&result, &pin_name)? {
-        result = remove_pin_entry(&result, &pin_name)?;
-        result = remove_source(&result, &pin_name)?;
+    // Step 1: Remove the package from the pin entry
+    overlays_section.remove_package_from_pin(&pin_name, package)?;
+
+    // Step 2: Remove pin entry and its source if pin is now empty
+    let pin_is_empty = overlays_section
+        .entries
+        .iter()
+        .find(|e| e.name == pin_name)
+        .is_some_and(|e| e.packages.is_empty());
+
+    if pin_is_empty {
+        overlays_section.remove_pin_entry(&pin_name)?;
+        sources_section.remove_source(&pin_name)?;
     }
 
-    Ok(result)
+    Ok(render_file(&sources_section, &overlays_section))
 }
 
 // ============================================================================
-// HELPER FUNCTIONS
+// RENDER HELPERS
 // ============================================================================
+//
+pub fn render_sources_section(
+    out: &mut String,
+    indent: &str,
+    level: usize,
+    entries: &[crate::flake::interfaces::overlays::SourceEntry],
+) {
+    indent_line(out, indent, level);
+    out.push_str("sources = {\n");
 
-fn find_sources_section(content: &str) -> Result<(usize, usize)> {
-    let sources_start = content
-        .find("sources = {")
-        .context("Could not find sources section in pins.nix")?;
+    for e in entries {
+        indent_line(out, indent, level + 1);
+        out.push_str(&nix_attr_key(&e.name));
+        out.push_str(" = ");
+        out.push_str(&nix_string(&e.reference));
+        out.push_str(";\n");
+    }
 
-    let brace_pos = content[sources_start..]
-        .find('{')
-        .context("Could not find opening brace for sources")?;
-
-    let section_start = sources_start + brace_pos;
-    let section_end = find_matching_brace(content, section_start, b'{', b'}')
-        .context("Could not find closing brace for sources")?;
-
-    Ok((section_start + 1, section_end)) // +1 to move past opening brace
+    indent_line(out, indent, level);
+    out.push_str("};\n");
 }
 
-fn find_pinned_packages_section(content: &str) -> Result<(usize, usize)> {
-    let section_start = content
-        .find("pinnedPackages = {")
-        .context("Could not find pinnedPackages section in pins. nix")?;
+pub fn render_pinned_packages_section(
+    out: &mut String,
+    indent: &str,
+    level: usize,
+    overlays: &[crate::flake::interfaces::overlays::OverlayEntry],
+) {
+    indent_line(out, indent, level);
+    out.push_str("pinnedPackages = {\n");
 
-    let brace_pos = content[section_start..]
-        .find('{')
-        .context("Could not find opening brace for pinnedPackages")?;
+    for overlay in overlays {
+        indent_line(out, indent, level + 1);
+        out.push_str(&nix_attr_key(&overlay.name));
+        out.push_str(" = [\n");
 
-    let section_start_abs = section_start + brace_pos;
-    let section_end = find_matching_brace(content, section_start_abs, b'{', b'}')
-        .context("Could not find closing brace for pinnedPackages")?;
+        for pkg in &overlay.packages {
+            indent_line(out, indent, level + 2);
+            out.push_str("{\n");
 
-    Ok((section_start_abs + 1, section_end)) // +1 to move past opening brace
+            indent_line(out, indent, level + 3);
+            out.push_str("pkg = ");
+            out.push_str(&nix_string(&pkg.name));
+            out.push_str(";\n");
+
+            indent_line(out, indent, level + 3);
+            out.push_str("name = ");
+            out.push_str(&nix_string(&pkg.pin_name));
+            out.push_str(";\n");
+
+            indent_line(out, indent, level + 2);
+            out.push_str("}\n");
+        }
+
+        indent_line(out, indent, level + 1);
+        out.push_str("];\n");
+    }
+
+    indent_line(out, indent, level);
+    out.push_str("};\n");
 }
 
-fn find_pin_package_list(content: &str, pin_name: &str) -> Result<(usize, usize)> {
-    let (section_start, section_end) = find_pinned_packages_section(content)?;
-    let section_content = &content[section_start..section_end];
+/// Render the whole file in the format you showed.
+pub fn render_file(
+    sources: &crate::flake::interfaces::overlays::SourcesSection,
+    overlays: &crate::flake::interfaces::overlays::OverlaysSection,
+) -> String {
+    // Prefer indentation coming from parsed file (so you preserve style),
+    // but fall back to two spaces.
+    let indent = if sources.indentation.is_empty() {
+        "  "
+    } else {
+        sources.indentation.as_str()
+    };
 
-    let entry_pattern = format!("{} = [", pin_name);
-    let entry_pos = section_content.find(&entry_pattern).context(format!(
-        "Could not find pin entry '{}' in pinnedPackages",
-        pin_name
-    ))?;
+    let mut out = String::new();
+    out.push_str("{\n");
 
-    let list_start_pos = section_content[entry_pos..]
-        .find('[')
-        .context("Could not find opening bracket for pin's package list")?;
+    // blank line separation matches your example
+    render_sources_section(&mut out, indent, 1, &sources.entries);
+    out.push('\n');
+    render_pinned_packages_section(&mut out, indent, 1, &overlays.entries);
 
-    let absolute_list_start = section_start + entry_pos + list_start_pos;
-    let list_end = find_matching_brace(content, absolute_list_start, b'[', b']')
-        .context("Could not find closing bracket for pin's package list")?;
+    out.push_str("}\n");
+    out
+}
 
-    Ok((absolute_list_start + 1, list_end)) // +1 to move past opening bracket
+// =============================================================================
+// TESTS
+// =============================================================================
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_add_pinned_package() {
+        let original_content = r#"{
+  sources = {
+    pkgs-abc123 = "github:user/repo/commit";
+  };
+    pinnedPackages = {
+        pkgs-abc123 = [
+        {
+            pkg = "example-package";
+            name = "example-package@1.0.0";
+        }
+        ];
+    };
+}"#;
+
+        let updated_content = add_pinned_package(
+            original_content,
+            "def456",
+            "github:another/repo/commit",
+            "new-package",
+            "2.0.0",
+        )
+        .context("Failed to add pinned package")
+        .unwrap();
+
+        assert!(updated_content.contains("pkgs-abc123"));
+        assert!(updated_content.contains("pkgs-def456"));
+        assert!(updated_content.contains("example-package@1.0.0"));
+        assert!(updated_content.contains("new-package@2.0.0"));
+    }
+
+    #[test]
+    fn test_add_pinned_package_to_existent_pin() {
+        let original_content = r#"{
+  sources = {
+    pkgs-abc123 = "github:user/repo/commit";
+  };
+    pinnedPackages = {
+        pkgs-abc123 = [
+        {
+            pkg = "example-package";
+            name = "example-package@1.0.0";
+        }
+        ];
+    };
+}"#;
+
+        let updated_content = add_pinned_package(
+            original_content,
+            "abc123",
+            "github:user/repo/commit",
+            "new-package",
+            "2.0.0",
+        )
+        .context("Failed to add pinned package")
+        .unwrap();
+
+        assert!(updated_content.contains("pkgs-abc123"));
+        assert!(updated_content.contains("example-package@1.0.0"));
+        assert!(updated_content.contains("new-package@2.0.0"));
+    }
+
+    #[test]
+    fn test_remove_pinned_package() {
+        let original_content = r#"{
+  sources = {
+    pkgs-abc123 = "github:user/repo/commit";
+  };
+    pinnedPackages = {
+        pkgs-abc123 = [
+        {
+            pkg = "example-package";
+            name = "example-package@1.0.0";
+        }
+        {
+            pkg = "another-package";
+            name = "another-package@2.0.0";
+        }
+        ];
+    };
+}"#;
+
+        let updated_content =
+            remove_pinned_package_with_cleanup(original_content, "example-package")
+                .context("Failed to remove pinned package")
+                .unwrap();
+
+        assert!(!updated_content.contains("example-package"));
+        assert!(!updated_content.contains("example-package@1.0.0"));
+        assert!(updated_content.contains("another-package@2.0.0"));
+        assert!(updated_content.contains("pkgs-abc123"));
+    }
+
+    #[test]
+    fn test_remove_last_pinned_package_from_existent_pin() {
+        let original_content = r#"{
+  sources = {
+    pkgs-abc123 = "github:user/repo/commit";
+  };
+    pinnedPackages = {
+        pkgs-abc123 = [
+        {
+            pkg = "example-package";
+            name = "example-package@1.0.0";
+        }
+        ];
+    };
+}"#;
+
+        let updated_content =
+            remove_pinned_package_with_cleanup(original_content, "example-package")
+                .context("Failed to remove pinned package")
+                .unwrap();
+
+        assert!(!updated_content.contains("pkgs-abc123"));
+        assert!(!updated_content.contains("example-package"));
+        assert!(!updated_content.contains("example-package@1.0.0"));
+    }
 }
