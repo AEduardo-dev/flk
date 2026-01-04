@@ -7,7 +7,7 @@ use nom::{
 };
 use std::fs;
 
-use crate::flake::interface::{FlakeConfig, Profile};
+use crate::flake::interfaces::profiles::{FlakeConfig, Profile};
 use crate::flake::parsers::{
     commands::parse_shell_hook_section,
     env::parse_env_vars_section,

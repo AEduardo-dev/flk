@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 
-use crate::flake::interface::Package;
+use crate::flake::interfaces::profiles::Package;
 use crate::flake::parsers::packages::extract_packages_from_output;
 use crate::nix::{check_nix_available, run_nix_command};
 use crate::utils::visual::{display_list, display_table, with_spinner};

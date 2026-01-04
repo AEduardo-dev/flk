@@ -1,3 +1,4 @@
 pub mod generator;
-pub mod interface;
+pub mod interfaces;
+pub mod nix_render;
 pub mod parsers;

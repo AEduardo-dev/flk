@@ -1,4 +1,4 @@
-use crate::flake::interface::INDENT_OUT;
+use crate::flake::interfaces::utils::INDENT_OUT;
 use anyhow::{Context, Result};
 use clap::builder::OsStr;
 use nom::{

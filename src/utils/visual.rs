@@ -1,4 +1,4 @@
-use crate::flake::interface::Package;
+use crate::flake::interfaces::profiles::Package;
 use anyhow::Result;
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
