@@ -1,5 +1,6 @@
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
+use flk::flake::parsers::overlays::add_pinned_package;
 use std::{fs, path};
 
 use crate::flake::parsers::{packages::parse_packages_section, utils::get_default_shell_profile};
@@ -38,7 +39,7 @@ pub fn run_add(package: &str, version: Option<String>) -> Result<()> {
             get_nix_package_pin_full(package, ver)
         })?;
 
-        (format!("{}@{}", package, ver), Some(full_pin))
+        (format!("pkgs.\"{}@{}\"", package, ver), Some(full_pin))
     } else {
         println!("{} Adding package: {}", "→".blue().bold(), package.green());
         (package.to_string(), None)
@@ -50,6 +51,32 @@ pub fn run_add(package: &str, version: Option<String>) -> Result<()> {
             "Package '{}' is already in the packages declaration",
             package_to_add
         );
+    }
+
+    // Handle pinning (sources + pinnedPackages in pins.nix)
+
+    if let Some(pin) = &package_pin {
+        println!(
+            "{} Package will be pinned to nixpkgs: {}",
+            "→".blue().bold(),
+            pin.full_ref.yellow()
+        );
+
+        let pins_path = ".flk/pins.nix";
+        let pins_content = fs::read_to_string(pins_path).context("Failed to read pins.nix file")?;
+
+        let updated_pins = add_pinned_package(
+            &pins_content,
+            &pin.hash,
+            &pin.full_ref,
+            &package,
+            version
+                .as_deref()
+                .expect("version must be Some when package_pin is Some"),
+        )
+        .context("Failed to add pinned package to pins.nix")?;
+
+        fs::write(pins_path, updated_pins).context("Failed to write updated pins.nix")?;
     }
 
     // Add the package to buildInputs
@@ -117,6 +144,7 @@ fn get_nix_package_pin_full(package: &str, version: &str) -> Result<PinInfo> {
         full_ref: pin_ref,
     })
 }
+
 fn validate_package_exists(package: &str) -> Result<()> {
     let (_, stderr, success) = run_nix_command(&["run", "github:vic/nix-versions", package])
         .context("Failed to execute nix eval")?;
