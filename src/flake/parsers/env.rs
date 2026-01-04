@@ -1,4 +1,4 @@
-use crate::flake::interface::EnvVar;
+use crate::flake::interfaces::profiles::EnvVar;
 use crate::flake::parsers::utils::{
     byte_offset, detect_indentation, identifier, multiws, string_literal, ws,
 };

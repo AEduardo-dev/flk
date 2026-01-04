@@ -1,4 +1,4 @@
-use crate::flake::interface::Package;
+use crate::flake::interfaces::profiles::Package;
 use crate::flake::parsers::utils::{
     attribute_path, byte_offset, detect_indentation, multiws, opt_inline_comment, ws,
 };

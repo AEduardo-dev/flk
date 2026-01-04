@@ -1,4 +1,4 @@
-use crate::flake::interface::INDENT_IN;
+use crate::flake::interfaces::utils::INDENT_IN;
 use crate::flake::parsers::utils::{byte_offset, detect_indentation, multiline_string, ws};
 use anyhow::{Context, Result};
 use nom::{character::complete::char, IResult};
