@@ -4,32 +4,20 @@
 #[cfg(test)]
 mod parser_tests {
     use flk::flake::parsers::{
-        commands::{
-            add_command_to_shell_hook, command_exists, parse_shell_hook_from_profile,
-            remove_command_from_shell_hook,
-        },
-        env::{
-            add_env_var_to_profile, env_var_exists, parse_env_vars_from_profile,
-            remove_env_var_from_profile,
-        },
-        overlays::{
-            add_package_to_pin, add_pin_entry, add_source, find_pin_for_package,
-            package_in_pin_exists, pin_entry_exists, pin_has_packages, remove_package_from_pin,
-            remove_pin_entry, remove_source, source_exists,
-        },
-        packages::{
-            add_package_to_profile, find_packages_in_profile, package_exists,
-            parse_packages_from_profile, remove_package_from_profile,
-        },
+        commands::parse_shell_hook_section,
+        env::parse_env_vars_section,
+        overlays::{parse_overlay_section, parse_sources_section},
+        packages::parse_packages_section,
     };
 
+    const CONTENT: &str = include_str!("flake_tests.nix");
     const PROFILE_CONTENT: &str = include_str!("profile_tests.nix");
     const PINS_CONTENT: &str = include_str!("pins_tests.nix");
 
     #[test]
     fn test_package_exists() {
         // Test that package_exists correctly identifies packages
-        let section = parse_packages_section(CONTENT).unwrap();
+        let section = parse_packages_section(PROFILE_CONTENT).unwrap();
         let exists = section.package_exists("git");
         assert!(exists);
 
@@ -74,9 +62,9 @@ pkgs = import nixpkgs {
 
     #[test]
     fn test_add_package_to_existing_list() {
-        let section = parse_packages_section(CONTENT).unwrap();
+        let section = parse_packages_section(PROFILE_CONTENT).unwrap();
         // Test adding a package to existing list
-        let result = section.add_package(CONTENT, "ripgrep", None);
+        let result = section.add_package(PROFILE_CONTENT, "ripgrep", None);
         assert!(result.contains("ripgrep"));
         assert!(result.contains("git"));
         assert!(result.contains("curl"));
@@ -84,17 +72,17 @@ pkgs = import nixpkgs {
 
     #[test]
     fn test_add_package_preserves_formatting() {
-        let section = parse_packages_section(CONTENT).unwrap();
-        let result = section.add_package(CONTENT, "ripgrep", None);
+        let section = parse_packages_section(PROFILE_CONTENT).unwrap();
+        let result = section.add_package(PROFILE_CONTENT, "ripgrep", None);
         // Check that proper indentation is maintained
         assert!(result.contains("    ") || result.contains("  "));
     }
 
     #[test]
     fn test_remove_package() {
-        let section = parse_packages_section(CONTENT).unwrap();
+        let section = parse_packages_section(PROFILE_CONTENT).unwrap();
         // Test removing a package
-        let result = section.remove_package(CONTENT, "curl").unwrap();
+        let result = section.remove_package(PROFILE_CONTENT, "curl").unwrap();
         println!("{}", result);
         assert!(result.contains("git"));
         assert!(!result.contains("curl"));
@@ -103,10 +91,10 @@ pkgs = import nixpkgs {
     #[test]
     fn test_remove_package_from_middle() {
         let content = r#"
-          packages = with pkgs; [
-            git
-            curl
-            wget
+          packages = [
+            pkgs.git
+            pkgs.curl
+            pkgs.wget
           ];
         "#;
         let section = parse_packages_section(content).unwrap();
@@ -118,36 +106,36 @@ pkgs = import nixpkgs {
 
     #[test]
     fn test_remove_nonexistent_package() {
-        let section = parse_packages_section(CONTENT).unwrap();
-        let result = section.remove_package(CONTENT, "nonexistent");
+        let section = parse_packages_section(PROFILE_CONTENT).unwrap();
+        let result = section.remove_package(PROFILE_CONTENT, "nonexistent");
         assert!(result.is_err());
     }
 
     #[test]
     fn test_command_exists() {
-        let section = parse_shell_hook_section(CONTENT).unwrap();
+        let section = parse_shell_hook_section(PROFILE_CONTENT).unwrap();
         // Test command detection
-        let exists = section.command_exists(CONTENT, "test");
+        let exists = section.command_exists(PROFILE_CONTENT, "test");
         assert!(exists);
 
-        let not_exists = section.command_exists(CONTENT, "nonexistent");
+        let not_exists = section.command_exists(PROFILE_CONTENT, "nonexistent");
         assert!(!not_exists);
     }
 
     #[test]
     fn test_add_command() {
-        let section = parse_shell_hook_section(CONTENT).unwrap();
+        let section = parse_shell_hook_section(PROFILE_CONTENT).unwrap();
         // Test adding a command
-        let result = section.add_command(CONTENT, "test_add", "echo 'test command'");
+        let result = section.add_command(PROFILE_CONTENT, "test_add", "echo 'test command'");
         assert!(result.contains("# flk-command: test_add"));
         assert!(result.contains("test_add ()"));
     }
 
     #[test]
     fn test_add_command_with_multiline() {
-        let section = parse_shell_hook_section(CONTENT).unwrap();
+        let section = parse_shell_hook_section(PROFILE_CONTENT).unwrap();
         let multiline_cmd = "echo 'line 1'\necho 'line 2'\necho 'line 3'";
-        let result = section.add_command(CONTENT, "multiline", multiline_cmd);
+        let result = section.add_command(PROFILE_CONTENT, "multiline", multiline_cmd);
         assert!(result.contains("# flk-command: multiline"));
         assert!(result.contains("line 1"));
         assert!(result.contains("line 2"));
@@ -157,31 +145,31 @@ pkgs = import nixpkgs {
     #[test]
     fn test_add_command_with_special_chars() {
         let cmd = "cargo build --release && echo 'Done!'";
-        let section = parse_shell_hook_section(CONTENT).unwrap();
-        let result = section.add_command(CONTENT, "build", cmd);
+        let section = parse_shell_hook_section(PROFILE_CONTENT).unwrap();
+        let result = section.add_command(PROFILE_CONTENT, "build", cmd);
         assert!(result.contains("# flk-command: build"));
         assert!(result.contains("&&"));
     }
 
     #[test]
     fn test_remove_command() {
-        let section = parse_shell_hook_section(CONTENT).unwrap();
+        let section = parse_shell_hook_section(PROFILE_CONTENT).unwrap();
         // Test removing a command
-        let result = section.remove_command(CONTENT, "test").unwrap();
+        let result = section.remove_command(PROFILE_CONTENT, "test").unwrap();
         assert!(!result.contains("# flk-command: test"));
         assert!(!result.contains("test ()"));
     }
 
     #[test]
     fn test_remove_nonexistent_command() {
-        let section = parse_shell_hook_section(CONTENT).unwrap();
-        let result = section.remove_command(CONTENT, "nonexistent");
+        let section = parse_shell_hook_section(PROFILE_CONTENT).unwrap();
+        let result = section.remove_command(PROFILE_CONTENT, "nonexistent");
         assert!(result.is_err());
     }
 
     #[test]
     fn test_env_var_exists() {
-        let section = parse_env_vars_section(CONTENT).unwrap();
+        let section = parse_env_vars_section(PROFILE_CONTENT).unwrap();
         // Test env var detection
         let exists = section.env_var_exists("VAR2").unwrap();
         assert!(exists);
@@ -192,40 +180,40 @@ pkgs = import nixpkgs {
 
     #[test]
     fn test_add_env_var() {
-        let section = parse_env_vars_section(CONTENT).unwrap();
+        let section = parse_env_vars_section(PROFILE_CONTENT).unwrap();
         // Test adding an environment variable
-        let result = section.add_env_var(CONTENT, "MY_VAR", "test_value");
+        let result = section.add_env_var(PROFILE_CONTENT, "MY_VAR", "test_value");
         assert!(result.contains(" MY_VAR = \"test_value\""));
     }
 
     #[test]
     fn test_add_env_var_with_quotes() {
-        let section = parse_env_vars_section(CONTENT).unwrap();
-        let result = section.add_env_var(CONTENT, "QUOTED", r#"value"with"quotes"#);
+        let section = parse_env_vars_section(PROFILE_CONTENT).unwrap();
+        let result = section.add_env_var(PROFILE_CONTENT, "QUOTED", r#"value"with"quotes"#);
         assert!(result.contains("QUOTED"));
         assert!(result.contains(r#"value"with"quotes"#));
     }
 
     #[test]
     fn test_add_env_var_with_special_chars() {
-        let section = parse_env_vars_section(CONTENT).unwrap();
-        let result = section.add_env_var(CONTENT, "SPECIAL", "value with $pecial ch@rs!");
+        let section = parse_env_vars_section(PROFILE_CONTENT).unwrap();
+        let result = section.add_env_var(PROFILE_CONTENT, "SPECIAL", "value with $pecial ch@rs!");
         assert!(result.contains("SPECIAL"));
         assert!(result.contains("value with $pecial ch@rs!"));
     }
 
     #[test]
     fn test_remove_env_var() {
-        let section = parse_env_vars_section(CONTENT).unwrap();
+        let section = parse_env_vars_section(PROFILE_CONTENT).unwrap();
         // Test removing an environment variable
-        let result = section.remove_env_var(CONTENT, "VAR1").unwrap();
+        let result = section.remove_env_var(PROFILE_CONTENT, "VAR1").unwrap();
         assert!(!result.contains("VAR1"));
     }
 
     #[test]
     fn test_remove_env_var_middle() {
-        let section = parse_env_vars_section(CONTENT).unwrap();
-        let result = section.remove_env_var(CONTENT, "VAR2").unwrap();
+        let section = parse_env_vars_section(PROFILE_CONTENT).unwrap();
+        let result = section.remove_env_var(PROFILE_CONTENT, "VAR2").unwrap();
         assert!(result.contains("VAR1"));
         assert!(result.contains("VAR3"));
         assert!(!result.contains("VAR2"));
@@ -233,7 +221,7 @@ pkgs = import nixpkgs {
 
     #[test]
     fn test_parse_env_vars() {
-        let section = parse_env_vars_section(CONTENT).unwrap();
+        let section = parse_env_vars_section(PROFILE_CONTENT).unwrap();
         // Test parsing all environment variables
         assert_eq!(section.entries.len(), 3);
         let vars: Vec<(String, String)> = section
@@ -258,8 +246,8 @@ pkgs = import nixpkgs {
 
     #[test]
     fn test_parse_shell_hook() {
-        let section = parse_shell_hook_section(CONTENT).unwrap();
-        let hook = &CONTENT[section.content_start..section.content_end];
+        let section = parse_shell_hook_section(PROFILE_CONTENT).unwrap();
+        let hook = &PROFILE_CONTENT[section.content_start..section.content_end];
         assert!(hook.contains("Welcome to the development shell!"));
         assert!(hook.contains("# flk-command: test"));
     }
@@ -267,10 +255,10 @@ pkgs = import nixpkgs {
     #[test]
     fn test_parse_packages_ignores_comments() {
         let content = r#"
-          packages = with pkgs; [
-            git
+          packages = [
+            pkgs.git
             # This is a comment
-            curl
+            pkgs.curl
           ];
         "#;
         let section = parse_packages_section(content).unwrap();
@@ -286,47 +274,57 @@ pkgs = import nixpkgs {
 
     #[test]
     fn test_source_exists_with_existing_source() {
-        let result = source_exists(PINS_CONTENT, "pkgs-abc1234").unwrap();
+        let section = parse_sources_section(PINS_CONTENT).unwrap();
+        let result = section.source_exists("pkgs-abc1234");
         assert!(result);
     }
 
     #[test]
     fn test_source_exists_with_nonexistent_source() {
-        let result = source_exists(PINS_CONTENT, "pkgs-nonexistent").unwrap();
+        let section = parse_sources_section(PINS_CONTENT).unwrap();
+        let result = section.source_exists("pkgs-nonexistent");
         assert!(!result);
     }
 
     #[test]
     fn test_source_exists_with_empty_content() {
         let content = r#"{
-  sources = {
-  };
-  pinnedPackages = {
-  };
-}"#;
-        let result = source_exists(content, "my-source").unwrap();
+      sources = {
+      };
+      pinnedPackages = {
+      };
+    }"#;
+        let section = parse_sources_section(content).unwrap();
+        let result = section.source_exists("my-source");
         assert!(!result);
     }
 
     #[test]
     fn test_add_source() {
-        let result =
-            add_source(PINS_CONTENT, "pkgs-new123", "github:NixOS/nixpkgs/new123").unwrap();
+        let mut section = parse_sources_section(PINS_CONTENT).unwrap();
+        section
+            .add_source("pkgs-new123", "github:NixOS/nixpkgs/new123")
+            .unwrap();
 
-        assert!(result.contains("pkgs-abc1234"));
-        assert!(result.contains("pkgs-new123 = \"github:NixOS/nixpkgs/new123\";"));
+        assert!(section.entries.iter().any(|s| s.name == "pkgs-new123"));
+        assert!(section
+            .entries
+            .iter()
+            .any(|s| s.reference == "github:NixOS/nixpkgs/new123"));
     }
 
     #[test]
     fn test_remove_source() {
-        let result = remove_source(PINS_CONTENT, "pkgs-abc1234").unwrap();
-        assert!(!result.contains("pkgs-abc1234 = \""));
-        assert!(result.contains("rust-overlay")); // Other sources still there
+        let mut section = parse_sources_section(PINS_CONTENT).unwrap();
+        section.remove_source("pkgs-abc1234").unwrap();
+        assert!(!section.source_exists("pkgs-abc1234"));
+        assert!(section.source_exists("pkgs-def5678")); // Other sources still there
     }
 
     #[test]
     fn test_remove_nonexistent_source() {
-        let result = remove_source(PINS_CONTENT, "pkgs-nonexistent");
+        let mut section = parse_sources_section(PINS_CONTENT).unwrap();
+        let result = section.remove_source("pkgs-nonexistent");
         assert!(result.is_err());
     }
 
@@ -336,46 +334,48 @@ pkgs = import nixpkgs {
 
     #[test]
     fn test_pin_entry_exists_with_existing_entry() {
-        let result = pin_entry_exists(PINS_CONTENT, "pkgs-abc1234").unwrap();
-        assert!(result);
+        let section = parse_overlay_section(PINS_CONTENT).unwrap();
+        assert!(section.pin_entry_exists("pkgs-abc1234"));
     }
 
     #[test]
     fn test_pin_entry_exists_with_nonexistent_entry() {
-        let result = pin_entry_exists(PINS_CONTENT, "pkgs-nonexistent").unwrap();
-        assert!(!result);
+        let section = parse_overlay_section(PINS_CONTENT).unwrap();
+        assert!(!section.pin_entry_exists("pkgs-nonexistent"));
     }
 
     #[test]
     fn test_pin_entry_exists_with_empty_content() {
         let content = r#"{
-  sources = {
-  };
-  pinnedPackages = {
-  };
-}"#;
-        let result = pin_entry_exists(content, "my-pin").unwrap();
-        assert!(!result);
+      sources = {
+      };
+      pinnedPackages = {
+      };
+    }"#;
+        let section = parse_overlay_section(content).unwrap();
+        assert!(!section.pin_entry_exists("my-pin"));
     }
 
     #[test]
     fn test_add_pin_entry() {
-        let result = add_pin_entry(PINS_CONTENT, "pkgs-new456").unwrap();
+        let mut section = parse_overlay_section(PINS_CONTENT).unwrap();
+        section.add_pin_entry("pkgs-new456").unwrap();
 
-        assert!(result.contains("pkgs-abc1234"));
-        assert!(result.contains("pkgs-new456 = ["));
+        assert!(section.pin_entry_exists("pkgs-new456"));
     }
 
     #[test]
     fn test_remove_pin_entry() {
-        let result = remove_pin_entry(PINS_CONTENT, "pkgs-abc1234").unwrap();
-        assert!(!result.contains("pkgs-abc1234 = ["));
-        assert!(result.contains("pkgs-def5678")); // Other entries still there
+        let mut section = parse_overlay_section(PINS_CONTENT).unwrap();
+        section.remove_pin_entry("pkgs-abc1234").unwrap();
+        assert!(!section.pin_entry_exists("pkgs-abc1234"));
+        assert!(section.pin_entry_exists("pkgs-def5678")); // Other entries still there
     }
 
     #[test]
     fn test_remove_nonexistent_pin_entry() {
-        let result = remove_pin_entry(PINS_CONTENT, "pkgs-nonexistent");
+        let mut section = parse_overlay_section(PINS_CONTENT).unwrap();
+        let result = section.remove_pin_entry("pkgs-nonexistent");
         assert!(result.is_err());
     }
 
@@ -385,73 +385,44 @@ pkgs = import nixpkgs {
 
     #[test]
     fn test_package_in_pin_exists_with_existing_package() {
-        let result = package_in_pin_exists(PINS_CONTENT, "pkgs-abc1234", "git@2.51.2").unwrap();
+        let section = parse_overlay_section(PINS_CONTENT).unwrap();
+        let result = section.package_in_pin_exists("pkgs-abc1234", "git");
         assert!(result);
     }
 
     #[test]
     fn test_package_in_pin_exists_with_nonexistent_package() {
-        let result = package_in_pin_exists(PINS_CONTENT, "pkgs-abc1234", "python@3.11").unwrap();
+        let section = parse_overlay_section(PINS_CONTENT).unwrap();
+        let result = section.package_in_pin_exists("pkgs-abc1234", "python");
         assert!(!result);
     }
 
     #[test]
     fn test_add_package_to_pin() {
-        let result =
-            add_package_to_pin(PINS_CONTENT, "pkgs-abc1234", "wget", "wget@1.21.0").unwrap();
+        let mut section = parse_overlay_section(PINS_CONTENT).unwrap();
+        section
+            .add_package_to_pin("pkgs-abc1234", "wget", "wget@1.21.0")
+            .unwrap();
 
-        assert!(result.contains("git@2.51.2")); // Existing packages still there
-        assert!(result.contains("curl@8.0.0"));
-        assert!(result.contains("wget@1.21.0")); // New package added
+        assert!(section.package_in_pin_exists("pkgs-abc1234", "git")); // Existing packages still there
+        assert!(section.package_in_pin_exists("pkgs-abc1234", "curl"));
+        assert!(section.package_in_pin_exists("pkgs-abc1234", "wget")); // New package added
     }
 
     #[test]
     fn test_remove_package_from_pin() {
-        let result = remove_package_from_pin(PINS_CONTENT, "pkgs-abc1234", "git@2.51.2").unwrap();
-        assert!(!result.contains("git@2.51. 2"));
-        assert!(result.contains("curl@8.0.0")); // Other packages still there
+        let mut section = parse_overlay_section(PINS_CONTENT).unwrap();
+        section
+            .remove_package_from_pin("pkgs-abc1234", "git")
+            .unwrap();
+        assert!(!section.package_in_pin_exists("pkgs-abc1234", "git"));
+        assert!(section.package_in_pin_exists("pkgs-abc1234", "curl"));
     }
 
     #[test]
     fn test_remove_nonexistent_package_from_pin() {
-        let result = remove_package_from_pin(PINS_CONTENT, "pkgs-abc1234", "nonexistent@1.0");
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_pin_has_packages_with_packages() {
-        let result = pin_has_packages(PINS_CONTENT, "pkgs-abc1234").unwrap();
-        assert!(result);
-    }
-
-    #[test]
-    fn test_pin_has_packages_with_empty_pin() {
-        let content = r#"{
-  sources = {
-    pkgs-empty = "github:NixOS/nixpkgs/empty";
-  };
-  
-  pinnedPackages = {
-    pkgs-empty = [
-    ];
-  };
-}"#;
-        let result = pin_has_packages(content, "pkgs-empty").unwrap();
-        assert!(!result);
-    }
-
-    #[test]
-    fn test_find_pin_for_package() {
-        let result = find_pin_for_package(PINS_CONTENT, "git@2.51.2").unwrap();
-        assert_eq!(result, "pkgs-abc1234");
-
-        let result = find_pin_for_package(PINS_CONTENT, "ripgrep@14.1.0").unwrap();
-        assert_eq!(result, "pkgs-def5678");
-    }
-
-    #[test]
-    fn test_find_pin_for_nonexistent_package() {
-        let result = find_pin_for_package(PINS_CONTENT, "nonexistent@1.0");
+        let mut section = parse_overlay_section(PINS_CONTENT).unwrap();
+        let result = section.remove_package_from_pin("pkgs-abc1234", "nonexistent@1.0");
         assert!(result.is_err());
     }
 
@@ -461,8 +432,8 @@ pkgs = import nixpkgs {
 
     #[test]
     fn test_indent_consistency() {
-        let section = parse_packages_section(CONTENT).unwrap();
-        let result = section.add_package(CONTENT, "test", None);
+        let section = parse_packages_section(PROFILE_CONTENT).unwrap();
+        let result = section.add_package(PROFILE_CONTENT, "test", None);
         // Check that lines are properly indented (either 2 or 4 spaces)
         let lines: Vec<&str> = result.lines().collect();
         for line in lines {
@@ -588,7 +559,7 @@ mod generator_tests {
 
 #[cfg(test)]
 mod interface_tests {
-    use flk::flake::interface::{EnvVar, FlakeConfig, Package, Profile};
+    use flk::flake::interfaces::profiles::{EnvVar, FlakeConfig, Package, Profile};
 
     #[test]
     fn test_package_creation() {
