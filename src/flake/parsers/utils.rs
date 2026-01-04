@@ -2,10 +2,11 @@ use crate::flake::interfaces::utils::INDENT_OUT;
 use anyhow::{Context, Result};
 use clap::builder::OsStr;
 use nom::{
+    branch::alt,
     bytes::complete::{tag, take_until, take_while, take_while1},
     character::complete::{char, multispace0, space0},
     combinator::{opt, recognize},
-    sequence::{delimited, preceded, tuple},
+    sequence::{delimited, preceded, terminated, tuple},
     IResult,
 };
 use std::{fs, path::PathBuf};
@@ -27,11 +28,44 @@ pub fn identifier(input: &str) -> IResult<&str, &str> {
     }))(input)
 }
 
-/// Parse a Nix attribute path (e.g., rust-bin. stable.latest.default)
-pub fn attribute_path(input: &str) -> IResult<&str, &str> {
-    recognize(tuple((take_while1(|c: char| {
-        c.is_alphanumeric() || c == '_' || c == '-' || c == '.' || c == '\"' || c == '@'
-    }),)))(input)
+/// Parse a Nix attribute path token (no whitespace), returning the whole token.
+/// Example: rust-bin.stable.latest.default, rust-analyzer, pkg-config
+pub fn attribute_path_token(input: &str) -> IResult<&str, &str> {
+    recognize(take_while1(|c: char| {
+        c.is_alphanumeric() || c == '_' || c == '-' || c == '.'
+    }))(input)
+}
+
+/// Parse `pkgs.<suffix>` where suffix is either:
+/// - a quoted key: pkgs."<anything>"  -> returns inner content
+/// - a dotted attribute path: pkgs.rust-bin.stable.latest.default -> returns full suffix
+pub fn pkgs_suffix(input: &str) -> IResult<&str, &str> {
+    preceded(
+        tag("pkgs."),
+        alt((
+            // pkgs."openssl@3.6.0" -> openssl
+            preceded(char('"'), take_while1(|c: char| c != '"' && c != '@')),
+            // pkgs.rust-bin.stable.latest.default -> rust-bin.stable.latest.default
+            attribute_path_token,
+        )),
+    )(input)
+}
+
+/// Parse one pkgs entry with optional trailing spaces and optional inline comment.
+/// Returns only the suffix (everything after `pkgs.`), discarding the comment.
+pub fn pkgs_entry(input: &str) -> IResult<&str, &str> {
+    terminated(pkgs_suffix, tuple((space0, opt_inline_comment, space0)))(input)
+}
+
+/// Parse an attribute version (e.g., "1.56.0" or 1.56.0) that comes after a "@" symbol
+pub fn attribute_version(input: &str) -> IResult<&str, &str> {
+    preceded(
+        char('@'),
+        take_while1(|c: char| c.is_alphanumeric() || c == '.' || c == '_' || c == '-'),
+    )(input)
+}
+pub fn opt_attribute_version(input: &str) -> IResult<&str, Option<&str>> {
+    opt(attribute_version)(input)
 }
 
 /// Parse a string literal in double quotes, handling escaped quotes
@@ -90,7 +124,9 @@ mod tests {
     #[test]
     fn test_attribute_path() {
         assert_eq!(
-            attribute_path("rust-bin.stable.latest.default").unwrap().1,
+            attribute_path_token("rust-bin.stable.latest.default")
+                .unwrap()
+                .1,
             "rust-bin.stable.latest.default"
         );
     }
