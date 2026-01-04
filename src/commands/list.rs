@@ -3,7 +3,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 
-use crate::flake::parsers::{packages::parse_packages_section, utils::get_default_shell_profile};
+use flk::flake::parsers::{packages::parse_packages_section, utils::get_default_shell_profile};
 
 pub fn run_list() -> Result<()> {
     let flake_path = Path::new(".flk/profiles/").join(format!(

@@ -5,7 +5,7 @@ use serde_json::Value;
 use std::fs;
 
 use crate::nix::run_nix_command;
-use crate::utils::{backup, visual::with_spinner};
+use flk::utils::{backup, visual::with_spinner};
 
 pub fn run_update(packages: Vec<String>, show: bool) -> Result<()> {
     if !packages.is_empty() {

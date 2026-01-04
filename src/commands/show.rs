@@ -2,7 +2,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 
-use crate::flake::parsers::flake::parse_flake;
+use flk::flake::parsers::flake::parse_flake;
 
 pub fn run_show() -> Result<()> {
     let flake_path = Path::new("flake.nix");

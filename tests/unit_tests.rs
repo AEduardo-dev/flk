@@ -10,7 +10,6 @@ mod parser_tests {
         packages::parse_packages_section,
     };
 
-    const CONTENT: &str = include_str!("flake_tests.nix");
     const PROFILE_CONTENT: &str = include_str!("profile_tests.nix");
     const PINS_CONTENT: &str = include_str!("pins_tests.nix");
 

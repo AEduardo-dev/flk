@@ -4,8 +4,9 @@ use anyhow::{Context, Ok, Result};
 use clap::ValueEnum;
 use std::fs::File;
 
-use crate::flake::parsers::{flake::parse_flake, utils::get_default_shell_profile};
-use crate::{nix::run_nix_command, utils::visual::with_spinner};
+use crate::nix::run_nix_command;
+use flk::flake::parsers::{flake::parse_flake, utils::get_default_shell_profile};
+use flk::utils::visual::with_spinner;
 
 #[derive(Debug, Clone, ValueEnum)]
 #[value(rename_all = "lowercase")]
