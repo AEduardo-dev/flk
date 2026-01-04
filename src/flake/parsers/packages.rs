@@ -1,6 +1,7 @@
 use crate::flake::interfaces::profiles::Package;
 use crate::flake::parsers::utils::{
-    attribute_path, byte_offset, detect_indentation, multiws, opt_inline_comment, ws,
+    byte_offset, detect_indentation, multiws, opt_attribute_version, opt_inline_comment,
+    pkgs_suffix, ws,
 };
 use anyhow::{Context, Result};
 use nom::{
@@ -14,6 +15,7 @@ use nom::{
 #[derive(Debug, Clone)]
 pub struct PackageEntry {
     pub name: String,
+    pub version: Option<String>,
     pub _comment: Option<String>,
     pub start_pos: usize,
     pub end_pos: usize,
@@ -43,7 +45,8 @@ fn package_entry<'a>(
     let start_pos = base_offset + byte_offset(original_input, input);
 
     let (remaining, _) = multiws(input)?;
-    let (remaining, name) = attribute_path(remaining)?;
+    let (remaining, name) = pkgs_suffix(remaining)?;
+    let (remaining, version) = opt_attribute_version(remaining)?;
     let (remaining, comment) = opt_inline_comment(remaining)?;
     let (remaining, _) = opt(line_ending)(remaining)?;
 
@@ -53,6 +56,7 @@ fn package_entry<'a>(
         remaining,
         PackageEntry {
             name: name.to_string(),
+            version: version.map(|v| v.to_string()),
             _comment: comment.map(|c| c.trim().to_string()),
             start_pos,
             end_pos,
@@ -196,7 +200,7 @@ impl PackagesSection {
             .unwrap_or(0);
 
         let before = &original_content[..start_line];
-        let after = &original_content[entry.end_pos..];
+        let after = &original_content[entry.end_pos + 1..];
 
         let after = after.strip_prefix('\n').unwrap_or(after);
 
@@ -236,14 +240,15 @@ mod tests {
     #[test]
     fn test_parse_packages() {
         let content = r#"{
-  packages = with pkgs; [
-    rust-bin.stable.latest.default # From rust-overlay
-    rust-analyzer
-    pkg-config
+  packages = [
+    pkgs.rust-bin.stable.latest.default  # From rust-overlay
+    pkgs.rust-analyzer
+    pkgs.pkg-config
   ];
 }"#;
 
         let section = parse_packages_section(content).unwrap();
+        println!("{:#?}", section);
         assert_eq!(section.entries.len(), 3);
         assert_eq!(section.entries[0].name, "rust-bin.stable.latest.default");
         assert_eq!(
@@ -256,8 +261,8 @@ mod tests {
     #[test]
     fn test_add_package() {
         let content = r#"{
-  packages = with pkgs; [
-    rust-analyzer
+  packages = [
+    pkgs.rust-analyzer
   ];
 }"#;
 
@@ -270,9 +275,44 @@ mod tests {
     #[test]
     fn test_remove_package() {
         let content = r#"{
-  packages = with pkgs; [
-    rust-analyzer
-    cargo-watch
+  packages = [
+    pkgs.rust-analyzer
+    pkgs.cargo-watch
+  ];
+}"#;
+
+        let section = parse_packages_section(content).unwrap();
+        let new_content = section.remove_package(content, "cargo-watch").unwrap();
+
+        assert!(!new_content.contains("cargo-watch"));
+        assert!(new_content.contains("rust-analyzer"));
+    }
+
+    #[test]
+    fn test_add_package_with_version() {
+        let content = r#"{
+  packages = [
+    pkgs.rust-analyzer
+  ];
+}"#;
+
+        let section = parse_packages_section(content).unwrap();
+        let new_content = section.add_package(
+            content,
+            "pkgs.\"versioned_pkg@1.0.0\"",
+            Some("For versions"),
+        );
+        println!("{}", new_content);
+
+        assert!(new_content.contains("pkgs.\"versioned_pkg@1.0.0\" # For versions"));
+    }
+
+    #[test]
+    fn test_remove_package_with_version() {
+        let content = r#"{
+  packages = [
+    pkgs.rust-analyzer
+    pkgs."cargo-watch@2.0.0"
   ];
 }"#;
 
