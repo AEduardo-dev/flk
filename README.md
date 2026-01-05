@@ -20,6 +20,36 @@
 
 ## 📦 Installation
 
+### Upgrading to v0.5.0 (switch/refresh changes)
+
+**WARNING (pre v0.5.0 users):** If you are using `flk < v0.5.0` and you run `flk update` / `nix flake update`, your devshell `switch` / `refresh` behavior may break because the `nix-profile-lib` input may update to a newer version with different activation semantics.
+
+If you intend to stay on `flk < v0.5.0`, use one of these options:
+
+1. **Do not update flake inputs.** Avoid running `flk update` or `nix flake update`. If you already did, restore a previous lockfile backup with:
+
+   ```bash
+   flk lock restore <BACKUP>
+   ```
+
+2. **Pin `nix-profile-lib` to v0.1.0.** In your `flake.nix`:
+
+   ```nix
+   inputs = {
+     nix-profile-lib.url = "github:AEduardo-dev/nix-profile-lib?ref=v0.1.0";
+   };
+   ```
+
+   Then update the lock entry:
+
+   ```bash
+   nix flake lock --update-input nix-profile-lib
+   ```
+
+   (or `nix flake update --update-input nix-profile-lib`)
+
+Once you upgrade to `flk v0.5.0+`, this restriction is lifted.
+
 ### Prerequisites
 
 - [Nix](https://nixos.org/download.html) with flakes enabled
