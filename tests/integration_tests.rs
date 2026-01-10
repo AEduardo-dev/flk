@@ -564,3 +564,105 @@ fn test_dendritic_structure_complete() {
     let flk_dir = temp_dir.path().join(".flk");
     assert!(flk_dir.is_dir());
 }
+
+#[test]
+fn test_profile_add_creates_profile_from_template() {
+    let temp_dir = TempDir::new().unwrap();
+
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .args(["profile", "add", "dev", "--template", "rust"])
+        .assert()
+        .success();
+
+    let profile_path = temp_dir.path().join(".flk/profiles/dev.nix");
+    let content = fs::read_to_string(profile_path).unwrap();
+    assert!(content.contains("Rust development environment"));
+}
+
+#[test]
+fn test_profile_set_updates_default_shell() {
+    let temp_dir = TempDir::new().unwrap();
+
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .args(["profile", "add", "dev", "--template", "rust"])
+        .assert()
+        .success();
+
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .args(["profile", "set", "dev"])
+        .assert()
+        .success();
+
+    let helper = fs::read_to_string(temp_dir.path().join(".flk/default.nix")).unwrap();
+    assert!(helper.contains("defaultShell = \"dev\""));
+}
+
+#[test]
+fn test_profile_remove_updates_default_and_deletes_file() {
+    let temp_dir = TempDir::new().unwrap();
+
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .args(["profile", "add", "dev", "--template", "rust"])
+        .assert()
+        .success();
+
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .args(["profile", "set", "dev"])
+        .assert()
+        .success();
+
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .args(["profile", "remove", "dev"])
+        .assert()
+        .success();
+
+    let helper = fs::read_to_string(temp_dir.path().join(".flk/default.nix")).unwrap();
+    assert!(helper.contains("defaultShell = \"generic\""));
+    assert!(!temp_dir
+        .path()
+        .join(".flk/profiles/dev.nix")
+        .exists());
+}
+
+#[test]
+fn test_profile_remove_last_profile_fails() {
+    let temp_dir = TempDir::new().unwrap();
+
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .args(["profile", "remove", "generic"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Cannot remove the last profile"));
+}
+
