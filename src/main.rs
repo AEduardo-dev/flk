@@ -7,8 +7,9 @@ mod nix;
 use crate::commands::{
     activate, add, command, completions, env,
     export::{self, ExportType},
-    init, list, lock, remove, search, show, update,
+    init, list, lock, profiles, remove, search, show, update,
 };
+
 
 #[derive(Parser)]
 #[command(name = "flk")]
@@ -109,12 +110,19 @@ enum Commands {
     /// Reload the current shell environment
     Activate {},
 
+    /// Manage profiles (add/remove/set default)
+    Profile {
+        #[command(subcommand)]
+        action: ProfileAction,
+    },
+
     /// Export flake configurations (Docker, JSON, etc.)
     Export {
         #[arg(short, long)]
         format: ExportType,
     },
 }
+
 
 #[derive(Subcommand)]
 enum CommandAction {
@@ -158,7 +166,31 @@ enum EnvAction {
     List,
 }
 #[derive(Subcommand)]
+enum ProfileAction {
+    /// Create a new profile from a template
+    Add {
+        /// Profile name (letters, numbers, hyphens, underscores)
+        name: String,
+
+        /// Template to use (base, rust, python, node, go)
+        #[arg(short, long)]
+        template: Option<String>,
+    },
+    /// Remove an existing profile
+    Remove {
+        /// Profile name to remove
+        name: String,
+    },
+    /// Set the default profile used by other commands
+    Set {
+        /// Profile name to set as default
+        name: String,
+    },
+}
+
+#[derive(Subcommand)]
 enum LockAction {
+
     /// Show detailed lock file information
     Show,
 
@@ -244,10 +276,22 @@ fn main() -> Result<()> {
         Commands::Activate {} => {
             activate::run_activate()?;
         }
+        Commands::Profile { action } => match action {
+            ProfileAction::Add { name, template } => {
+                profiles::add(&name, template)?;
+            }
+            ProfileAction::Remove { name } => {
+                profiles::remove(&name)?;
+            }
+            ProfileAction::Set { name } => {
+                profiles::set(&name)?;
+            }
+        },
         Commands::Export { format } => {
             export::run_export(&format)?;
         }
     }
+
 
     Ok(())
 }
