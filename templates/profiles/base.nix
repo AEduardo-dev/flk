@@ -11,6 +11,8 @@ in {
     LC_ALL = "en_US.UTF-8";
   };
 
+  commands = [];
+
   shellHook = ''
     echo "🛠️  Development environment ready!"
     # Custom commands will be added here

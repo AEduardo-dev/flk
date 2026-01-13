@@ -19,6 +19,8 @@ in {
     LC_ALL = "en_US.UTF-8";
   };
 
+  commands = [];
+
   shellHook = ''
     echo "🐍 Python development environment ready!"
     echo "Python version: $(python --version)"
