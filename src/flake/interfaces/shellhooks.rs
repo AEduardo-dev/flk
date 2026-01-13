@@ -1,8 +1,9 @@
 use crate::flake::parsers::utils::{multiline_string, ws};
 use anyhow::Result;
 use nom::{character::complete::char, IResult};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ShellHookSection {
     pub entries: Vec<ShellHookEntry>,
     pub indentation: String,
@@ -10,7 +11,7 @@ pub struct ShellHookSection {
     pub section_end: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ShellHookEntry {
     pub name: String,
     pub script: String,
@@ -53,10 +54,10 @@ impl ShellHookSection {
     /// Remove a command from shell hook
     pub fn remove_command(&mut self, name: &str) -> Result<()> {
         if !self.command_exists(name) {
-            return Err(anyhow::anyhow!(
+            Err(anyhow::anyhow!(
                 "Command '{}' does not exist in shellHook",
                 name
-            ));
+            ))
         } else {
             self.entries.retain(|entry| entry.name != name);
             Ok(())
