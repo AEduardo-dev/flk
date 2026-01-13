@@ -125,7 +125,9 @@ pkgs = import nixpkgs {
     fn test_add_command() {
         let mut section = parse_shell_hook_section(PROFILE_CONTENT).unwrap();
         // Test adding a command
-        section.add_command("test_add", "echo 'test command'");
+        if (section.add_command("test_add", "echo 'test command'")).is_err() {
+            panic!("Failed to add command");
+        }
         assert!(section.command_exists("test_add"));
     }
 
@@ -151,7 +153,9 @@ pkgs = import nixpkgs {
     fn test_add_command_with_special_chars() {
         let cmd = "cargo build --release && echo 'Done!'";
         let mut section = parse_shell_hook_section(PROFILE_CONTENT).unwrap();
-        section.add_command("build", cmd);
+        if (section.add_command("build", cmd)).is_err() {
+            panic!("Failed to add command with special characters");
+        }
         assert!(section.command_exists("build"));
         let entry = section.entries.iter().find(|e| e.name == "build").unwrap();
         assert!(entry.script.contains("cargo build --release"));
