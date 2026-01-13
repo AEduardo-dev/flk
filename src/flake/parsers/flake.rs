@@ -63,7 +63,6 @@ pub fn parse_flake(path: &str) -> Result<FlakeConfig> {
         // Convert parsed sections to FlakeConfig types
         let packages = packages_section.to_packages();
         let env_vars = env_vars_section.to_env_vars();
-        let shell_hook = shell_hook_section.content;
 
         // Create profile
         let profile_name = profile_path
@@ -75,7 +74,7 @@ pub fn parse_flake(path: &str) -> Result<FlakeConfig> {
         let mut profile = Profile::new(profile_name.clone());
         profile.packages = packages;
         profile.env_vars = env_vars;
-        profile.shell_hook = shell_hook;
+        profile.shell_hook = shell_hook_section;
 
         profiles.push(profile);
     }
@@ -111,7 +110,7 @@ pub fn _parse_profile_file(path: &str) -> Result<Profile> {
     let mut profile = Profile::new(profile_name);
     profile.packages = packages_section.to_packages();
     profile.env_vars = env_vars_section.to_env_vars();
-    profile.shell_hook = shell_hook_section.content;
+    profile.shell_hook = shell_hook_section;
 
     Ok(profile)
 }

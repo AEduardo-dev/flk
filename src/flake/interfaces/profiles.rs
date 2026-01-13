@@ -2,6 +2,8 @@ use colored::Colorize;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+use crate::flake::interfaces::shellhooks::ShellHookSection;
+
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct FlakeConfig {
     pub inputs: Vec<String>,
@@ -14,7 +16,7 @@ pub struct Profile {
     pub name: String,
     pub packages: Vec<Package>,
     pub env_vars: Vec<EnvVar>,
-    pub shell_hook: String,
+    pub shell_hook: ShellHookSection,
 }
 
 impl Profile {
@@ -23,7 +25,12 @@ impl Profile {
             name,
             packages: Vec::new(),
             env_vars: Vec::new(),
-            shell_hook: String::new(),
+            shell_hook: ShellHookSection {
+                entries: Vec::new(),
+                indentation: "  ".to_string(),
+                section_start: 0,
+                section_end: 0,
+            },
         }
     }
 }
@@ -106,15 +113,11 @@ impl fmt::Display for Profile {
             }
         }
 
-        if !self.shell_hook.is_empty() {
-            writeln!(f, "  {}", "Shell Hook:".dimmed())?;
-            // Show first 100 chars of shell hook
-            let preview = if self.shell_hook.len() > 100 {
-                format!("{}...", &self.shell_hook[..100])
-            } else {
-                self.shell_hook.clone()
-            };
-            writeln!(f, "    {}", preview.dimmed())?;
+        if !self.shell_hook.entries.is_empty() {
+            writeln!(f, "  {}", "Commands:".dimmed())?;
+            for entry in &self.shell_hook.entries {
+                writeln!(f, "    {} {}", "•".green(), entry.name.bold())?;
+            }
         }
 
         Ok(())
@@ -179,7 +182,7 @@ impl FlakeConfig {
         }
     }
 
-    /// Display shell hooks by profile (for `flk hooks` or similar)
+    /// Display shell hooks by profile
     pub fn display_shell_hooks(&self) {
         if self.profiles.is_empty() {
             println!("{}", "No profiles defined".yellow());
@@ -190,10 +193,11 @@ impl FlakeConfig {
         println!();
 
         for profile in &self.profiles {
-            if !profile.shell_hook.is_empty() {
+            if !profile.shell_hook.entries.is_empty() {
                 println!("{}", profile.name.bold().magenta());
-                println!("{}", profile.shell_hook.dimmed());
-                println!();
+                for entry in &profile.shell_hook.entries {
+                    println!("  {} {}", "•".green(), entry.name.bold());
+                }
             }
         }
     }
