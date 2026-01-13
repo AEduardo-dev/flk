@@ -1,7 +1,4 @@
-{
-  pkgs,
-  system,
-}: {
+{pkgs, ...}: {
   packages = [
     pkgs.git
     pkgs.curl
@@ -13,13 +10,19 @@
     VAR3 = "value3";
   };
 
+  commands = [
+    {
+      name = "test";
+      script = ''
+        echo "This is a test command"
+      '';
+    }
+  ];
+
   shellHook = ''
     echo "Welcome to the development shell!"
 
-    # flk-command: test
-    test () {
-      echo test
-    }
+
   '';
 
   containerConfig = {
