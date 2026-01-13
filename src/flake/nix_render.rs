@@ -42,6 +42,25 @@ pub fn nix_string(s: &str) -> String {
     format!("\"{}\"", nix_escape_string(s))
 }
 
+pub fn nix_multiline_string(s: &str, indent: &str, level: usize) -> String {
+    let inner_indent = indent.repeat(level + 1);
+    let lines: Vec<&str> = s.lines().collect();
+
+    if lines.is_empty() {
+        return "''''".to_string();
+    }
+
+    let mut out = String::from("''\n");
+    for line in lines {
+        out.push_str(&inner_indent);
+        out.push_str(line);
+        out.push('\n');
+    }
+    out.push_str(&indent.repeat(level));
+    out.push_str("''");
+    out
+}
+
 pub fn indent_line(out: &mut String, indent: &str, level: usize) {
     for _ in 0..level {
         out.push_str(indent);
