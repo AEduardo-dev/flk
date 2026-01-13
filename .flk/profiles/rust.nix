@@ -13,6 +13,9 @@
     RUST_BACKTRACE = "1";
   };
 
+  commands = [
+  ];
+
   shellHook = ''
     echo "🦀 Rust development environment ready!"
     echo "Rust version: $(rustc --version)"

@@ -18,6 +18,8 @@ in {
     LC_ALL = "en_US.UTF-8";
   };
 
+  commands = [];
+
   shellHook = ''
     echo "📦 Node.js development environment ready!"
     echo "Node version: $(node --version)"
