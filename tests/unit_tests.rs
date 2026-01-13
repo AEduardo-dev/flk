@@ -114,55 +114,61 @@ pkgs = import nixpkgs {
     fn test_command_exists() {
         let section = parse_shell_hook_section(PROFILE_CONTENT).unwrap();
         // Test command detection
-        let exists = section.command_exists(PROFILE_CONTENT, "test");
+        let exists = section.command_exists("test");
         assert!(exists);
 
-        let not_exists = section.command_exists(PROFILE_CONTENT, "nonexistent");
+        let not_exists = section.command_exists("nonexistent");
         assert!(!not_exists);
     }
 
     #[test]
     fn test_add_command() {
-        let section = parse_shell_hook_section(PROFILE_CONTENT).unwrap();
+        let mut section = parse_shell_hook_section(PROFILE_CONTENT).unwrap();
         // Test adding a command
-        let result = section.add_command(PROFILE_CONTENT, "test_add", "echo 'test command'");
-        assert!(result.contains("# flk-command: test_add"));
-        assert!(result.contains("test_add ()"));
+        section.add_command("test_add", "echo 'test command'");
+        assert!(section.command_exists("test_add"));
     }
 
     #[test]
     fn test_add_command_with_multiline() {
-        let section = parse_shell_hook_section(PROFILE_CONTENT).unwrap();
+        let mut section = parse_shell_hook_section(PROFILE_CONTENT).unwrap();
         let multiline_cmd = "echo 'line 1'\necho 'line 2'\necho 'line 3'";
-        let result = section.add_command(PROFILE_CONTENT, "multiline", multiline_cmd);
-        assert!(result.contains("# flk-command: multiline"));
-        assert!(result.contains("line 1"));
-        assert!(result.contains("line 2"));
-        assert!(result.contains("line 3"));
+        section.add_command("multiline", multiline_cmd).unwrap();
+
+        assert!(section.command_exists("multiline"));
+
+        let entry = section
+            .entries
+            .iter()
+            .find(|e| e.name == "multiline")
+            .unwrap();
+        assert!(entry.script.contains("echo 'line 1'"));
+        assert!(entry.script.contains("echo 'line 2'"));
+        assert!(entry.script.contains("echo 'line 3'"));
     }
 
     #[test]
     fn test_add_command_with_special_chars() {
         let cmd = "cargo build --release && echo 'Done!'";
-        let section = parse_shell_hook_section(PROFILE_CONTENT).unwrap();
-        let result = section.add_command(PROFILE_CONTENT, "build", cmd);
-        assert!(result.contains("# flk-command: build"));
-        assert!(result.contains("&&"));
+        let mut section = parse_shell_hook_section(PROFILE_CONTENT).unwrap();
+        section.add_command("build", cmd);
+        assert!(section.command_exists("build"));
+        let entry = section.entries.iter().find(|e| e.name == "build").unwrap();
+        assert!(entry.script.contains("cargo build --release"));
     }
 
     #[test]
     fn test_remove_command() {
-        let section = parse_shell_hook_section(PROFILE_CONTENT).unwrap();
+        let mut section = parse_shell_hook_section(PROFILE_CONTENT).unwrap();
         // Test removing a command
-        let result = section.remove_command(PROFILE_CONTENT, "test").unwrap();
-        assert!(!result.contains("# flk-command: test"));
-        assert!(!result.contains("test ()"));
+        section.remove_command("test").unwrap();
+        assert!(!section.command_exists("test"));
     }
 
     #[test]
     fn test_remove_nonexistent_command() {
-        let section = parse_shell_hook_section(PROFILE_CONTENT).unwrap();
-        let result = section.remove_command(PROFILE_CONTENT, "nonexistent");
+        let mut section = parse_shell_hook_section(PROFILE_CONTENT).unwrap();
+        let result = section.remove_command("nonexistent");
         assert!(result.is_err());
     }
 
@@ -246,9 +252,10 @@ pkgs = import nixpkgs {
     #[test]
     fn test_parse_shell_hook() {
         let section = parse_shell_hook_section(PROFILE_CONTENT).unwrap();
-        let hook = &PROFILE_CONTENT[section.content_start..section.content_end];
-        assert!(hook.contains("Welcome to the development shell!"));
-        assert!(hook.contains("# flk-command: test"));
+        assert_eq!(section.entries.len(), 1);
+        let entry = &section.entries[0];
+        assert_eq!(entry.name, "test");
+        assert!(entry.script.contains("echo \"This is a test command\""));
     }
 
     #[test]
