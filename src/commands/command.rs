@@ -4,7 +4,9 @@ use std::fs;
 use std::path::Path;
 
 use flk::flake::parsers::{
-    commands::parse_shell_hook_section, flake::parse_flake, utils::get_default_shell_profile,
+    commands::{add_shell_hook_command, parse_shell_hook_section, remove_shell_hook_command},
+    flake::parse_flake,
+    utils::get_default_shell_profile,
 };
 
 pub fn run_add(name: &str, command: &str, file: Option<String>) -> Result<()> {
@@ -41,7 +43,7 @@ pub fn run_add(name: &str, command: &str, file: Option<String>) -> Result<()> {
         .context("Failed to parse shellHook section in flake.nix")?;
 
     // Check if command already exists
-    if section.command_exists(&flake_content, name) {
+    if section.command_exists(name) {
         bail!(
             "Command '{}' already exists. Remove it with: {}",
             name.cyan(),
@@ -50,7 +52,8 @@ pub fn run_add(name: &str, command: &str, file: Option<String>) -> Result<()> {
     }
 
     // Add the command to shellHook
-    let updated_content = section.add_command(&flake_content, name, &command_content);
+    let updated_content = add_shell_hook_command(&flake_content, name, &command_content)
+        .context("Failed to add command to shellHook")?;
 
     // Write back to file
     fs::write(flake_path, updated_content).context("Failed to write flake.nix")?;
@@ -85,12 +88,13 @@ pub fn run_remove(name: &str) -> Result<()> {
         .context("Failed to parse shellHook section in flake.nix")?;
 
     // Check if command exists
-    if !section.command_exists(&flake_content, name) {
+    if !section.command_exists(name) {
         bail!("Command '{}' not found in flake.nix", name.cyan());
     }
 
     // Remove the command from shellHook
-    let updated_content = section.remove_command(&flake_content, name)?;
+    let updated_content = remove_shell_hook_command(&flake_content, name)
+        .context("Failed to remove command from shellHook")?;
 
     // Write back to file
     fs::write(&flake_path, updated_content).context("Failed to write flake.nix")?;
