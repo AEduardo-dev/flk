@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 
-/// Nix identifiers are more restrictive than your keys.
 /// When a key isn't a simple identifier, emit it as a quoted attribute name:  "pkgs-f720de5" = ...
 pub fn nix_attr_key(key: &str) -> Cow<'_, str> {
     let mut chars = key.chars();
@@ -22,7 +21,6 @@ pub fn nix_attr_key(key: &str) -> Cow<'_, str> {
 
 /// Escape content for a Nix double-quoted string.
 /// Handles backslash, quotes, newlines, tabs.
-/// NOTE: If you need to prevent `${...}` interpolation, you'd need extra handling.
 fn nix_escape_string(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 8);
     for ch in s.chars() {
