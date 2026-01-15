@@ -377,13 +377,11 @@ pub fn render_pinned_packages_section(
     out.push_str("};\n");
 }
 
-/// Render the whole file in the format you showed.
 pub fn render_file(
     sources: &crate::flake::interfaces::overlays::SourcesSection,
     overlays: &crate::flake::interfaces::overlays::OverlaysSection,
 ) -> String {
-    // Prefer indentation coming from parsed file (so you preserve style),
-    // but fall back to two spaces.
+    // fall back to two spaces.
     let indent = if sources.indentation.is_empty() {
         "  "
     } else {
@@ -393,7 +391,6 @@ pub fn render_file(
     let mut out = String::new();
     out.push_str("{\n");
 
-    // blank line separation matches your example
     render_sources_section(&mut out, indent, 1, &sources.entries);
     out.push('\n');
     render_pinned_packages_section(&mut out, indent, 1, &overlays.entries);
