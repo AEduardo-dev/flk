@@ -1,181 +1,336 @@
-use crate::flake::interfaces::utils::INDENT_IN;
-use crate::flake::parsers::utils::{byte_offset, detect_indentation, multiline_string, ws};
+use crate::flake::interfaces::shellhooks::{ShellHookEntry, ShellHookSection};
+use crate::flake::nix_render::{indent_line, nix_multiline_string, nix_string};
+use crate::flake::parsers::utils::{detect_indentation, multiline_string, multiws, string_literal};
 use anyhow::{Context, Result};
-use nom::{character::complete::char, IResult};
+use nom::{
+    bytes::complete::tag,
+    character::complete::char,
+    combinator::map,
+    multi::many0,
+    sequence::{delimited, preceded, tuple},
+    IResult,
+};
 
-#[derive(Debug)]
-pub struct ShellHookSection {
-    pub content: String,
-    pub content_start: usize,
-    pub content_end: usize,
-    pub _indentation: String,
-    pub _section_start: usize,
-    pub _section_end: usize,
+// ============================================================================
+// SHELL HOOK ENTRY PARSERS
+// ============================================================================
+
+/// Parse a single command entry:  { name = "... "; script = ''.. .''; }
+fn shell_hook_entry(input: &str) -> IResult<&str, ShellHookEntry> {
+    map(
+        delimited(
+            multiws,
+            delimited(
+                char('{'),
+                delimited(
+                    multiws,
+                    tuple((
+                        preceded(
+                            tuple((tag("name"), multiws, char('='), multiws)),
+                            string_literal,
+                        ),
+                        preceded(
+                            tuple((
+                                multiws,
+                                char(';'),
+                                multiws,
+                                tag("script"),
+                                multiws,
+                                char('='),
+                                multiws,
+                            )),
+                            multiline_string,
+                        ),
+                        preceded(
+                            tuple((multiws, char(';'), multiws)),
+                            nom::combinator::success(()),
+                        ),
+                    )),
+                    multiws,
+                ),
+                char('}'),
+            ),
+            multiws,
+        ),
+        |(name, script, _)| ShellHookEntry {
+            name: name.to_string(),
+            script: script.to_string(),
+        },
+    )(input)
 }
 
-/// Parse shellHook with nom
-fn parse_shell_hook(input: &str) -> IResult<&str, &str> {
-    let (input, _) = ws(input)?;
-    let (input, _) = char('=')(input)?;
-    let (input, _) = ws(input)?;
-    let (input, content) = multiline_string(input)?;
-    let (input, _) = ws(input)?;
-    let (input, _) = char(';')(input)?;
-
-    Ok((input, content))
+/// Parse a list of command entries: [ { ...  } { ... } ]
+fn shell_hook_entry_list(input: &str) -> IResult<&str, Vec<ShellHookEntry>> {
+    delimited(
+        delimited(multiws, char('['), multiws),
+        many0(shell_hook_entry),
+        delimited(multiws, char(']'), multiws),
+    )(input)
 }
 
-/// Main parser for shellHook section
+/// Parse the full commands section content
+fn parse_commands_content(input: &str) -> IResult<&str, Vec<ShellHookEntry>> {
+    shell_hook_entry_list(input)
+}
+
+/// Main parser for commands section: commands = [ ...  ];
 pub fn parse_shell_hook_section(content: &str) -> Result<ShellHookSection> {
-    let section_start = content
-        .find("shellHook")
-        .context("Could not find 'shellHook'")?;
+    let commands_start = content
+        .find("commands")
+        .context("Could not find 'commands'")?;
 
-    let parse_from = section_start + "shellHook".len();
-    let to_parse = &content[parse_from..];
+    // Consider line start as section start for indentation consistency
+    let section_start = content[..commands_start]
+        .rfind('\n')
+        .map(|i| i + 1)
+        .unwrap_or(0);
 
-    match parse_shell_hook(to_parse) {
-        Ok((remaining, hook_content)) => {
-            // Find positions of '' delimiters
-            let content_start_marker = content[parse_from..]
-                .find("''")
-                .context("Could not find opening \"''\"")?;
-            let content_start = parse_from + content_start_marker + 2;
+    let after_commands = &content[section_start..];
+    let bracket_offset = after_commands
+        .find('[')
+        .context("Could not find '[' after 'commands'")?;
 
-            let section_end = parse_from + byte_offset(to_parse, remaining);
+    let list_start = section_start + bracket_offset;
 
-            let content_end = content[content_start..section_end]
-                .rfind("''")
-                .context("Could not find closing \"''\"")?
-                + content_start;
+    // Find the matching closing bracket
+    let after_bracket = &content[list_start + 1..];
+    let mut bracket_count = 1usize;
+    let mut list_end = list_start + 1;
 
-            let indentation = detect_indentation(hook_content);
-
-            Ok(ShellHookSection {
-                content: hook_content.trim().to_string(),
-                content_start,
-                content_end,
-                _indentation: indentation,
-                _section_start: section_start,
-                _section_end: section_end,
-            })
+    for (i, ch) in after_bracket.char_indices() {
+        match ch {
+            '[' => bracket_count += 1,
+            ']' => {
+                bracket_count -= 1;
+                if bracket_count == 0 {
+                    list_end = list_start + 1 + i + 1; // Include the closing bracket
+                    break;
+                }
+            }
+            _ => {}
         }
+    }
+
+    if bracket_count != 0 {
+        return Err(anyhow::anyhow!("Unmatched brackets in commands section"));
+    }
+
+    // Find the semicolon after the closing bracket to get full section end
+    let section_end = content[list_end..]
+        .find(';')
+        .map(|i| list_end + i + 1)
+        .unwrap_or(list_end);
+
+    let to_parse = &content[list_start..list_end];
+
+    // Detect indentation from the original content
+    let indentation = detect_indentation(&content[section_start..section_end]);
+
+    match parse_commands_content(to_parse) {
+        Ok((_, entries)) => Ok(ShellHookSection {
+            entries,
+            indentation,
+            section_start,
+            section_end,
+        }),
         Err(e) => Err(anyhow::anyhow!(
-            "Failed to parse shellHook section: {:?}",
+            "Failed to parse commands section:  {:?}",
             e
         )),
     }
 }
 
-impl ShellHookSection {
-    /// Find a command within the shell hook
-    pub fn find_command(&self, full_content: &str, name: &str) -> Option<(usize, usize)> {
-        let marker = format!("# flk-command: {}", name);
-        let hook_content = &full_content[self.content_start..self.content_end];
+// ============================================================================
+// RENDER HELPERS
+// ============================================================================
 
-        let marker_pos = hook_content.find(&marker)?;
-        let marker_start = self.content_start + marker_pos;
+pub fn render_commands_section(
+    out: &mut String,
+    indent: &str,
+    level: usize,
+    entries: &[ShellHookEntry],
+) {
+    indent_line(out, indent, level);
+    out.push_str("commands = [\n");
 
-        // Find line start
-        let line_start = if marker_start > 0 {
-            full_content[..marker_start].rfind('\n').unwrap_or(0)
-        } else {
-            0
-        };
+    for entry in entries {
+        indent_line(out, indent, level + 1);
+        out.push_str("{\n");
 
-        // Find end of function block
-        let search_from = marker_start + marker.len();
-        let function_end = full_content[search_from..].find(&format!("{}}}", INDENT_IN))?;
+        indent_line(out, indent, level + 2);
+        out.push_str("name = ");
+        out.push_str(&nix_string(&entry.name));
+        out.push_str(";\n");
 
-        let end_point = search_from + function_end + format!("{}}}", INDENT_IN).len();
+        indent_line(out, indent, level + 2);
+        out.push_str("script = ");
+        out.push_str(&nix_multiline_string(&entry.script, indent, level + 2));
+        out.push_str(";\n");
 
-        Some((line_start, end_point))
+        indent_line(out, indent, level + 1);
+        out.push_str("}\n");
     }
 
-    /// Check if command exists
-    pub fn command_exists(&self, full_content: &str, name: &str) -> bool {
-        let marker = format!("# flk-command: {}", name);
-        full_content.contains(&marker)
-    }
-
-    /// Add a command to shell hook
-    pub fn add_command(&self, original_content: &str, name: &str, command: &str) -> String {
-        let insertion_point = original_content[..self.content_end]
-            .rfind('\n')
-            .unwrap_or(self.content_end);
-
-        let command_block = format!(
-            "\n{indent_in}# flk-command: {name}\n{indent_in}{name} () {{\n{indent_cmd}{cmd}\n{indent_in}}}",
-            indent_in = INDENT_IN,
-            indent_cmd = " ".repeat(INDENT_IN.len() + 2),
-            name = name,
-            cmd = command.trim(),
-        );
-
-        let mut result = String::new();
-        result.push_str(&original_content[..insertion_point]);
-        result.push_str(&command_block);
-        result.push_str(&original_content[insertion_point..]);
-
-        result
-    }
-
-    /// Remove a command from shell hook
-    pub fn remove_command(&self, original_content: &str, name: &str) -> Result<String> {
-        let (line_start, end_point) = self
-            .find_command(original_content, name)
-            .context(format!("Command '{}' not found in shellHook", name))?;
-
-        let mut result = String::new();
-        result.push_str(&original_content[..line_start]);
-        result.push_str(&original_content[end_point..]);
-
-        Ok(result)
-    }
-
-    /// Replace entire shell hook content
-    pub fn _replace_content(&self, original_content: &str, new_content: &str) -> String {
-        let mut result = String::new();
-        result.push_str(&original_content[..self.content_start]);
-        result.push('\n');
-        result.push_str(new_content.trim());
-        result.push_str("\n  ");
-        result.push_str(&original_content[self.content_end..]);
-
-        result
-    }
+    indent_line(out, indent, level);
+    out.push_str("];");
 }
+
+/// Render just the commands section (for splicing back into a file)
+pub fn render_shell_hook_section(section: &ShellHookSection) -> String {
+    let indent = if section.indentation.is_empty() {
+        "  "
+    } else {
+        section.indentation.as_str()
+    };
+
+    let mut out = String::new();
+    render_commands_section(&mut out, indent, 1, &section.entries);
+    out
+}
+
+// ============================================================================
+// COMBINED OPERATIONS (parse -> modify -> render)
+// ============================================================================
+
+/// Add a command to the shell hook section and return the updated file content
+pub fn add_shell_hook_command(content: &str, name: &str, script: &str) -> Result<String> {
+    let mut section = parse_shell_hook_section(content)?;
+
+    section.add_command(name, script)?;
+
+    let rendered = render_shell_hook_section(&section);
+    Ok(section.apply_to_content(content, &rendered))
+}
+
+/// Remove a command from the shell hook section and return the updated file content
+pub fn remove_shell_hook_command(content: &str, name: &str) -> Result<String> {
+    let mut section = parse_shell_hook_section(content)?;
+
+    section.remove_command(name)?;
+
+    let rendered = render_shell_hook_section(&section);
+    Ok(section.apply_to_content(content, &rendered))
+}
+//
+// ============================================================================
+// TESTS
+// ============================================================================
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_shell_hook() {
+    fn test_parse_shell_hook_section() {
         let content = r#"{
-  shellHook = ''
-    echo "🦀 Rust development environment ready!"
-    echo "Rust version: $(rustc --version)"
-  '';
+  packages = [ pkgs.hello ];
+
+  commands = [
+    {
+      name = "greet";
+      script = ''
+        echo "Hello, World!"
+      '';
+    }
+    {
+      name = "build";
+      script = ''
+        cargo build --release
+      '';
+    }
+  ];
+
+  env = { FOO = "bar"; };
 }"#;
 
         let section = parse_shell_hook_section(content).unwrap();
-        assert!(section.content.contains("Rust development environment"));
-        assert!(section.content.contains("rustc --version"));
+        assert_eq!(section.entries.len(), 2);
+        assert_eq!(section.entries[0].name, "greet");
+        assert!(section.entries[0].script.contains("Hello, World!"));
+        assert_eq!(section.entries[1].name, "build");
+
+        // Verify section bounds are captured
+        assert!(section.section_start > 0);
+        assert!(section.section_end > section.section_start);
     }
 
     #[test]
     fn test_add_command() {
         let content = r#"{
-  shellHook = ''
-    echo "Hello"
-  '';
+  packages = [ pkgs.hello ];
+
+  commands = [
+    {
+      name = "greet";
+      script = ''
+        echo "Hello"
+      '';
+    }
+  ];
+
+  env = { FOO = "bar"; };
 }"#;
 
-        let section = parse_shell_hook_section(content).unwrap();
-        let new_content = section.add_command(content, "test", "echo 'test command'");
+        let updated = add_shell_hook_command(content, "test", "echo 'test command'").unwrap();
 
-        assert!(new_content.contains("# flk-command: test"));
-        assert!(new_content.contains("test () {"));
+        assert!(updated.contains("packages = [ pkgs.hello ]"));
+        assert!(updated.contains("greet"));
+        assert!(updated.contains("test"));
+        assert!(updated.contains("echo 'test command'"));
+        assert!(updated.contains("env = { FOO = \"bar\"; }"));
+    }
+
+    #[test]
+    fn test_remove_command() {
+        let content = r#"{
+  commands = [
+    {
+      name = "greet";
+      script = ''
+        echo "Hello"
+      '';
+    }
+    {
+      name = "build";
+      script = ''
+        cargo build
+      '';
+    }
+  ];
+}"#;
+
+        let updated = remove_shell_hook_command(content, "greet").unwrap();
+
+        assert!(!updated.contains("greet"));
+        assert!(updated.contains("build"));
+        assert!(updated.contains("cargo build"));
+    }
+
+    #[test]
+    fn test_section_bounds_preserved() {
+        let content = r#"# Header comment
+{
+  packages = [ pkgs.hello ];
+
+  commands = [
+    {
+      name = "greet";
+      script = ''
+        echo "Hello"
+      '';
+    }
+  ];
+
+  env = { FOO = "bar"; };
+}
+# Footer comment"#;
+
+        let updated = add_shell_hook_command(content, "new", "echo 'new'").unwrap();
+
+        // Verify content before and after section is preserved
+        assert!(updated.starts_with("# Header comment"));
+        assert!(updated.contains("packages = [ pkgs.hello ]"));
+        assert!(updated.contains("env = { FOO = \"bar\"; }"));
+        assert!(updated.ends_with("# Footer comment"));
     }
 }

@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 
-/// Nix identifiers are more restrictive than your keys.
 /// When a key isn't a simple identifier, emit it as a quoted attribute name:  "pkgs-f720de5" = ...
 pub fn nix_attr_key(key: &str) -> Cow<'_, str> {
     let mut chars = key.chars();
@@ -22,7 +21,6 @@ pub fn nix_attr_key(key: &str) -> Cow<'_, str> {
 
 /// Escape content for a Nix double-quoted string.
 /// Handles backslash, quotes, newlines, tabs.
-/// NOTE: If you need to prevent `${...}` interpolation, you'd need extra handling.
 fn nix_escape_string(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 8);
     for ch in s.chars() {
@@ -40,6 +38,25 @@ fn nix_escape_string(s: &str) -> String {
 
 pub fn nix_string(s: &str) -> String {
     format!("\"{}\"", nix_escape_string(s))
+}
+
+pub fn nix_multiline_string(s: &str, indent: &str, level: usize) -> String {
+    let inner_indent = indent.repeat(level + 1);
+    let lines: Vec<&str> = s.lines().collect();
+
+    if lines.is_empty() {
+        return "''''".to_string();
+    }
+
+    let mut out = String::from("''\n");
+    for line in lines {
+        out.push_str(&inner_indent);
+        out.push_str(line);
+        out.push('\n');
+    }
+    out.push_str(&indent.repeat(level));
+    out.push_str("''");
+    out
 }
 
 pub fn indent_line(out: &mut String, indent: &str, level: usize) {

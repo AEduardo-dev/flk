@@ -18,10 +18,10 @@ pub enum ExportType {
 
 pub fn run_export(export_type: &ExportType) -> Result<()> {
     let profile: String =
-        get_default_shell_profile().context("Could not find default shell profile (flake.nix)")?;
+        get_default_shell_profile().context("Could not find default shell profile (flk.nix)")?;
     match export_type {
         ExportType::Docker => {
-            println!("Exporting flake.nix to Docker image...");
+            println!("Exporting flk.nix to Docker image...");
             let (_, _, success) = with_spinner("<export-docker>", || {
                 run_nix_command(&[
                     "build",
@@ -30,7 +30,7 @@ pub fn run_export(export_type: &ExportType) -> Result<()> {
                     ".flk/result",
                     "--impure",
                 ])
-                .context("Failed to build Docker image from flake.nix")
+                .context("Failed to build Docker image from flk.nix")
             })?;
             println!("Docker image created successfully ✅");
             let file = File::open(".flk/result").context("Failed to open .flk/result")?;
@@ -53,7 +53,7 @@ pub fn run_export(export_type: &ExportType) -> Result<()> {
             println!("{}", String::from_utf8_lossy(&output.stdout));
         }
         ExportType::Podman => {
-            println!("Exporting flake.nix to Podman image...");
+            println!("Exporting flk.nix to Podman image...");
             let (_, _, success) = with_spinner("<export-podman>", || {
                 run_nix_command(&[
                     "build",
@@ -62,7 +62,7 @@ pub fn run_export(export_type: &ExportType) -> Result<()> {
                     ".flk/result",
                     "--impure",
                 ])
-                .context("Failed to build Podman image from flake.nix")
+                .context("Failed to build Podman image from flk.nix")
             })?;
             println!("Podman image created successfully ✅");
             let file = File::open(".flk/result").context("Failed to open .flk/result")?;
@@ -85,13 +85,13 @@ pub fn run_export(export_type: &ExportType) -> Result<()> {
             println!("{}", String::from_utf8_lossy(&output.stdout));
         }
         ExportType::Json => {
-            let flake_path = Path::new("flake.nix");
+            let flake_path = Path::new("flk.nix");
             let flake_content = parse_flake(flake_path.to_str().unwrap())?;
 
             // Serialize the flake content to JSON file
             let json_output = serde_json::to_string_pretty(&flake_content)
                 .context("Failed to serialize flake content to JSON")?;
-            std::fs::write("flake.json", json_output).context("Failed to write flake.json file")?;
+            std::fs::write("flk.json", json_output).context("Failed to write flk.json file")?;
             println!("Flake export to JSON succeeded ✅");
         }
     }

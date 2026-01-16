@@ -35,33 +35,5 @@ pub fn ensure_flk_dir() -> Result<()> {
     let backup_dir = get_backup_dir()?;
     fs::create_dir_all(&backup_dir).context("Failed to create .flk directory structure")?;
 
-    // Add .flk to .gitignore if not already there
-    add_to_gitignore()?;
-
-    Ok(())
-}
-
-/// Add .flk directory to .gitignore
-fn add_to_gitignore() -> Result<()> {
-    let gitignore_path = Path::new(".gitignore");
-
-    let mut content = if gitignore_path.exists() {
-        fs::read_to_string(gitignore_path).context("Failed to read .gitignore")?
-    } else {
-        String::new()
-    };
-
-    // Check if .flk is already in .gitignore
-    if !content
-        .lines()
-        .any(|line| line.trim() == ".flk" || line.trim() == ".flk/")
-    {
-        if !content.ends_with('\n') && !content.is_empty() {
-            content.push('\n');
-        }
-        content.push_str("\n# flk backup directory\n.flk/\n");
-        fs::write(gitignore_path, content).context("Failed to update .gitignore")?;
-    }
-
     Ok(())
 }

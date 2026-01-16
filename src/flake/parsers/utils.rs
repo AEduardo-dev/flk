@@ -147,7 +147,8 @@ mod tests {
 
 /// Get the default shell profile from default.nix helper
 pub fn get_default_shell_profile() -> Result<String> {
-    let content = fs::read_to_string(".flk/default.nix").context("Failed to read flake.nix")?;
+    let content = fs::read_to_string(".flk/default.nix")
+        .context("Failed to read flk.nix default importer")?;
     if let Some(default_start) = content.find("defaultShell = \"") {
         let search_start = default_start + "defaultShell = \"".len();
         if let Some(end) = content[search_start..].find('"') {

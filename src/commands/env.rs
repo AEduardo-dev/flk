@@ -11,10 +11,10 @@ use flk::flake::parsers::{
 pub fn add(name: &str, value: &str) -> Result<()> {
     let flake_path = Path::new(".flk/profiles/").join(format!(
         "{}.nix",
-        get_default_shell_profile().context("Could not find default shell profile (flake.nix)")?
+        get_default_shell_profile().context("Could not find default shell profile (flk.nix)")?
     ));
     let profile_to_parse =
-        get_default_shell_profile().context("Could not find default shell profile (flake.nix)")?;
+        get_default_shell_profile().context("Could not find default shell profile (flk.nix)")?;
 
     // Validate variable name
     if name.trim().is_empty() {
@@ -36,7 +36,7 @@ pub fn add(name: &str, value: &str) -> Result<()> {
     );
 
     // Read the current flake.nix
-    let flake_content = fs::read_to_string(&flake_path).context("Failed to read flake.nix")?;
+    let flake_content = fs::read_to_string(&flake_path).context("Failed to read flk.nix")?;
     let section = parse_env_vars_section(&flake_content)?;
 
     if section.env_var_exists(name)? {
@@ -51,7 +51,7 @@ pub fn add(name: &str, value: &str) -> Result<()> {
     let updated_content = section.add_env_var(&flake_content, name, value);
 
     // Write back to file
-    fs::write(flake_path, updated_content).context("Failed to write flake.nix")?;
+    fs::write(flake_path, updated_content).context("Failed to write flk.nix")?;
 
     println!("\n{}", "Next steps:".bold());
     println!("  1. Run {} to update your shell", "nix develop".cyan());
@@ -64,10 +64,10 @@ pub fn add(name: &str, value: &str) -> Result<()> {
 pub fn remove(name: &str) -> Result<()> {
     let flake_path = Path::new(".flk/profiles/").join(format!(
         "{}.nix",
-        get_default_shell_profile().context("Could not find default shell profile (flake.nix)")?
+        get_default_shell_profile().context("Could not find default shell profile (flk.nix)")?
     ));
     let profile_to_parse =
-        get_default_shell_profile().context("Could not find default shell profile (flake.nix)")?;
+        get_default_shell_profile().context("Could not find default shell profile (flk.nix)")?;
 
     println!(
         "{} Removing environment variable: {}",
@@ -76,7 +76,7 @@ pub fn remove(name: &str) -> Result<()> {
     );
 
     // Read the current flake.nix
-    let flake_content = fs::read_to_string(&flake_path).context("Failed to read flake.nix")?;
+    let flake_content = fs::read_to_string(&flake_path).context("Failed to read flk.nix")?;
     let section = parse_env_vars_section(&flake_content)?;
 
     if !section.env_var_exists(name)? {
@@ -90,18 +90,18 @@ pub fn remove(name: &str) -> Result<()> {
     let updated_content = section.remove_env_var(&flake_content, name)?;
 
     // Write back to file
-    fs::write(flake_path, updated_content).context("Failed to write flake.nix")?;
+    fs::write(flake_path, updated_content).context("Failed to write flk.nix")?;
 
     Ok(())
 }
 
 /// List all environment variables in the dev shell
 pub fn list() -> Result<()> {
-    let flake_path = Path::new("flake.nix");
+    let flake_path = Path::new("flk.nix");
 
     if !flake_path.exists() {
         bail!(
-            "No flake.nix found in current directory. Run {} first.",
+            "No flk.nix found in current directory. Run {} first.",
             "flk init".yellow()
         );
     }

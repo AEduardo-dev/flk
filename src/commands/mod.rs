@@ -2,6 +2,7 @@ pub mod activate;
 pub mod add;
 pub mod command;
 pub mod completions;
+pub mod direnv;
 pub mod env;
 pub mod export;
 pub mod init;

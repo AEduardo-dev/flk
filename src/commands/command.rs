@@ -4,13 +4,15 @@ use std::fs;
 use std::path::Path;
 
 use flk::flake::parsers::{
-    commands::parse_shell_hook_section, flake::parse_flake, utils::get_default_shell_profile,
+    commands::{add_shell_hook_command, parse_shell_hook_section, remove_shell_hook_command},
+    flake::parse_flake,
+    utils::get_default_shell_profile,
 };
 
 pub fn run_add(name: &str, command: &str, file: Option<String>) -> Result<()> {
     let flake_path = Path::new(".flk/profiles/").join(format!(
         "{}.nix",
-        get_default_shell_profile().context("Could not find default shell profile (flake.nix)")?
+        get_default_shell_profile().context("Could not find default shell profile (flk.nix)")?
     ));
 
     // Validate command name
@@ -36,12 +38,12 @@ pub fn run_add(name: &str, command: &str, file: Option<String>) -> Result<()> {
     }
 
     // Read the current flake.nix
-    let flake_content = fs::read_to_string(&flake_path).context("Failed to read flake.nix")?;
+    let flake_content = fs::read_to_string(&flake_path).context("Failed to read flk.nix")?;
     let section = parse_shell_hook_section(&flake_content)
-        .context("Failed to parse shellHook section in flake.nix")?;
+        .context("Failed to parse shellHook section in flk.nix")?;
 
     // Check if command already exists
-    if section.command_exists(&flake_content, name) {
+    if section.command_exists(name) {
         bail!(
             "Command '{}' already exists. Remove it with: {}",
             name.cyan(),
@@ -50,7 +52,8 @@ pub fn run_add(name: &str, command: &str, file: Option<String>) -> Result<()> {
     }
 
     // Add the command to shellHook
-    let updated_content = section.add_command(&flake_content, name, &command_content);
+    let updated_content = add_shell_hook_command(&flake_content, name, &command_content)
+        .context("Failed to add command to shellHook")?;
 
     // Write back to file
     fs::write(flake_path, updated_content).context("Failed to write flake.nix")?;
@@ -70,27 +73,28 @@ pub fn run_add(name: &str, command: &str, file: Option<String>) -> Result<()> {
 pub fn run_remove(name: &str) -> Result<()> {
     let flake_path = Path::new(".flk/profiles/").join(format!(
         "{}.nix",
-        get_default_shell_profile().context("Could not find default shell profile (flake.nix)")?
+        get_default_shell_profile().context("Could not find default shell profile (flk.nix)")?
     ));
 
     if !flake_path.exists() {
-        bail!("No flake.nix found.");
+        bail!("No flk.nix found.");
     }
 
     println!("{} Removing command: {}", "→".blue().bold(), name.yellow());
 
     // Read the current flake.nix
-    let flake_content = fs::read_to_string(&flake_path).context("Failed to read flake.nix")?;
+    let flake_content = fs::read_to_string(&flake_path).context("Failed to read flk.nix")?;
     let section = parse_shell_hook_section(&flake_content)
-        .context("Failed to parse shellHook section in flake.nix")?;
+        .context("Failed to parse shellHook section in flk.nix")?;
 
     // Check if command exists
-    if !section.command_exists(&flake_content, name) {
-        bail!("Command '{}' not found in flake.nix", name.cyan());
+    if !section.command_exists(name) {
+        bail!("Command '{}' not found in flk.nix", name.cyan());
     }
 
     // Remove the command from shellHook
-    let updated_content = section.remove_command(&flake_content, name)?;
+    let updated_content = remove_shell_hook_command(&flake_content, name)
+        .context("Failed to remove command from shellHook")?;
 
     // Write back to file
     fs::write(&flake_path, updated_content).context("Failed to write flake.nix")?;
@@ -106,11 +110,11 @@ pub fn run_remove(name: &str) -> Result<()> {
 
 /// List all environment variables in the dev shell
 pub fn list() -> Result<()> {
-    let flake_path = Path::new("flake.nix");
+    let flake_path = Path::new("flk.nix");
 
     if !flake_path.exists() {
         bail!(
-            "No flake.nix found in current directory. Run {} first.",
+            "No flk.nix found in current directory. Run {} first.",
             "flk init".yellow()
         );
     }
