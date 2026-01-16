@@ -2,6 +2,7 @@ use assert_cmd::cargo;
 use predicates::prelude::*;
 use predicates::str::contains;
 use std::fs;
+use std::path::Path;
 use tempfile::TempDir;
 
 #[test]
@@ -420,7 +421,9 @@ fn test_completions_prints_bash_script() {
 #[test]
 fn test_completions_install_creates_file() {
     let temp = tempfile::tempdir().unwrap();
-    std::env::set_var("HOME", temp.path());
+    unsafe {
+        std::env::set_var("HOME", temp.path());
+    }
 
     cargo::cargo_bin_cmd!("flk")
         .args(["completions", "--install", "zsh"])
@@ -563,4 +566,56 @@ fn test_dendritic_structure_complete() {
     // Check for helper files that might be generated
     let flk_dir = temp_dir.path().join(".flk");
     assert!(flk_dir.is_dir());
+}
+
+// Direnv integration tests
+#[test]
+fn test_direnv_init() {
+    let temp_dir = TempDir::new().unwrap();
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("direnv")
+        .arg("init")
+        .assert()
+        .success();
+    let direnv_path = temp_dir.path().join(".envrc");
+    assert!(direnv_path.exists());
+    let content = fs::read_to_string(direnv_path).unwrap();
+    assert_eq!(content, "use flake --impure");
+}
+#[test]
+fn test_direnv_attach() {
+    let temp_dir = TempDir::new().unwrap();
+    let direnv_path = temp_dir.path().join(".envrc");
+    fs::write(&direnv_path, "export VAR=value").unwrap();
+
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("direnv")
+        .arg("attach")
+        .assert()
+        .success();
+
+    assert!(direnv_path.exists());
+    let content = fs::read_to_string(direnv_path).unwrap();
+    assert!(content.contains("export VAR=value"));
+    assert!(content.contains("use flake --impure"));
+}
+#[test]
+fn test_direnv_detach() {
+    let temp_dir = TempDir::new().unwrap();
+    let direnv_path = temp_dir.path().join(".envrc");
+
+    fs::write(&direnv_path, "export VAR=value\nuse flake --impure").unwrap();
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("direnv")
+        .arg("detach")
+        .assert()
+        .success();
+
+    assert!(direnv_path.exists());
+    let content = fs::read_to_string(direnv_path).unwrap();
+    assert!(!content.contains("use flake --impure"));
+    assert!(content.contains("export VAR=value"));
 }
