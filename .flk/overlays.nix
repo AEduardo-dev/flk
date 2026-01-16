@@ -1,4 +1,5 @@
 system: let
+  # Load all pin data
   pinsData = import ./pins.nix;
   pins = pinsData.sources;
   pinnedPackages = pinsData.pinnedPackages;
@@ -11,7 +12,7 @@ system: let
   createPinnedOverlays = pinnedPackages:
     builtins.map (
       pinName: let
-        pkgNames = pinnedPackages.${pinName};
+        pkgDefs = pinnedPackages.${pinName};
         pinnedPkgs = (fetchPin pins.${pinName}).legacyPackages.${system};
       in
         final: prev:
@@ -20,7 +21,7 @@ system: let
               name = pkgDef.name;
               value = pinnedPkgs.${pkgDef.pkg};
             })
-            pkgNames
+            pkgDefs
           )
     ) (builtins.attrNames pinnedPackages);
 in

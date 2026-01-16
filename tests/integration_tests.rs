@@ -20,7 +20,7 @@ fn test_help() {
         .assert()
         .success()
         .stdout(predicate::str::contains(
-            "A CLI tool for managing flake.nix devShell environments",
+            "A CLI tool for managing flk.nix devShell environments",
         ));
 }
 
@@ -161,7 +161,7 @@ fn test_init_creates_flk_directory_structure() {
     // Verify directory structure
     assert!(temp_dir.path().join(".flk").exists());
     assert!(temp_dir.path().join(".flk/profiles").exists());
-    assert!(temp_dir.path().join("flake.nix").exists());
+    assert!(temp_dir.path().join("flk.nix").exists());
 }
 
 #[test]
@@ -223,7 +223,7 @@ fn test_remove_package_without_init() {
         .assert()
         .failure()
         .stderr(predicate::str::contains(
-            "Could not find default shell profile (flake.nix)",
+            "Failed to read flk.nix default importer",
         ));
 }
 
@@ -239,7 +239,7 @@ fn test_add_command_without_init() {
         .assert()
         .failure()
         .stderr(predicate::str::contains(
-            "Could not find default shell profile (flake.nix)",
+            "Failed to read flk.nix default importer",
         ));
 }
 
@@ -255,7 +255,7 @@ fn test_env_add_without_init() {
         .assert()
         .failure()
         .stderr(predicate::str::contains(
-            "Could not find default shell profile (flake.nix)",
+            "Failed to read flk.nix default importer",
         ));
 }
 
@@ -268,7 +268,7 @@ fn test_env_list_without_init() {
         .arg("list")
         .assert()
         .failure()
-        .stderr(predicate::str::contains("No flake.nix found"));
+        .stderr(predicate::str::contains("No flk.nix found"));
 }
 
 #[test]
@@ -282,7 +282,7 @@ fn test_remove_command_without_init() {
         .assert()
         .failure()
         .stderr(predicate::str::contains(
-            "Could not find default shell profile (flake.nix)",
+            "Could not find default shell profile (flk.nix)",
         ));
 }
 
@@ -499,7 +499,7 @@ fn test_export_json() {
         .assert()
         .success();
 
-    let json_path = temp_dir.path().join("flake.json");
+    let json_path = temp_dir.path().join("flk.json");
     assert!(json_path.exists());
 
     let json_content = fs::read_to_string(json_path).unwrap();
@@ -532,7 +532,7 @@ fn test_profile_directory_isolation() {
 }
 
 #[test]
-fn test_flake_nix_exists_at_root() {
+fn test_flk_nix_exists_at_root() {
     let temp_dir = TempDir::new().unwrap();
 
     cargo::cargo_bin_cmd!("flk")
@@ -541,8 +541,8 @@ fn test_flake_nix_exists_at_root() {
         .assert()
         .success();
 
-    // Root flake.nix should exist
-    assert!(temp_dir.path().join("flake.nix").exists());
+    // Root flk.nix should exist
+    assert!(temp_dir.path().join("flk.nix").exists());
 }
 
 #[test]
@@ -556,7 +556,7 @@ fn test_dendritic_structure_complete() {
         .success();
 
     // Verify complete dendritic structure
-    assert!(temp_dir.path().join("flake.nix").exists());
+    assert!(temp_dir.path().join("flk.nix").exists());
     assert!(temp_dir.path().join(".flk").exists());
     assert!(temp_dir.path().join(".flk/profiles").exists());
 

@@ -14,7 +14,7 @@ use crate::commands::{
 #[command(name = "flk")]
 #[command(author = "AEduardo-dev")]
 #[command(version)]
-#[command(about = "A CLI tool for managing flake.nix devShell environments", long_about = None)]
+#[command(about = "A CLI tool for managing flk.nix devShell environments", long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,

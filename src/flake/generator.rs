@@ -1,6 +1,6 @@
 use anyhow::{Ok, Result};
 
-const ROOT_FLAKE_TEMPLATE: &str = include_str!("../../templates/flake.nix");
+const ROOT_FLAKE_TEMPLATE: &str = include_str!("../../templates/flk.nix");
 const HELPER_TEMPLATE: &str = include_str!("../../templates/default.nix");
 const IMPORTER_TEMPLATE: &str = include_str!("../../templates/profiles/default.nix");
 const OVERLAYS_TEMPLATE: &str = include_str!("../../templates/overlays.nix");

@@ -13,8 +13,7 @@
     RUST_BACKTRACE = "1";
   };
 
-  commands = [
-  ];
+  commands = [];
 
   shellHook = ''
     echo "🦀 Rust development environment ready!"

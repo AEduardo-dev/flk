@@ -12,7 +12,7 @@ use flk::flake::parsers::{
 pub fn run_add(name: &str, command: &str, file: Option<String>) -> Result<()> {
     let flake_path = Path::new(".flk/profiles/").join(format!(
         "{}.nix",
-        get_default_shell_profile().context("Could not find default shell profile (flake.nix)")?
+        get_default_shell_profile().context("Could not find default shell profile (flk.nix)")?
     ));
 
     // Validate command name
@@ -38,9 +38,9 @@ pub fn run_add(name: &str, command: &str, file: Option<String>) -> Result<()> {
     }
 
     // Read the current flake.nix
-    let flake_content = fs::read_to_string(&flake_path).context("Failed to read flake.nix")?;
+    let flake_content = fs::read_to_string(&flake_path).context("Failed to read flk.nix")?;
     let section = parse_shell_hook_section(&flake_content)
-        .context("Failed to parse shellHook section in flake.nix")?;
+        .context("Failed to parse shellHook section in flk.nix")?;
 
     // Check if command already exists
     if section.command_exists(name) {
@@ -73,23 +73,23 @@ pub fn run_add(name: &str, command: &str, file: Option<String>) -> Result<()> {
 pub fn run_remove(name: &str) -> Result<()> {
     let flake_path = Path::new(".flk/profiles/").join(format!(
         "{}.nix",
-        get_default_shell_profile().context("Could not find default shell profile (flake.nix)")?
+        get_default_shell_profile().context("Could not find default shell profile (flk.nix)")?
     ));
 
     if !flake_path.exists() {
-        bail!("No flake.nix found.");
+        bail!("No flk.nix found.");
     }
 
     println!("{} Removing command: {}", "→".blue().bold(), name.yellow());
 
     // Read the current flake.nix
-    let flake_content = fs::read_to_string(&flake_path).context("Failed to read flake.nix")?;
+    let flake_content = fs::read_to_string(&flake_path).context("Failed to read flk.nix")?;
     let section = parse_shell_hook_section(&flake_content)
-        .context("Failed to parse shellHook section in flake.nix")?;
+        .context("Failed to parse shellHook section in flk.nix")?;
 
     // Check if command exists
     if !section.command_exists(name) {
-        bail!("Command '{}' not found in flake.nix", name.cyan());
+        bail!("Command '{}' not found in flk.nix", name.cyan());
     }
 
     // Remove the command from shellHook
@@ -110,11 +110,11 @@ pub fn run_remove(name: &str) -> Result<()> {
 
 /// List all environment variables in the dev shell
 pub fn list() -> Result<()> {
-    let flake_path = Path::new("flake.nix");
+    let flake_path = Path::new("flk.nix");
 
     if !flake_path.exists() {
         bail!(
-            "No flake.nix found in current directory. Run {} first.",
+            "No flk.nix found in current directory. Run {} first.",
             "flk init".yellow()
         );
     }

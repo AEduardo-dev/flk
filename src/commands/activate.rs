@@ -14,6 +14,8 @@ pub fn run_activate() -> Result<()> {
     // Build nix develop command
     let mut cmd = Command::new("nix");
     cmd.arg("develop");
+    cmd.arg("--flake");
+    cmd.arg("./flk.nix");
     if let Some(ref profile) = current_profile {
         cmd.arg(format!(".#{}", profile));
     }

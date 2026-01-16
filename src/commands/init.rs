@@ -6,7 +6,7 @@ use std::path::Path;
 use flk::flake::generator;
 
 pub fn run(template: Option<String>, force: bool) -> Result<()> {
-    let flake_path = Path::new("flake.nix");
+    let flake_path = Path::new("flk.nix");
 
     // Check if flake.nix already exists
     if flake_path.exists() && !force {
