@@ -420,7 +420,9 @@ fn test_completions_prints_bash_script() {
 #[test]
 fn test_completions_install_creates_file() {
     let temp = tempfile::tempdir().unwrap();
-    std::env::set_var("HOME", temp.path());
+    unsafe {
+        std::env::set_var("HOME", temp.path());
+    }
 
     cargo::cargo_bin_cmd!("flk")
         .args(["completions", "--install", "zsh"])
