@@ -5,7 +5,7 @@ mod commands;
 mod nix;
 
 use crate::commands::{
-    activate, add, command, completions, env,
+    activate, add, command, completions, direnv, env,
     export::{self, ExportType},
     init, list, lock, remove, search, show, update,
 };
@@ -114,6 +114,12 @@ enum Commands {
         #[arg(short, long)]
         format: ExportType,
     },
+
+    /// Direnv integration
+    Direnv {
+        #[command(subcommand)]
+        action: DirenvAction,
+    },
 }
 
 #[derive(Subcommand)]
@@ -170,6 +176,15 @@ enum LockAction {
         /// Backup timestamp or identifier (e.g., "2025-01-27_14-30-00" or "latest")
         backup: String,
     },
+}
+#[derive(Subcommand)]
+enum DirenvAction {
+    /// Create .envrc with flake activation
+    Init,
+    /// Add flake activation to existing .envrc
+    Attach,
+    /// Remove flake activation from .envrc
+    Detach,
 }
 
 fn main() -> Result<()> {
@@ -247,6 +262,17 @@ fn main() -> Result<()> {
         Commands::Export { format } => {
             export::run_export(&format)?;
         }
+        Commands::Direnv { action } => match action {
+            DirenvAction::Init => {
+                direnv::direnv_init()?;
+            }
+            DirenvAction::Attach => {
+                direnv::direnv_attach()?;
+            }
+            DirenvAction::Detach => {
+                direnv::direnv_detach()?;
+            }
+        },
     }
 
     Ok(())
