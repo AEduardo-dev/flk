@@ -72,12 +72,6 @@ sudo cp target/release/flk /usr/local/bin/
 cargo install flk
 ```
 
-### With Nix
-
-```bash
-nix profil install github:AEduardo-dev/flk
-```
-
 ## 🚀 Quick Start
 
 ### 1. Initialize Your Project
@@ -156,6 +150,26 @@ flk completions
 
 # Install the generated completions to the detected shell
 flk completions --install
+```
+
+### 7. Attach to your direnv (optional)
+
+If you use `direnv`, you can set it up to automatically load your flk environment when you enter the project directory.
+
+```bash
+# Generates a .envrc file for direnv with use flake command
+flk direnv init
+
+#or
+
+# Add the direnv hook to an existing project
+flk direnv attach
+```
+
+if you ever want to detach the direnv hook, you can run:
+
+```bash
+flk direnv detach
 ```
 
 Follow the instructions after the command to make the completions available for you.
@@ -401,15 +415,41 @@ flk export --format podman     # Export as Podmanfile
 flk export --format json       # Export as JSON
 ```
 
+### Direnv Integration
+
+#### `flk direnv init`
+
+Generate a `.envrc` file for direnv with `use flake` command.
+
+```bash
+flk direnv init
+```
+
+#### `flk direnv attach`
+
+Add the direnv hook to an existing project.
+
+```bash
+flk direnv attach
+```
+
+#### `flk direnv detach`
+
+Remove the direnv hook from the project.
+
+```bash
+flk direnv detach
+```
+
 ## 💡 Usage Examples
 
 ### Python Data Science Environment
 
 ```bash
 flk init --template python
-flk add python311Packages.numpy
-flk add python311Packages.pandas
-flk add python311Packages.matplotlib
+flk add python312Packages.numpy
+flk add python312Packages.pandas
+flk add python312Packages.matplotlib
 flk add jupyter
 
 flk add-command notebook "jupyter notebook --port=8888"
