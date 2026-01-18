@@ -99,6 +99,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update profile test data with commands section
 - Update tests for new commands section parsing checks
 - Update python template tests
+- Release v0.5.0
+## [0.5.0] - 2026-01-18
+
+### 🚀 Features
+
+- Update parsers implementation to use nom
+- Add utils for nom parsing
+- Update parsers for nom usage
+- Update packages listing method with new parsing
+- Update search operations with new parsing
+- Calculate insertion point for indentation consistency
+- Add skeleton for overlays parser and structure of future flow
+- Introduce overlays and pins parsers
+- Remove 'with pkgs' to support pin syntax
+- Pin packages in pins file
+- Update parsers and tests for overlays
+- Use new parsers for versioned packages input
+- Subdivide interfaces for easier usage
+- Expand parsing utilities
+- Use new parsing utilities for packages parsing
+- Adjust overlays file parsing for all sections
+- Add rendering utilities for nix file dumping
+- Update add and remove package commands to support pins interaction
+- Remove shell wrapper implementation
+- Remove gitignore for backup of flake lock
+- Add shellhook interfaces and update imports and mods
+- Add commands section to profiles
+- Parse commands section and render back full section
+- Use new methods in cli command implementation
+- Move mutation helpers to interfaces module
+- Refactor shell_hook to use ShellHookSection struct
+- Remove redundant comments from nix_render and overlays modules
+- Add direnv specific commands
+- Update readme with project struct and commands
+
+### 🐛 Bug Fixes
+
+- Dead code warnings
+- Remove curl from packages list for nix darwin compat
+- Use proper format for system args
+- Dead code warnings
+- Python and node template dependencies mismatches
+
+### 🚜 Refactor
+
+- Remove input loop and simplify activation flow
+
+### 📚 Documentation
+
+- Update README to include upgrade notes for v0.5.0
+- *(readme)* Add direnv commands docs and remove deprecated install
+
+### 🧪 Testing
+
+- Improve error handling in add_command tests
+
+### ⚙️ Miscellaneous Tasks
+
+- Adjust packages tests to use new parsing struct
+- Add nom dependency
+- Update tests for new parsers
+- Remove tokio dep
+- Introduce overlays and pins tests
+- Update env
+- Update structure of control files for testing
+- Update unit tests
+- Update profile test data with commands section
+- Update tests for new commands section parsing checks
+- Update python template tests
 ## [0.4.0] - 2025-12-04
 
 ### 🚀 Features
