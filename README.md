@@ -66,7 +66,7 @@ cargo build --release
 sudo cp target/release/flk /usr/local/bin/
 ```
 
-### From Cargo (Coming Soon)
+### From Cargo
 
 ```bash
 cargo install flk
@@ -100,24 +100,25 @@ flk init --template go
 # Search for packages
 flk search ripgrep
 
-# Get detailed package info
-flk deep-search ripgrep --versions
+# Get detailed package info and versions
+flk deep-search ripgrep
 
 # Add packages to your environment
 flk add ripgrep
 flk add git
 flk add neovim
+
+# Or add pinned versions
+flk add ripgrep --version '15.1.0'
+flk add git --version '2.42.0'
 ```
 
 ### 3. Add Custom Commands
 
 ```bash
 # Add inline commands
-flk add-command test "cargo test --all"
-flk add-command dev "npm run dev"
-
-# Source commands from a file
-flk add-command scripts --file ./scripts/dev.sh
+flk command add test "cargo test --all"
+flk command add dev "npm run dev"
 ```
 
 ### 4. Manage Environment Variables
@@ -137,7 +138,7 @@ flk env remove API_KEY
 ### 5. Enter Your Development Environment
 
 ```bash
-nix develop
+flk activate
 ```
 
 Your custom commands and environment variables will be automatically available!
@@ -151,6 +152,8 @@ flk completions
 # Install the generated completions to the detected shell
 flk completions --install
 ```
+
+Follow the instructions after the command to make the completions available for you.
 
 ### 7. Attach to your direnv (optional)
 
@@ -172,7 +175,12 @@ if you ever want to detach the direnv hook, you can run:
 flk direnv detach
 ```
 
-Follow the instructions after the command to make the completions available for you.
+### 8. Switch / Refresh your environment
+
+```bash
+switch <profile_name>  # Switch to a different profile_name
+refresh                # Refresh the current profile (useful after modifying the environment)
+```
 
 ## 📖 Command Reference
 
@@ -199,6 +207,8 @@ flk init --force            # Overwrite existing flake.nix
 
 Activate the nix shell for the current shell session. This command sets up the necessary environment for your
 project based on the `flake.nix` configuration. It also installs some convenience features, such as a shell hook to refresh.
+
+Future implementations will include the option to activate specific profiles.
 
 #### `flk show`
 
@@ -237,15 +247,11 @@ flk search python --limit 20
 
 Get detailed information about a specific package.
 
-**Options:**
-
-- `-v, --versions` - Show version pinning information
-
 **Examples:**
 
-```bash
+````bash
 flk deep-search ripgrep
-flk deep-search python311 --versions
+flk deep-search python311
 ```
 
 #### `flk add <PACKAGE>`
@@ -258,9 +264,14 @@ Add a package to your `flake.nix`.
 flk add ripgrep
 flk add git
 flk add nodejs
-```
+````
 
-**Note:** Version pinning is planned for a future release (see [issue #5](https://github.com/AEduardo-dev/flk/issues/5)).
+Or add a specific version:
+
+```bash
+flk add ripgrep --version '15.1.0'
+flk add git --version '2.42.0'
+```
 
 #### `flk remove <PACKAGE>`
 
@@ -274,26 +285,20 @@ flk remove ripgrep
 
 ### Custom Commands
 
-#### `flk add-command <NAME> <COMMAND> [OPTIONS]`
+#### `flk command add <NAME> <COMMAND> [OPTIONS]`
 
 Add a custom shell command to your development environment.
-
-**Options:**
-
-- `-f, --file <PATH>` - Source commands from a file
 
 **Examples:**
 
 ```bash
 # Inline command
-flk add-command test "cargo test --all"
-flk add-command dev "npm run dev -- --watch"
+flk command add test "cargo test --all"
+flk command add dev "npm run dev -- --watch"
 
 # Multi-line command
-flk add-command deploy "cargo build --release && scp target/release/app server:/opt/"
+flk command add deploy "cargo build --release && scp target/release/app server:/opt/"
 
-# Source from file
-flk add-command scripts --file ./dev-scripts.sh
 ```
 
 **Command naming rules:**
@@ -302,14 +307,14 @@ flk add-command scripts --file ./dev-scripts.sh
 - Cannot start with a hyphen
 - Examples: `test`, `dev-server`, `build_prod`
 
-#### `flk remove-command <NAME>`
+#### `flk command remove <NAME>`
 
 Remove a custom command from your dev shell.
 
 **Examples:**
 
 ```bash
-flk remove-command test
+flk command remove test
 ```
 
 ### Environment Variables
@@ -452,10 +457,10 @@ flk add python312Packages.pandas
 flk add python312Packages.matplotlib
 flk add jupyter
 
-flk add-command notebook "jupyter notebook --port=8888"
+flk command add notebook "jupyter notebook --port=8888"
 flk env add JUPYTER_CONFIG_DIR "./.jupyter"
 
-nix develop
+flk activate
 notebook  # Your custom command is ready!
 ```
 
@@ -466,11 +471,11 @@ flk init --template rust
 flk add postgresql
 flk add redis
 
-flk add-command dev "cargo watch -x run"
-flk add-command migrate "sqlx migrate run"
+flk command add dev "cargo watch -x run"
+flk command add migrate "sqlx migrate run"
 flk env add DATABASE_URL "postgresql://localhost/myapp"
 
-nix develop
+flk activate
 dev      # Start development server with auto-reload
 migrate  # Run database migrations
 ```
@@ -482,11 +487,11 @@ flk init --template node
 flk add postgresql
 flk add docker-compose
 
-flk add-command dev "npm run dev"
-flk add-command db "docker-compose up -d postgres"
+flk command add dev "npm run dev"
+flk command add db "docker-compose up -d postgres"
 flk env add NODE_ENV "development"
 
-nix develop
+flk activate
 db   # Start database
 dev  # Start development server
 ```
@@ -498,11 +503,11 @@ flk init --template go
 flk add protobuf
 flk add grpcurl
 
-flk add-command build "go build -o bin/service ./cmd/service"
-flk add-command proto "protoc --go_out=. --go-grpc_out=. api/*.proto"
+flk command add build "go build -o bin/service ./cmd/service"
+flk command add proto "protoc --go_out=. --go-grpc_out=. api/*.proto"
 flk env add GO_ENV "development"
 
-nix develop
+flk activate
 proto  # Generate protobuf code
 build  # Build the service
 ```
@@ -552,57 +557,83 @@ cargo install --path .
 ## 🏗️ Project Structure
 
 ```
-flk/
-├── src/
-│   ├── main.rs               # CLI entry point
-│   ├── commands/             # Command implementations
-│   │   ├── activate.rs       # Activate dev shell
-│   │   ├── add.rs            # Add packages
-│   │   ├── add_command.rs    # Add custom commands
-│   │   ├── completions.rs    # Shell completions
-│   │   ├── env.rs            # Environment variable management
-│   │   ├── export.rs         # Export flake config
-│   │   ├── init.rs           # Initialize flake
-│   │   ├── list.rs           # List packages
-│   │   ├── lock.rs           # Lock file management
-│   │   ├── mod.rs
-│   │   ├── remove.rs         # Remove packages
-│   │   ├── remove_command.rs # Remove custom commands
-│   │   ├── search.rs         # Search packages
-│   │   ├── show.rs           # Display flake config
-│   │   └── update.rs         # Update flake inputs
-│   ├── flake/                # Flake parsing and generation
-│   │   ├── generator.rs      # Generate flake.nix
-│   │   ├── interface.rs      # Data structures
-│   │   ├── mod.rs
-│   │   └── parsers/          # Parse flake.nix sections
-│   │       ├── commands.rs   # Custom commands parser
-│   │       ├── env.rs        # Environment variables parser
-│   │       ├── flake.rs      # Flake parser
-│   │       ├── overlays.rs   # Overlays parser
-│   │       ├── packages.rs   # Packages parser
-│   │       └── utils.rs      # Utility functions
-│   ├── nix/                  # Nix command wrappers
-│   │   └── mod.rs
-│   └── utils/                # Utility functions
-│       ├── backup.rs         # Backup management
-│       ├── mod.rs
-│       └── visual.rs         # Visual enhancements
-├── templates/                # Flake templates
-│   ├── flake.nix             # Root flake template
-│   ├── default.nix           # Helper module
-│   ├── overlays.nix          # Overlays configuration
-│   ├── pins.nix              # Pin configuration
-│   └── profiles/             # Profile templates
-│       ├── base.nix          # Generic template
-│       ├── default.nix       # Importer module
-│       ├── rust.nix          # Rust template
-│       ├── python.nix        # Python template
-│       ├── node.nix          # Node.js template
-│       └── go.nix            # Go template
-└── tests/                    # Test files
-    ├── integration_tests.rs  # CLI integration tests
-    └── unit_tests.rs         # Module unit tests
+
+ .
+├──  Cargo.lock
+├──  Cargo.toml
+├──  CHANGELOG.md
+├──  cliff.toml
+├──  CODE_OF_CONDUCT.md
+├──  CONTRIBUTING.md
+├──  dist-workspace.toml
+├──  flake.lock
+├──  flake.nix
+├──  LICENSE
+├── 󰂺 README.md
+├──  release-plz.toml
+├── 󰣞 src
+│   ├──  commands
+│   │   ├──  activate.rs
+│   │   ├──  add.rs
+│   │   ├──  command.rs
+│   │   ├──  completions.rs
+│   │   ├──  direnv.rs
+│   │   ├──  env.rs
+│   │   ├──  export.rs
+│   │   ├──  init.rs
+│   │   ├──  list.rs
+│   │   ├──  lock.rs
+│   │   ├──  mod.rs
+│   │   ├──  remove.rs
+│   │   ├──  search.rs
+│   │   ├──  show.rs
+│   │   └──  update.rs
+│   ├──  flake
+│   │   ├──  generator.rs
+│   │   ├──  interfaces
+│   │   │   ├──  mod.rs
+│   │   │   ├──  overlays.rs
+│   │   │   ├──  profiles.rs
+│   │   │   ├──  shellhooks.rs
+│   │   │   └──  utils.rs
+│   │   ├──  mod.rs
+│   │   ├──  nix_render.rs
+│   │   └──  parsers
+│   │       ├──  commands.rs
+│   │       ├──  env.rs
+│   │       ├──  flake.rs
+│   │       ├──  mod.rs
+│   │       ├──  overlays.rs
+│   │       ├──  packages.rs
+│   │       └──  utils.rs
+│   ├──  lib.rs
+│   ├──  main.rs
+│   ├──  nix
+│   │   └──  mod.rs
+│   └──  utils
+│       ├──  backup.rs
+│       ├──  mod.rs
+│       └──  visual.rs
+├──  templates
+│   ├──  default.nix
+│   ├──  flake.nix
+│   ├──  overlays.nix
+│   ├──  pins.nix
+│   └──  profiles
+│       ├──  base.nix
+│       ├──  default.nix
+│       ├──  go.nix
+│       ├──  node.nix
+│       ├──  python.nix
+│       └──  rust.nix
+├──  tests
+│   ├──  flake_tests.nix
+│   ├──  integration_tests.rs
+│   ├──  pins_tests.nix
+│   ├──  profile_tests.nix
+│   └──  unit_tests.rs
+└──  wix
+    └──  main.wxs
 ```
 
 ## 🗺️ Roadmap
@@ -658,4 +689,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Made with ❤️ by [AEduardo-dev](https://github.com/AEduardo-dev)**
 
-**Note:** This project is under active development (v0.4.0). While all core features are implemented and working, some advanced features like version pinning are still in progress.
+**Note:** This project is under active development. While all core features are implemented and working, some advanced features are still in progress and will be subject to change.
