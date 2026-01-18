@@ -3,12 +3,11 @@ in {
   description = "Node.js development environment";
 
   packages = [
-    pkgs.nodejs_20
+    pkgs.nodejs_25
     pkgs.nodePackages.npm
     pkgs.nodePackages.pnpm
     pkgs.yarn
     pkgs.nodePackages.typescript
-    pkgs.nodePackages.javascript
     pkgs.nodePackages.eslint
     pkgs.nodePackages.prettier
   ];
