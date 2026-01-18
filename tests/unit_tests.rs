@@ -479,7 +479,7 @@ mod generator_tests {
         // Test generating a Python flake
         let flake = flake::generator::generate_flake("python").unwrap();
         assert!(flake.contains("Python development environment"));
-        assert!(flake.contains("python311"));
+        assert!(flake.contains("python312"));
     }
 
     #[test]
