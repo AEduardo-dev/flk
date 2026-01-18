@@ -4,9 +4,9 @@ in {
 
   packages = [
     pkgs.poetry
-    pkgs.python311
-    pkgs.python311Packages.pip
-    pkgs.python311Packages.virtualenv
+    pkgs.python312
+    pkgs.python312Packages.pip
+    pkgs.python312Packages.virtualenv
     pkgs.black
     pkgs.pyright
     pkgs.mypy
