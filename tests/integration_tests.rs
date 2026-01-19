@@ -2,7 +2,6 @@ use assert_cmd::cargo;
 use predicates::prelude::*;
 use predicates::str::contains;
 use std::fs;
-use std::path::Path;
 use tempfile::TempDir;
 
 #[test]
