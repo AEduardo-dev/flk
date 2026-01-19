@@ -36,7 +36,7 @@ jobs:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
       - name: Install Nix
-        uses: cachix/install-nix-action@v25
+        uses: cachix/install-nix-action@v27
         with:
           install_url: https://nixos.org/releases/nix/nix-2.32.2/install
           nix_path: nixpkgs=channel:nixos-unstable
