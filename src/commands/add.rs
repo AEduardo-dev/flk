@@ -42,7 +42,7 @@ pub fn run_add(package: &str, version: Option<String>) -> Result<()> {
         (format!("pkgs.\"{}@{}\"", package, ver), Some(full_pin))
     } else {
         println!("{} Adding package: {}", "→".blue().bold(), package.green());
-        (package.to_string(), None)
+        (format!("pkgs.{}", package), None)
     };
 
     // Check if package already exists
