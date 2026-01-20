@@ -3,7 +3,9 @@ in {
   description = "Python development environment";
 
   packages = [
-    pkgs.python3
+    pkgs.python313
+    pkgs.python313Packages.pip
+    pkgs.poetry
     pkgs.virtualenv
     pkgs.black
     pkgs.pyright
@@ -19,13 +21,6 @@ in {
   shellHook = ''
     echo "🐍 Python development environment ready!"
     echo "Python version: $(python --version)"
-
-    # Upgrade pip & install poetry into the venv
-    # NOTE: This does not install poetry globally, only within the devshell environment
-    # and it is done due to nixpkgs poetry versions being mismatched with python versions.
-    pip install --upgrade pip
-    pip install poetry
-
 
     # Check if poetry commands are available
     if ! command -v poetry &> /dev/null; then
