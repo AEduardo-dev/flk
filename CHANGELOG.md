@@ -31,6 +31,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make changelog follow git-cliff format
 - Update lockfile
 ## [unreleased]
+## [0.5.1] - 2026-01-20
+
+### 🚀 Features
+
+- Add Rust package and app outputs using flake-utils
+- *(templates)* Update python profile and nixpkgs version
+
+### 🐛 Bug Fixes
+
+- Correct package reference to use pkgs.<package> format
+- *(ci)* Add --impure flag to nix build in release-cache workflow
+
+### 💼 Other
+
+- *(template)* Add python hook for better venv management
+
+### 📚 Documentation
+
+- Expand installation instructions with Nix and release binaries
+
+### 🧪 Testing
+
+- *(integration)* Relax python version check in template assertion
+
+### ⚙️ Miscellaneous Tasks
+
+- Remove Cargo.lock from ignored files
+- Add release cache workflow and update Nix install action
+- Bump flk to 0.5.0 and clean up unused import in integration tests
+- *(ci)* Update release-cache workflow runners and remove qemu setup
+- *(github)* Switch to cachix/install-nix-action for Nix installation in release-cache workflow
+- *(ci)* Update release-cache workflow runners and trigger conditions
 ## [0.5.0] - 2026-01-18
 
 ### 🚀 Features
