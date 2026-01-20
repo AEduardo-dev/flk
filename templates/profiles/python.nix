@@ -3,10 +3,8 @@ in {
   description = "Python development environment";
 
   packages = [
-    pkgs.poetry
-    pkgs.python312
-    pkgs.python312Packages.pip
-    pkgs.python312Packages.virtualenv
+    pkgs.python3
+    pkgs.virtualenv
     pkgs.black
     pkgs.pyright
     pkgs.mypy
@@ -14,25 +12,46 @@ in {
   ];
 
   envVars = {
-    RUST_BACKTRACE = "1";
     LANG = "en_US.UTF-8";
     LC_ALL = "en_US.UTF-8";
   };
-
-  commands = [];
 
   shellHook = ''
     echo "🐍 Python development environment ready!"
     echo "Python version: $(python --version)"
 
-    # Create virtual environment if it doesn't exist
-    if [ ! -d .venv ]; then
-      python -m venv .venv
+    # Upgrade pip & install poetry into the venv
+    # NOTE: This does not install poetry globally, only within the devshell environment
+    # and it is done due to nixpkgs poetry versions being mismatched with python versions.
+    pip install --upgrade pip
+    pip install poetry
+
+
+    # Check if poetry commands are available
+    if ! command -v poetry &> /dev/null; then
+      echo "Poetry could not be found. Using virtualenv instead."
+      # Create virtual environment if it doesn't exist, then activate
+      if [ ! -d .venv ]; then
+        python -m venv .venv
+        source .venv/bin/activate
+        pip install -r requirements.txt
+      else
+        source .venv/bin/activate
+      fi
+
+    else
+      # Create virtual environment if it doesn't exist, then activate
+      if [ ! -d .venv ]; then
+        poetry install
+        $(poetry env activate)
+
+      else
+        source .venv/bin/activate
+      fi
+
     fi
 
-    source .venv/bin/activate
 
-    # Custom commands will be added here
   '';
 
   containerConfig = {
