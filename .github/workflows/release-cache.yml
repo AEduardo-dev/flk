@@ -1,7 +1,6 @@
 name: Release cache build
 on:
   push:
-    branches: [main]
     tags:
       - "**[0-9]+.[0-9]+.[0-9]+*"
 jobs:
@@ -14,7 +13,7 @@ jobs:
             system: x86_64-linux
           - runner: ubuntu-24.04-arm
             system: aarch64-linux
-          - runner: macos-15-large
+          - runner: macos-15-intel
             system: x86_64-darwin
           - runner: macos-15
             system: aarch64-darwin
