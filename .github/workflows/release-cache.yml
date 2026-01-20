@@ -42,4 +42,4 @@ jobs:
           name: flk-cache
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build flake package
-        run: nix build .#${{ matrix.system }}.flk
+        run: nix build .#flk --impure
