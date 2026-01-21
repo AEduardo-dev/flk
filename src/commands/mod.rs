@@ -5,6 +5,7 @@ pub mod completions;
 pub mod direnv;
 pub mod env;
 pub mod export;
+pub mod hook;
 pub mod init;
 pub mod list;
 pub mod lock;

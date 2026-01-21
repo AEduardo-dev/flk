@@ -7,6 +7,7 @@ mod nix;
 use crate::commands::{
     activate, add, command, completions, direnv, env,
     export::{self, ExportType},
+    hook::{self, HookShell},
     init, list, lock, remove, search, show, update,
 };
 
@@ -119,6 +120,12 @@ enum Commands {
     Direnv {
         #[command(subcommand)]
         action: DirenvAction,
+    },
+
+    /// Hook for nix-shell compatibility
+    Hook {
+        #[arg(value_enum)]
+        shell: HookShell,
     },
 }
 
@@ -273,6 +280,9 @@ fn main() -> Result<()> {
                 direnv::direnv_detach()?;
             }
         },
+        Commands::Hook { shell } => {
+            hook::run_hook(shell)?;
+        }
     }
 
     Ok(())
