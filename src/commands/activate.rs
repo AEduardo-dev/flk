@@ -6,9 +6,12 @@ pub fn run_activate() -> Result<()> {
     let current_profile: Option<String> = None;
 
     if let Some(ref profile) = current_profile {
-        println!("Activating nix develop shell with profile: {}. Type 'refresh' to reload, 'switch <profile>' to change profile, or 'exit' to leave.", profile.cyan());
+        println!(
+            "Activating nix develop shell with profile: {}.",
+            profile.cyan()
+        );
     } else {
-        println!("Activating nix develop shell. Type 'refresh' to reload, 'switch <profile>' to change profile, or 'exit' to leave.");
+        println!("Activating nix develop shell.");
     }
 
     // Build nix develop command

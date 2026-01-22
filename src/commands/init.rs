@@ -53,14 +53,15 @@ pub fn run(template: Option<String>, force: bool) -> Result<()> {
         "{} Created flk environment successfully!",
         "✓".green().bold()
     );
-    println!("\n{}", "Next steps:".bold());
-    println!("  1. Review and customize your profiles in .flk/profiles");
-    println!("  2. Run {} to add packages", "flk add <package>".cyan());
-    println!("  3. Run {} to enter the dev shell", "flk activate".cyan());
+    // Add message for adding `flk hook <shell>` to shell config
     println!(
-        " or create {} profiles with {}",
-        "more".purple(),
-        "flk profile add".cyan()
+        "\n{} To enable shell integration, add the hook to your shell configuration:",
+        "ℹ".blue()
+    );
+    println!(
+        "   - Add {} to your shell config file (e.g., .bashrc, .zshrc): {}",
+        "flk hook <shell>".cyan(),
+        "eval \"$(flk hook <shell>)\"".yellow()
     );
 
     Ok(())
