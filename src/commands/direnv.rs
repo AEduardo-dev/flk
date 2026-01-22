@@ -3,6 +3,8 @@ use colored::Colorize;
 use std::fs;
 use std::path::Path;
 
+const DIRENV_FLK_DIRECTIVE: &str = "use flake \"${FLK_PROFILE:-.#}\" --impure";
+
 /// Initialize direnv by creating a .envrc file and adding the use flake directive.
 pub fn direnv_init() -> Result<()> {
     let direnv_path = Path::new(".envrc");
@@ -12,8 +14,8 @@ pub fn direnv_init() -> Result<()> {
         bail!(".envrc already exists! Please back it up before proceeding.");
     }
 
-    let direnv_content = "use flake --impure";
-    fs::write(direnv_path, direnv_content).context("Failed to write .envrc")?;
+    fs::write(direnv_path, format!("{}\n", DIRENV_FLK_DIRECTIVE))
+        .context("Failed to write .envrc")?;
 
     println!(
         "{} Created .envrc for direnv successfully!",
@@ -43,7 +45,7 @@ pub fn direnv_attach() -> Result<()> {
         bail!("The .envrc already contains the use flake directive!");
     }
 
-    direnv_content.push_str("\nuse flake --impure");
+    direnv_content.push_str(DIRENV_FLK_DIRECTIVE);
     fs::write(direnv_path, direnv_content).context("Failed to update .envrc")?;
 
     println!(
