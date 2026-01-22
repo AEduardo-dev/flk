@@ -57,6 +57,21 @@ Once you upgrade to `flk v0.5.0+`, this restriction is lifted.
   - Or using the Determinate System installer: [Determinate](https://determinate.systems/nix-installer/), as it provides a user-friendly way to install (and uninstall) Nix.
 - Rust 1.83+ (if building from source)
 
+### Hooks
+
+If you would like to use hot reloading and switching features, you will need to add the following shell hook to your shell configuration file (`~/.bashrc`, `~/.zshrc`, etc.):
+
+Example for **bash**:
+
+```sh
+# flk shell hook
+if command -v flk &> /dev/null; then
+  eval "$(flk hook bash)"
+fi
+```
+
+Support for other shells (zsh and fish) is also available via `flk hook <shell>`.
+
 ### From Source
 
 ```bash
