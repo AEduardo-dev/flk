@@ -31,6 +31,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make changelog follow git-cliff format
 - Update lockfile
 ## [unreleased]
+## [0.5.2] - 2026-01-22
+
+### 🚀 Features
+
+- Add shell hook command for refresh/switch in Bash, Zsh, and Fish
+- Support FLK_PROFILE and custom flake refs in direnv and hooks
+- Improve activation and init messages for clarity and shell integration
+- Update direnv integration tests for new flake profile handling
+
+### 📚 Documentation
+
+- Add documentation for added hook command
 ## [0.5.1] - 2026-01-20
 
 ### 🚀 Features
