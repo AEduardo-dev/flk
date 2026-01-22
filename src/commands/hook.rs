@@ -22,10 +22,11 @@ fn print_bash_like() {
 _flk_use_direnv() {{ command -v direnv >/dev/null 2>&1 && [ -f .envrc ]; }}
 
 refresh() {{
+  export FLK_PROFILE="${{FLK_FLAKE_REF:-.}}"
   if _flk_use_direnv; then
     direnv reload
   else
-    exec nix develop . --impure
+    exec nix develop "$FLK_FLAKE_REF" --impure
   fi
 }}
 
@@ -36,10 +37,11 @@ switch() {{
     return 1
   fi
   if _flk_use_direnv; then
-    FLK_PROFILE="$profile" direnv reload
+     export FLK_PROFILE=".#$profile"
+     direnv reload
   else
-    exec nix develop .#"$profile" --impure
-  fi
+    exec nix develop ".#$profile" --impure
+ fi
 }}
 "#
     );
@@ -54,9 +56,10 @@ end
 
 function refresh --description "Reload env (direnv if present, else nix develop)"
   if _flk_use_direnv
+    set -lx FLK_PROFILE "$FLK_FLAKE_REF"
     direnv reload
   else
-    exec nix develop . --impure
+    exec nix develop "$FLK_FLAKE_REF" --impure
   end
 end
 
@@ -67,10 +70,10 @@ function switch --description "Switch profile and reload"
   end
   set profile $argv[1]
   if _flk_use_direnv
-    set -lx FLK_PROFILE $profile
+    set -lx FLK_PROFILE ".#$profile"
     direnv reload
   else
-    exec nix develop .#$profile --impure
+    exec nix develop ".#$profile" --impure
   end
 end
 "#
