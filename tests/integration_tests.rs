@@ -580,7 +580,7 @@ fn test_direnv_init() {
     let direnv_path = temp_dir.path().join(".envrc");
     assert!(direnv_path.exists());
     let content = fs::read_to_string(direnv_path).unwrap();
-    assert_eq!(content, "use flake --impure");
+    assert_eq!(content, "use flake \"${FLK_PROFILE:-.#}\" --impure");
 }
 #[test]
 fn test_direnv_attach() {
@@ -598,14 +598,14 @@ fn test_direnv_attach() {
     assert!(direnv_path.exists());
     let content = fs::read_to_string(direnv_path).unwrap();
     assert!(content.contains("export VAR=value"));
-    assert!(content.contains("use flake --impure"));
+    assert!(content.contains("use flake \"${FLK_PROFILE:-.#}\" --impure"));
 }
 #[test]
 fn test_direnv_detach() {
     let temp_dir = TempDir::new().unwrap();
     let direnv_path = temp_dir.path().join(".envrc");
 
-    fs::write(&direnv_path, "export VAR=value\nuse flake --impure").unwrap();
+    fs::write(&direnv_path, "export VAR=value\nuse flake").unwrap();
     cargo::cargo_bin_cmd!("flk")
         .current_dir(temp_dir.path())
         .arg("direnv")
@@ -615,6 +615,6 @@ fn test_direnv_detach() {
 
     assert!(direnv_path.exists());
     let content = fs::read_to_string(direnv_path).unwrap();
-    assert!(!content.contains("use flake --impure"));
+    assert!(!content.contains("use flake \"${FLK_PROFILE:-.#}\" --impure"));
     assert!(content.contains("export VAR=value"));
 }

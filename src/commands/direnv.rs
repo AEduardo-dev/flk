@@ -14,8 +14,7 @@ pub fn direnv_init() -> Result<()> {
         bail!(".envrc already exists! Please back it up before proceeding.");
     }
 
-    fs::write(direnv_path, format!("{}\n", DIRENV_FLK_DIRECTIVE))
-        .context("Failed to write .envrc")?;
+    fs::write(direnv_path, DIRENV_FLK_DIRECTIVE).context("Failed to write .envrc")?;
 
     println!(
         "{} Created .envrc for direnv successfully!",
