@@ -8,7 +8,7 @@ use crate::commands::{
     activate, add, command, completions, direnv, env,
     export::{self, ExportType},
     hook::{self, HookShell},
-    init, list, lock, remove, search, show, update,
+    init, list, lock, profiles, remove, search, show, update,
 };
 
 #[derive(Parser)]
@@ -127,6 +127,12 @@ enum Commands {
         #[arg(value_enum)]
         shell: HookShell,
     },
+
+    /// Manage profiles
+    Profile {
+        #[command(subcommand)]
+        action: ProfileAction,
+    },
 }
 
 #[derive(Subcommand)]
@@ -192,6 +198,32 @@ enum DirenvAction {
     Attach,
     /// Remove flake activation from .envrc
     Detach,
+}
+#[derive(Subcommand)]
+enum ProfileAction {
+    /// Create a new profile
+    Add {
+        /// Profile name
+        name: String,
+        /// Template to use (base, rust, python, node, go, generic)
+        #[arg(short, long)]
+        template: Option<String>,
+        /// Force overwrite if profile already exists
+        #[arg(short, long)]
+        force: Option<bool>,
+    },
+    /// Remove an existing profile
+    Remove {
+        /// Profile name
+        name: String,
+    },
+    /// List all profiles
+    List,
+    /// Set default profile
+    SetDefault {
+        /// Profile name
+        profile: String,
+    },
 }
 
 fn main() -> Result<()> {
@@ -283,6 +315,24 @@ fn main() -> Result<()> {
         Commands::Hook { shell } => {
             hook::run_hook(shell)?;
         }
+        Commands::Profile { action } => match action {
+            ProfileAction::Add {
+                name,
+                template,
+                force,
+            } => {
+                profiles::run_add(name, template, force)?;
+            }
+            ProfileAction::Remove { name } => {
+                profiles::run_remove(name)?;
+            }
+            ProfileAction::List => {
+                profiles::run_list()?;
+            }
+            ProfileAction::SetDefault { profile } => {
+                profiles::run_set_default(profile)?;
+            }
+        },
     }
 
     Ok(())
