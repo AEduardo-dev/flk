@@ -7,6 +7,7 @@
     pkgs.cargo-watch
     pkgs.cargo-edit
     pkgs.cargo-dist
+    pkgs.mdbook
   ];
 
   envVars = {
