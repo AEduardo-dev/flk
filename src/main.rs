@@ -108,7 +108,7 @@ enum Commands {
     },
 
     /// Reload the current shell environment
-    Activate {},
+    Activate { profile: Option<String> },
 
     /// Export flake configurations (Docker, JSON, etc.)
     Export {
@@ -263,8 +263,8 @@ fn main() -> Result<()> {
         Commands::Completions { install, shell } => {
             completions::handle_completions(install, shell)?;
         }
-        Commands::Activate {} => {
-            activate::run_activate()?;
+        Commands::Activate { profile } => {
+            activate::run_activate(profile)?;
         }
         Commands::Export { format } => {
             export::run_export(&format)?;

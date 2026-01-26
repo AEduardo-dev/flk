@@ -1,25 +1,24 @@
 use anyhow::Result;
 use colored::Colorize;
+use flk::flake::parsers::utils::get_default_shell_profile;
 use std::process::Command;
 
-pub fn run_activate() -> Result<()> {
-    let current_profile: Option<String> = None;
+pub fn run_activate(current_profile: Option<String>) -> Result<()> {
+    // Decide which profile to use
+    let profile = match current_profile {
+        Some(p) => p,
+        None => get_default_shell_profile()?, // fallback
+    };
 
-    if let Some(ref profile) = current_profile {
-        println!(
-            "Activating nix develop shell with profile: {}.",
-            profile.cyan()
-        );
-    } else {
-        println!("Activating nix develop shell.");
-    }
+    println!(
+        "Activating nix develop shell with profile: {}.",
+        profile.cyan()
+    );
 
     // Build nix develop command
     let mut cmd = Command::new("nix");
     cmd.arg("develop");
-    if let Some(ref profile) = current_profile {
-        cmd.arg(format!(".#{}", profile));
-    }
+    cmd.arg(format!(".#{}", profile));
     cmd.arg("--impure");
 
     let status = cmd.status().expect("Failed to start nix develop shell");
