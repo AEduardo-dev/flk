@@ -27,8 +27,76 @@
         cargoLock.lockFile = ./Cargo.lock;
         doCheck = false; # Disable tests: nixpkgs exposure is limited in sandboxed builds
       };
+      # API documentation (cargo doc)
+      flkApiDocs = pkgs.rustPlatform.buildRustPackage {
+        pname = "${cargoToml.name}-api-docs";
+        version = cargoToml.version;
+        src = ./.;
+        cargoLock.lockFile = ./Cargo.lock;
+
+        buildPhase = ''
+          cargo doc --no-deps --document-private-items
+        '';
+
+        installPhase = ''
+          mkdir -p $out/docs
+          cp -r target/doc/* $out/docs/
+        '';
+
+        doCheck = false;
+      };
+
+      # User guide documentation (mdBook)
+      flkUserDocs = pkgs.stdenv.mkDerivation {
+        pname = "${cargoToml.name}-user-docs";
+        version = cargoToml.version;
+        src = ./flk-book;
+
+        nativeBuildInputs = [pkgs.mdbook];
+
+        buildPhase = ''
+          # Copy source to a writable directory
+          cp -r $src $TMPDIR/docs
+          chmod -R +w $TMPDIR/docs
+          cd $TMPDIR/docs
+
+          # Build the book
+          mdbook build
+        '';
+
+        installPhase = ''
+          mkdir -p $out/docs
+          cp -r $TMPDIR/docs/book $out/docs/
+        '';
+      };
+
+      # Combined documentation package
+      flkDocs = pkgs.stdenv.mkDerivation {
+        pname = "${cargoToml.name}-docs";
+        version = cargoToml.version;
+
+        dontUnpack = true;
+
+        installPhase = ''
+          mkdir -p $out/docs
+
+          # Copy user guide to root
+          cp -r ${flkUserDocs}/* $out/docs/
+
+          # Copy API docs to /api subdirectory
+          mkdir -p $out/api
+          cp -r ${flkApiDocs}/* $out/docs/api/
+        '';
+      };
     in {
-      packages.flk = flkPackage;
+      packages = {
+        flk = flkPackage;
+        docs = flkDocs;
+        api-docs = flkApiDocs;
+        user-docs = flkUserDocs;
+        default = flkPackage;
+      };
+
       apps.flk = {
         type = "app";
         program = "${flkPackage}/bin/${cargoToml.name}";
