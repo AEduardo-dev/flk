@@ -1,17 +1,25 @@
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use flk::flake::parsers::overlays::add_pinned_package;
-use std::{fs, path};
+use std::{env, fs, path};
 
 use crate::nix::run_nix_command;
 use flk::flake::parsers::{packages::parse_packages_section, utils::get_default_shell_profile};
 use flk::utils::visual::with_spinner;
 
-pub fn run_add(package: &str, version: Option<String>) -> Result<()> {
-    let flake_path = path::Path::new(".flk/profiles/").join(format!(
-        "{}.nix",
+pub fn run_add(
+    package: &str,
+    version: Option<String>,
+    target_profile: Option<String>,
+) -> Result<()> {
+    let profile = if let Some(p) = target_profile {
+        p
+    } else if let Ok(p) = env::var("FLK_FLAKE_REF") {
+        p.strip_prefix(".#").unwrap_or(&p).to_string()
+    } else {
         get_default_shell_profile().context("Could not find default shell profile")?
-    ));
+    };
+    let flake_path = path::Path::new(".flk/profiles/").join(format!("{}.nix", profile));
     let flake_content = fs::read_to_string(&flake_path).with_context(|| {
         format!(
             "Failed to read flake file at {}",
