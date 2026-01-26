@@ -63,10 +63,19 @@ enum Commands {
         /// Pin to a specific version
         #[arg(short, long)]
         version: Option<String>,
+
+        /// Target profile to add the package to
+        #[arg(short, long)]
+        profile: Option<String>,
     },
 
     /// Remove a package from the flake.nix
-    Remove { package: String },
+    Remove {
+        package: String,
+        /// Target profile to remove the package from
+        #[arg(short, long)]
+        profile: Option<String>,
+    },
 
     /// Update packages to latest version
     /// TODO: manage version pinning after implementing #7
@@ -245,11 +254,15 @@ fn main() -> Result<()> {
         Commands::Show {} => {
             show::run_show()?;
         }
-        Commands::Add { package, version } => {
-            add::run_add(&package, version)?;
+        Commands::Add {
+            package,
+            version,
+            profile,
+        } => {
+            add::run_add(&package, version, profile)?;
         }
-        Commands::Remove { package } => {
-            remove::run_remove(&package)?;
+        Commands::Remove { package, profile } => {
+            remove::run_remove(&package, profile)?;
         }
         Commands::Update { packages, show } => {
             update::run_update(packages, show)?;

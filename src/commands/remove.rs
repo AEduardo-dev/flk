@@ -1,16 +1,20 @@
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use flk::flake::parsers::overlays::remove_pinned_package_with_cleanup;
-use std::fs;
 use std::path::Path;
+use std::{env, fs};
 
 use flk::flake::parsers::{packages::parse_packages_section, utils::get_default_shell_profile};
 
-pub fn run_remove(package: &str) -> Result<()> {
-    let flake_path = Path::new(".flk/profiles/").join(format!(
-        "{}.nix",
-        get_default_shell_profile().context("Could not find default shell profile (flake.nix)")?
-    ));
+pub fn run_remove(package: &str, target_profile: Option<String>) -> Result<()> {
+    let profile = if let Some(p) = target_profile {
+        p
+    } else if let Ok(p) = env::var("FLK_FLAKE_REF") {
+        p.strip_prefix(".#").unwrap_or(&p).to_string()
+    } else {
+        get_default_shell_profile().context("Could not find default shell profile")?
+    };
+    let flake_path = Path::new(".flk/profiles/").join(format!("{}.nix", profile));
 
     if package.trim().is_empty() {
         bail!("Package name cannot be empty!");
