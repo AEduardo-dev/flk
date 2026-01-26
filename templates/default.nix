@@ -1,5 +1,6 @@
 inputs: let
   inherit (inputs) flake-utils nixpkgs profile-lib;
+  lib = nixpkgs.lib;
 in
   flake-utils.lib.eachDefaultSystem (
     system: let
@@ -10,6 +11,7 @@ in
       };
 
       profileLib = profile-lib.lib {inherit pkgs;};
+      defaultShell = "";
 
       profileFiles = builtins.readDir ./profiles;
       profileDefinitions = builtins.listToAttrs (
@@ -26,4 +28,5 @@ in
         inherit profileDefinitions;
         maxCombinations = 3;
       }
+      // lib.optionalAttrs (defaultShell != "") {inherit defaultShell;}
   )
