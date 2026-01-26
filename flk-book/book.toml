@@ -1,0 +1,20 @@
+[book]
+title = "Flk Documentation"
+authors = ["AEduardo-dev"]
+description = "A modern CLI tool for managing Nix flake development environments"
+language = "en"
+multilingual = false
+
+[output.html]
+git-repository-url = "https://github.com/AEduardo-dev/flk"
+edit-url-template = "https://github.com/AEduardo-dev/flk/edit/main/docs/{path}"
+# additional-css = ["theme/custom.css"]
+default-theme = "dark"
+preferred-dark-theme = "navy"
+
+[output.html.search]
+enable = true
+
+[output.html.fold]
+enable = true
+level = 0
