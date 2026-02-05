@@ -1,6 +1,6 @@
 [package]
 name = "flk"
-version = "0.5.2"
+version = "0.5.3"
 edition = "2021"
 authors = ["AEduardo-dev"]
 description = "A CLI tool for managing flake.nix devShell environments"
