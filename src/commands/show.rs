@@ -2,6 +2,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 
+/// Pretty-print the current flake.nix for inspection.
 use flk::flake::parsers::flake::parse_flake;
 
 pub fn run_show() -> Result<()> {

@@ -22,13 +22,19 @@
 - [flk add](./commands/add.md)
 - [flk cmd](./commands/cmd.md)
 - [flk completions](./commands/completions.md)
+- [flk deep-search](./commands/deep-search.md)
 - [flk env](./commands/env.md)
+- [flk export](./commands/export.md)
+- [flk hook](./commands/hook.md)
 - [flk init](./commands/init.md)
 - [flk lock](./commands/lock.md)
+- [flk list](./commands/list.md)
 - [flk remove](./commands/remove.md)
 - [flk search](./commands/search.md)
+- [flk show](./commands/show.md)
 - [flk switch/refresh](./commands/switch.md)
 - [flk update](./commands/update.md)
+- [flk direnv](./commands/direnv.md)
 
 # Reference
 
