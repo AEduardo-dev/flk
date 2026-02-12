@@ -3,13 +3,11 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 
-use flk::flake::parsers::{packages::parse_packages_section, utils::get_default_shell_profile};
+use flk::flake::parsers::{packages::parse_packages_section, utils::resolve_profile};
 
-pub fn run_list() -> Result<()> {
-    let flake_path = Path::new(".flk/profiles/").join(format!(
-        "{}.nix",
-        get_default_shell_profile().context("Could not find default shell profile (flake.nix)")?
-    ));
+pub fn run_list(target_profile: Option<String>) -> Result<()> {
+    let profile = resolve_profile(target_profile)?;
+    let flake_path = Path::new(".flk/profiles/").join(format!("{}.nix", profile));
 
     let flake_content = std::fs::read_to_string(&flake_path).context("Failed to read flake.nix")?;
     let section = parse_packages_section(&flake_content)
