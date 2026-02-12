@@ -5,10 +5,19 @@ use std::fs;
 use std::path::Path;
 
 use flk::flake::generator;
+use flk::flake::parsers::utils::{get_default_shell_profile, is_valid_profile_name};
 
 pub fn run_add(profile: String, template: Option<String>, force: Option<bool>) -> Result<()> {
     let profiles_path = Path::new(".flk/profiles");
     let profile_path = profiles_path.join(format!("{}.nix", profile));
+
+    // Validate profile name
+    if !is_valid_profile_name(&profile) {
+        bail!(
+            "Invalid profile name '{}'. Profile names must be alphanumeric (with - or _) and cannot contain path separators.",
+            profile.cyan()
+        );
+    }
 
     let template = template.unwrap_or_else(|| "base".to_string());
     let force = force.unwrap_or(false);
@@ -36,12 +45,31 @@ pub fn run_add(profile: String, template: Option<String>, force: Option<bool>) -
 }
 
 pub fn run_remove(profile: String) -> Result<()> {
+    // Validate profile name to prevent path traversal
+    if !is_valid_profile_name(&profile) {
+        bail!(
+            "Invalid profile name '{}'. Profile names must be alphanumeric (with - or _) and cannot contain path separators.",
+            profile.cyan()
+        );
+    }
+
     let profiles_path = Path::new(".flk/profiles");
     let profile_path = profiles_path.join(format!("{}.nix", profile));
 
     // Check if profile exists
     if !profile_path.exists() {
         bail!("Profile {} does not exist!", profile.cyan());
+    }
+
+    // Check if this is the current default profile
+    if let Ok(default_profile) = get_default_shell_profile() {
+        if default_profile == profile {
+            bail!(
+                "Cannot remove profile {} because it is currently set as the default.\nUse {} to set a different default first.",
+                profile.cyan(),
+                "flk profile set-default <other-profile>".yellow()
+            );
+        }
     }
 
     fs::remove_file(profile_path).context("Failed to remove profile file")?;
@@ -60,13 +88,19 @@ pub fn run_list() -> Result<()> {
     }
 
     println!("{} Available profiles:", "ℹ".blue());
-    for entry in fs::read_dir(profiles_path).context("Failed to read profiles directory")? {
-        let entry = entry.context("Failed to read profile entry")?;
-        let file_name = entry.file_name();
-        let profile_name = file_name
-            .to_str()
-            .unwrap_or_default()
-            .trim_end_matches(".nix");
+    let mut profiles: Vec<String> = fs::read_dir(profiles_path)
+        .context("Failed to read profiles directory")?
+        .filter_map(|entry| entry.ok())
+        .filter_map(|entry| {
+            let file_name = entry.file_name();
+            let profile_name = file_name.to_str()?.trim_end_matches(".nix").to_string();
+            Some(profile_name)
+        })
+        .filter(|name| name != "default")
+        .collect();
+
+    profiles.sort();
+    for profile_name in profiles {
         println!("- {}", profile_name.cyan());
     }
 
@@ -75,6 +109,14 @@ pub fn run_list() -> Result<()> {
 
 // Insert in the let block, not at the end of file
 pub fn run_set_default(profile: String) -> Result<()> {
+    // Validate profile name to prevent path traversal
+    if !is_valid_profile_name(&profile) {
+        bail!(
+            "Invalid profile name '{}'. Profile names must be alphanumeric (with - or _) and cannot contain path separators.",
+            profile.cyan()
+        );
+    }
+
     let importer_path = Path::new(".flk/default.nix");
     let profiles_path = Path::new(".flk/profiles");
     let profile_path = profiles_path.join(format!("{}.nix", profile));
