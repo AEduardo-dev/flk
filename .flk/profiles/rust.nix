@@ -1,6 +1,8 @@
 {pkgs, ...}: {
   packages = [
-    pkgs.rust-bin.stable.latest.default # From rust-overlay
+    (pkgs.rust-bin.stable.latest.default.override {
+      extensions = ["llvm-tools-preview"];
+    })
     pkgs.rust-analyzer
     pkgs.pkg-config
     pkgs.openssl
