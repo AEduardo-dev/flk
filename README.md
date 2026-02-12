@@ -5,6 +5,7 @@
 [![Crates.io](https://img.shields.io/crates/v/flk.svg)](https://crates.io/crates/flk)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/rust-1.83%2B-blue.svg)](https://www.rust-lang.org)
+[![codecov](https://codecov.io/gh/AEduardo-dev/flk/graph/badge.svg)](https://codecov.io/gh/AEduardo-dev/flk)
 
 **flk** makes managing Nix flakes feel like using a package manager. No more manually editing `flake.nix` files—just use simple commands to add packages, create custom shell commands, and manage your development environment with ease.
 
@@ -252,6 +253,9 @@ flk add git --version '2.42.0'
 # Add inline commands
 flk command add test "cargo test --all"
 flk command add dev "npm run dev"
+
+# Target a profile
+flk command --profile rust add test "cargo test --all"
 ```
 
 ### 4. Manage Environment Variables
@@ -260,6 +264,9 @@ flk command add dev "npm run dev"
 # Add environment variables
 flk env add DATABASE_URL "postgresql://localhost/mydb"
 flk env add API_KEY "your-api-key"
+
+# Target a profile
+flk env --profile rust add DATABASE_URL "postgresql://localhost/mydb"
 
 # List all environment variables
 flk env list
@@ -272,6 +279,7 @@ flk env remove API_KEY
 
 ```bash
 flk activate
+flk activate --profile rust
 ```
 
 Your custom commands and environment variables will be automatically available!
@@ -315,6 +323,17 @@ switch <profile_name>  # Switch to a different profile_name
 refresh                # Refresh the current profile (useful after modifying the environment)
 ```
 
+### 9. Manage Profiles
+
+```bash
+flk profile add rust --template rust
+flk profile list
+flk profile set-default rust
+flk profile remove rust
+```
+
+Active profile is resolved from `FLK_FLAKE_REF` (if set), then `defaultShell` in `.flk/default.nix`, then the first profile.
+
 ## 📖 Command Reference
 
 ### Project Management
@@ -341,7 +360,9 @@ flk init --force            # Overwrite existing flake.nix
 Activate the nix shell for the current shell session. This command sets up the necessary environment for your
 project based on the `flake.nix` configuration. It also installs some convenience features, such as a shell hook to refresh.
 
-Future implementations will include the option to activate specific profiles.
+**Options:**
+
+- `-p, --profile <NAME>` - Activate a specific profile (defaults to current active profile)
 
 #### `flk show`
 
@@ -357,6 +378,8 @@ List all packages in your development environment.
 
 ```bash
 flk list
+flk list --profile rust
+flk list -p rust
 ```
 
 ### Package Management
@@ -397,6 +420,8 @@ Add a package to your `flake.nix`.
 flk add ripgrep
 flk add git
 flk add nodejs
+flk add ripgrep --profile rust
+flk add ripgrep -p rust
 ````
 
 Or add a specific version:
@@ -404,6 +429,8 @@ Or add a specific version:
 ```bash
 flk add ripgrep --version '15.1.0'
 flk add git --version '2.42.0'
+flk add git --version '2.42.0' --profile rust
+flk add git --version '2.42.0' -p rust
 ```
 
 #### `flk remove <PACKAGE>`
@@ -414,6 +441,8 @@ Remove a package from your `flake.nix`.
 
 ```bash
 flk remove ripgrep
+flk remove ripgrep --profile rust
+flk remove ripgrep -p rust
 ```
 
 ### Custom Commands
@@ -428,6 +457,8 @@ Add a custom shell command to your development environment.
 # Inline command
 flk command add test "cargo test --all"
 flk command add dev "npm run dev -- --watch"
+flk command --profile rust add test "cargo test --all"
+flk command -p rust add test "cargo test --all"
 
 # Multi-line command
 flk command add deploy "cargo build --release && scp target/release/app server:/opt/"
@@ -448,6 +479,8 @@ Remove a custom command from your dev shell.
 
 ```bash
 flk command remove test
+flk command --profile rust remove test
+flk command -p rust remove test
 ```
 
 ### Environment Variables
@@ -462,6 +495,8 @@ Add an environment variable to your dev shell.
 flk env add DATABASE_URL "postgresql://localhost:5432/mydb"
 flk env add NODE_ENV "development"
 flk env add API_KEY "sk-..."
+flk env --profile rust add DATABASE_URL "postgresql://localhost:5432/mydb"
+flk env -p rust add DATABASE_URL "postgresql://localhost:5432/mydb"
 ```
 
 **Variable naming rules:**
@@ -478,6 +513,8 @@ Remove an environment variable from your dev shell.
 
 ```bash
 flk env remove DATABASE_URL
+flk env --profile rust remove DATABASE_URL
+flk env -p rust remove DATABASE_URL
 ```
 
 #### `flk env list`
@@ -486,6 +523,8 @@ List all environment variables in your dev shell.
 
 ```bash
 flk env list
+flk env --profile rust list
+flk env -p rust list
 ```
 
 ### Lock File Management
@@ -551,6 +590,50 @@ Export the current flake configuration to different formats.
 flk export --format docker     # Export as Dockerfile
 flk export --format podman     # Export as Podmanfile
 flk export --format json       # Export as JSON
+flk export --format json --profile rust
+flk export --format json -p rust
+```
+
+### Profiles
+
+#### `flk profile add <NAME> [OPTIONS]`
+
+Create a new profile.
+
+**Options:**
+
+- `-t, --template <TYPE>` - Template to use (`base`, `rust`, `python`, `node`, `go`, `generic`)
+- `-f, --force` - Overwrite profile if it exists
+
+**Examples:**
+
+```bash
+flk profile add rust --template rust
+flk profile add api --template base
+```
+
+#### `flk profile remove <NAME>`
+
+Remove an existing profile.
+
+```bash
+flk profile remove rust
+```
+
+#### `flk profile list`
+
+List available profiles.
+
+```bash
+flk profile list
+```
+
+#### `flk profile set-default <NAME>`
+
+Set the default profile used when no `--profile` is supplied.
+
+```bash
+flk profile set-default rust
 ```
 
 ### Direnv Integration
