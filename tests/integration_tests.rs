@@ -223,7 +223,7 @@ fn test_remove_package_without_init() {
         .assert()
         .failure()
         .stderr(predicate::str::contains(
-            "Could not find default shell profile (flake.nix)",
+            "Could not find default shell profile",
         ));
 }
 
@@ -239,7 +239,7 @@ fn test_add_command_without_init() {
         .assert()
         .failure()
         .stderr(predicate::str::contains(
-            "Could not find default shell profile (flake.nix)",
+            "Could not find default shell profile",
         ));
 }
 
@@ -255,7 +255,7 @@ fn test_env_add_without_init() {
         .assert()
         .failure()
         .stderr(predicate::str::contains(
-            "Could not find default shell profile (flake.nix)",
+            "Could not find default shell profile",
         ));
 }
 
@@ -268,7 +268,9 @@ fn test_env_list_without_init() {
         .arg("list")
         .assert()
         .failure()
-        .stderr(predicate::str::contains("No flake.nix found"));
+        .stderr(predicate::str::contains(
+            "Could not find default shell profile",
+        ));
 }
 
 #[test]
@@ -282,7 +284,7 @@ fn test_remove_command_without_init() {
         .assert()
         .failure()
         .stderr(predicate::str::contains(
-            "Could not find default shell profile (flake.nix)",
+            "Could not find default shell profile",
         ));
 }
 
@@ -481,6 +483,249 @@ fn test_multiple_packages() {
         .arg("list")
         .assert()
         .success();
+}
+
+#[test]
+fn test_profile_add_list_set_default_remove() {
+    let temp_dir = TempDir::new().unwrap();
+
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("profile")
+        .arg("add")
+        .arg("rust")
+        .arg("--template")
+        .arg("rust")
+        .assert()
+        .success();
+
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("profile")
+        .arg("list")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("generic"))
+        .stdout(predicate::str::contains("rust"));
+
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("profile")
+        .arg("set-default")
+        .arg("rust")
+        .assert()
+        .success();
+
+    let default_content = fs::read_to_string(temp_dir.path().join(".flk/default.nix")).unwrap();
+    assert!(default_content.contains("defaultShell = \"rust\";"));
+
+    // Cannot remove rust while it's the default
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("profile")
+        .arg("remove")
+        .arg("rust")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("currently set as the default"));
+
+    // Switch back to generic, then remove rust
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("profile")
+        .arg("set-default")
+        .arg("generic")
+        .assert()
+        .success();
+
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("profile")
+        .arg("remove")
+        .arg("rust")
+        .assert()
+        .success();
+
+    assert!(!temp_dir.path().join(".flk/profiles/rust.nix").exists());
+}
+
+#[test]
+fn test_profile_name_validation() {
+    let temp_dir = TempDir::new().unwrap();
+
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    // Invalid names should fail
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("profile")
+        .arg("add")
+        .arg("../bad")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Invalid profile name"));
+
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("profile")
+        .arg("add")
+        .arg("has spaces")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Invalid profile name"));
+}
+
+#[test]
+fn test_path_traversal_prevention() {
+    let temp_dir = TempDir::new().unwrap();
+
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    // Path traversal via --profile flag should be rejected
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("add")
+        .arg("ripgrep")
+        .arg("--profile")
+        .arg("../../../tmp/malicious")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Invalid profile name"));
+
+    // Path traversal via env command should also be rejected
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("env")
+        .arg("--profile")
+        .arg("../secret")
+        .arg("list")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Invalid profile name"));
+
+    // Path traversal via profile remove should be rejected
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("profile")
+        .arg("remove")
+        .arg("../../../etc/passwd")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Invalid profile name"));
+
+    // Path traversal via profile set-default should be rejected
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("profile")
+        .arg("set-default")
+        .arg("../../../tmp/malicious")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Invalid profile name"));
+}
+
+#[test]
+fn test_add_package_to_specific_profile() {
+    let temp_dir = TempDir::new().unwrap();
+
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    // Create a second profile
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("profile")
+        .arg("add")
+        .arg("rust")
+        .arg("--template")
+        .arg("rust")
+        .assert()
+        .success();
+
+    // Add package to the rust profile specifically
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("add")
+        .arg("ripgrep")
+        .arg("--profile")
+        .arg("rust")
+        .assert()
+        .success();
+
+    // Verify package is in rust profile
+    let rust_profile = fs::read_to_string(temp_dir.path().join(".flk/profiles/rust.nix")).unwrap();
+    assert!(rust_profile.contains("ripgrep"));
+
+    // Verify package is NOT in generic profile
+    let generic_profile =
+        fs::read_to_string(temp_dir.path().join(".flk/profiles/generic.nix")).unwrap();
+    assert!(!generic_profile.contains("ripgrep"));
+}
+
+#[test]
+fn test_env_operations_on_specific_profile() {
+    let temp_dir = TempDir::new().unwrap();
+
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    // Create a second profile
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("profile")
+        .arg("add")
+        .arg("dev")
+        .arg("--template")
+        .arg("base")
+        .assert()
+        .success();
+
+    // Add env var to dev profile
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("env")
+        .arg("--profile")
+        .arg("dev")
+        .arg("add")
+        .arg("MY_VAR")
+        .arg("my_value")
+        .assert()
+        .success();
+
+    // Verify env var is in dev profile
+    let dev_profile = fs::read_to_string(temp_dir.path().join(".flk/profiles/dev.nix")).unwrap();
+    assert!(dev_profile.contains("MY_VAR"));
+
+    // List env vars on specific profile
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("env")
+        .arg("--profile")
+        .arg("dev")
+        .arg("list")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("MY_VAR"));
 }
 
 #[test]
