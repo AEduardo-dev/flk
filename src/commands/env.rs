@@ -3,18 +3,12 @@ use colored::Colorize;
 use std::fs;
 use std::path::Path;
 
-use flk::flake::parsers::{
-    env::parse_env_vars_section, flake::parse_flake, utils::get_default_shell_profile,
-};
+use flk::flake::parsers::{env::parse_env_vars_section, utils::resolve_profile};
 
 /// Add an environment variable to the dev shell
-pub fn add(name: &str, value: &str) -> Result<()> {
-    let flake_path = Path::new(".flk/profiles/").join(format!(
-        "{}.nix",
-        get_default_shell_profile().context("Could not find default shell profile (flake.nix)")?
-    ));
-    let profile_to_parse =
-        get_default_shell_profile().context("Could not find default shell profile (flake.nix)")?;
+pub fn add(name: &str, value: &str, target_profile: Option<String>) -> Result<()> {
+    let profile_to_parse = resolve_profile(target_profile)?;
+    let flake_path = Path::new(".flk/profiles/").join(format!("{}.nix", profile_to_parse));
 
     // Validate variable name
     if name.trim().is_empty() {
@@ -61,13 +55,9 @@ pub fn add(name: &str, value: &str) -> Result<()> {
 }
 
 /// Remove an environment variable from the dev shell
-pub fn remove(name: &str) -> Result<()> {
-    let flake_path = Path::new(".flk/profiles/").join(format!(
-        "{}.nix",
-        get_default_shell_profile().context("Could not find default shell profile (flake.nix)")?
-    ));
-    let profile_to_parse =
-        get_default_shell_profile().context("Could not find default shell profile (flake.nix)")?;
+pub fn remove(name: &str, target_profile: Option<String>) -> Result<()> {
+    let profile_to_parse = resolve_profile(target_profile)?;
+    let flake_path = Path::new(".flk/profiles/").join(format!("{}.nix", profile_to_parse));
 
     println!(
         "{} Removing environment variable: {}",
@@ -96,19 +86,24 @@ pub fn remove(name: &str) -> Result<()> {
 }
 
 /// List all environment variables in the dev shell
-pub fn list() -> Result<()> {
-    let flake_path = Path::new("flake.nix");
+pub fn list(target_profile: Option<String>) -> Result<()> {
+    let profile = resolve_profile(target_profile)?;
+    let flake_path = Path::new(".flk/profiles/").join(format!("{}.nix", profile));
+    let flake_content = fs::read_to_string(&flake_path).context("Failed to read flake.nix")?;
+    let section = parse_env_vars_section(&flake_content)?;
+    let env_vars = section.to_env_vars();
 
-    if !flake_path.exists() {
-        bail!(
-            "No flake.nix found in current directory. Run {} first.",
-            "flk init".yellow()
+    if env_vars.is_empty() {
+        println!(
+            "{} No environment variables found in the current profile.",
+            "✗".red().bold()
         );
+        return Ok(());
     }
 
-    let flake_info = parse_flake(flake_path.to_str().unwrap())?;
-
-    flake_info.display_env_vars();
+    for env_var in env_vars {
+        println!("{} {}", "•".green(), env_var);
+    }
 
     Ok(())
 }

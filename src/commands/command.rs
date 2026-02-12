@@ -5,15 +5,17 @@ use std::path::Path;
 
 use flk::flake::parsers::{
     commands::{add_shell_hook_command, parse_shell_hook_section, remove_shell_hook_command},
-    flake::parse_flake,
-    utils::get_default_shell_profile,
+    utils::resolve_profile,
 };
 
-pub fn run_add(name: &str, command: &str, file: Option<String>) -> Result<()> {
-    let flake_path = Path::new(".flk/profiles/").join(format!(
-        "{}.nix",
-        get_default_shell_profile().context("Could not find default shell profile (flake.nix)")?
-    ));
+pub fn run_add(
+    name: &str,
+    command: &str,
+    file: Option<String>,
+    target_profile: Option<String>,
+) -> Result<()> {
+    let profile = resolve_profile(target_profile)?;
+    let flake_path = Path::new(".flk/profiles/").join(format!("{}.nix", profile));
 
     // Validate command name
     if !is_valid_command_name(name) {
@@ -70,11 +72,9 @@ pub fn run_add(name: &str, command: &str, file: Option<String>) -> Result<()> {
     Ok(())
 }
 
-pub fn run_remove(name: &str) -> Result<()> {
-    let flake_path = Path::new(".flk/profiles/").join(format!(
-        "{}.nix",
-        get_default_shell_profile().context("Could not find default shell profile (flake.nix)")?
-    ));
+pub fn run_remove(name: &str, target_profile: Option<String>) -> Result<()> {
+    let profile = resolve_profile(target_profile)?;
+    let flake_path = Path::new(".flk/profiles/").join(format!("{}.nix", profile));
 
     if !flake_path.exists() {
         bail!("No flake.nix found.");
@@ -109,19 +109,24 @@ pub fn run_remove(name: &str) -> Result<()> {
 }
 
 /// List all environment variables in the dev shell
-pub fn list() -> Result<()> {
-    let flake_path = Path::new("flake.nix");
+pub fn list(target_profile: Option<String>) -> Result<()> {
+    let profile = resolve_profile(target_profile)?;
+    let flake_path = Path::new(".flk/profiles/").join(format!("{}.nix", profile));
+    let flake_content = fs::read_to_string(&flake_path).context("Failed to read flake.nix")?;
+    let section = parse_shell_hook_section(&flake_content)
+        .context("Failed to parse shellHook section in flake.nix")?;
 
-    if !flake_path.exists() {
-        bail!(
-            "No flake.nix found in current directory. Run {} first.",
-            "flk init".yellow()
+    if section.entries.is_empty() {
+        println!(
+            "{} No commands found in the current profile.",
+            "✗".red().bold()
         );
+        return Ok(());
     }
 
-    let flake_info = parse_flake(flake_path.to_str().unwrap())?;
-
-    flake_info.display_shell_hooks();
+    for entry in section.entries {
+        println!("{} {}", "•".green(), entry.name.bold());
+    }
 
     Ok(())
 }

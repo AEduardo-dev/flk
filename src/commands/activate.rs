@@ -1,14 +1,10 @@
 use anyhow::Result;
 use colored::Colorize;
-use flk::flake::parsers::utils::get_default_shell_profile;
+use flk::flake::parsers::utils::resolve_profile;
 use std::process::Command;
 
 pub fn run_activate(current_profile: Option<String>) -> Result<()> {
-    // Decide which profile to use
-    let profile = match current_profile {
-        Some(p) => p,
-        None => get_default_shell_profile()?, // fallback
-    };
+    let profile = resolve_profile(current_profile)?;
 
     println!(
         "Activating nix develop shell with profile: {}.",

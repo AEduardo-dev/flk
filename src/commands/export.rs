@@ -5,7 +5,7 @@ use clap::ValueEnum;
 use std::fs::File;
 
 use crate::nix::run_nix_command;
-use flk::flake::parsers::{flake::parse_flake, utils::get_default_shell_profile};
+use flk::flake::parsers::{flake::parse_flake, utils::resolve_profile};
 use flk::utils::visual::with_spinner;
 
 #[derive(Debug, Clone, ValueEnum)]
@@ -16,9 +16,8 @@ pub enum ExportType {
     Json,
 }
 
-pub fn run_export(export_type: &ExportType) -> Result<()> {
-    let profile: String =
-        get_default_shell_profile().context("Could not find default shell profile (flake.nix)")?;
+pub fn run_export(export_type: &ExportType, target_profile: Option<String>) -> Result<()> {
+    let profile = resolve_profile(target_profile)?;
     match export_type {
         ExportType::Docker => {
             println!("Exporting flake.nix to Docker image...");

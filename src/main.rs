@@ -51,7 +51,11 @@ enum Commands {
     },
 
     /// List the packages of the flake.nix
-    List {},
+    List {
+        /// Target profile to list packages from
+        #[arg(short = 'p', long)]
+        profile: Option<String>,
+    },
     /// Show flake.nix content in pretty print format
     Show {},
 
@@ -65,7 +69,7 @@ enum Commands {
         version: Option<String>,
 
         /// Target profile to add the package to
-        #[arg(short, long)]
+        #[arg(short = 'p', long)]
         profile: Option<String>,
     },
 
@@ -73,7 +77,7 @@ enum Commands {
     Remove {
         package: String,
         /// Target profile to remove the package from
-        #[arg(short, long)]
+        #[arg(short = 'p', long)]
         profile: Option<String>,
     },
 
@@ -92,11 +96,17 @@ enum Commands {
     Command {
         #[command(subcommand)]
         action: CommandAction,
+        /// Target profile to manage
+        #[arg(short = 'p', long)]
+        profile: Option<String>,
     },
     /// Manage environment variables in the dev shell
     Env {
         #[command(subcommand)]
         action: EnvAction,
+        /// Target profile to manage
+        #[arg(short = 'p', long)]
+        profile: Option<String>,
     },
 
     /// Manage flake.lock file
@@ -117,12 +127,19 @@ enum Commands {
     },
 
     /// Reload the current shell environment
-    Activate { profile: Option<String> },
+    Activate {
+        /// Target profile to activate
+        #[arg(short = 'p', long)]
+        profile: Option<String>,
+    },
 
     /// Export flake configurations (Docker, JSON, etc.)
     Export {
         #[arg(short, long)]
         format: ExportType,
+        /// Target profile to export
+        #[arg(short = 'p', long)]
+        profile: Option<String>,
     },
 
     /// Direnv integration
@@ -248,8 +265,8 @@ fn main() -> Result<()> {
         Commands::DeepSearch { package } => {
             search::run_deep_search(&package)?;
         }
-        Commands::List {} => {
-            list::run_list()?;
+        Commands::List { profile } => {
+            list::run_list(profile)?;
         }
         Commands::Show {} => {
             show::run_show()?;
@@ -267,31 +284,31 @@ fn main() -> Result<()> {
         Commands::Update { packages, show } => {
             update::run_update(packages, show)?;
         }
-        Commands::Command { action } => match action {
+        Commands::Command { action, profile } => match action {
             CommandAction::Add {
                 name,
                 command,
                 file,
             } => {
                 let cmd = command.join(" ");
-                command::run_add(&name, &cmd, file)?;
+                command::run_add(&name, &cmd, file, profile)?;
             }
             CommandAction::Remove { name } => {
-                command::run_remove(&name)?;
+                command::run_remove(&name, profile)?;
             }
             CommandAction::List => {
-                command::list()?;
+                command::list(profile)?;
             }
         },
-        Commands::Env { action } => match action {
+        Commands::Env { action, profile } => match action {
             EnvAction::Add { name, value } => {
-                env::add(&name, &value)?;
+                env::add(&name, &value, profile)?;
             }
             EnvAction::Remove { name } => {
-                env::remove(&name)?;
+                env::remove(&name, profile)?;
             }
             EnvAction::List => {
-                env::list()?;
+                env::list(profile)?;
             }
         },
         Commands::Lock { action } => match action {
@@ -311,8 +328,8 @@ fn main() -> Result<()> {
         Commands::Activate { profile } => {
             activate::run_activate(profile)?;
         }
-        Commands::Export { format } => {
-            export::run_export(&format)?;
+        Commands::Export { format, profile } => {
+            export::run_export(&format, profile)?;
         }
         Commands::Direnv { action } => match action {
             DirenvAction::Init => {
