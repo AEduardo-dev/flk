@@ -9,7 +9,7 @@ use nom::{
     sequence::{delimited, preceded, terminated, tuple},
     IResult,
 };
-use std::{fs, path::PathBuf};
+use std::{env, fs, path::PathBuf};
 
 /// Parse whitespace (spaces and tabs, not newlines)
 pub fn ws(input: &str) -> IResult<&str, &str> {
@@ -143,19 +143,140 @@ mod tests {
             " This is a comment"
         );
     }
+
+    // ========================================================================
+    // PROFILE RESOLUTION TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_normalize_profile_ref_simple_name() {
+        assert_eq!(normalize_profile_ref("rust"), Some("rust".to_string()));
+        assert_eq!(normalize_profile_ref("my-profile"), Some("my-profile".to_string()));
+    }
+
+    #[test]
+    fn test_normalize_profile_ref_with_dot_hash_prefix() {
+        assert_eq!(normalize_profile_ref(".#rust"), Some("rust".to_string()));
+        assert_eq!(normalize_profile_ref(".#my-profile"), Some("my-profile".to_string()));
+    }
+
+    #[test]
+    fn test_normalize_profile_ref_with_path_hash() {
+        assert_eq!(normalize_profile_ref("/path/to/flake#rust"), Some("rust".to_string()));
+        assert_eq!(normalize_profile_ref("github:user/repo#profile"), Some("profile".to_string()));
+    }
+
+    #[test]
+    fn test_normalize_profile_ref_empty_inputs() {
+        assert_eq!(normalize_profile_ref(""), None);
+        assert_eq!(normalize_profile_ref("   "), None);
+        assert_eq!(normalize_profile_ref("."), None);
+        assert_eq!(normalize_profile_ref(".#"), None);
+    }
+
+    #[test]
+    fn test_normalize_profile_ref_trims_whitespace() {
+        assert_eq!(normalize_profile_ref("  rust  "), Some("rust".to_string()));
+        assert_eq!(normalize_profile_ref("  .#rust  "), Some("rust".to_string()));
+    }
+
+    #[test]
+    fn test_is_valid_profile_name_valid() {
+        assert!(is_valid_profile_name("rust"));
+        assert!(is_valid_profile_name("my-profile"));
+        assert!(is_valid_profile_name("profile_1"));
+        assert!(is_valid_profile_name("Profile123"));
+    }
+
+    #[test]
+    fn test_is_valid_profile_name_invalid() {
+        assert!(!is_valid_profile_name(""));
+        assert!(!is_valid_profile_name("../etc"));
+        assert!(!is_valid_profile_name("path/traversal"));
+        assert!(!is_valid_profile_name("with spaces"));
+        assert!(!is_valid_profile_name("."));
+        assert!(!is_valid_profile_name(".."));
+        assert!(!is_valid_profile_name("pro\\file"));
+    }
 }
 
 /// Get the default shell profile from default.nix helper
 pub fn get_default_shell_profile() -> Result<String> {
-    let content = fs::read_to_string(".flk/default.nix").context("Failed to read flake.nix")?;
+    let content = fs::read_to_string(".flk/default.nix").context("Failed to read .flk/default.nix")?;
     if let Some(default_start) = content.find("defaultShell = \"") {
         let search_start = default_start + "defaultShell = \"".len();
         if let Some(end) = content[search_start..].find('"') {
-            return Ok(content[search_start..search_start + end].to_string());
+            let value = content[search_start..search_start + end].to_string();
+            if !value.trim().is_empty() {
+                // Validate profile name to prevent path traversal
+                if !is_valid_profile_name(&value) {
+                    anyhow::bail!(
+                        "Invalid profile name '{}' in default.nix. Profile names must be alphanumeric (with - or _) and cannot contain path separators.",
+                        value
+                    );
+                }
+                return Ok(value);
+            }
         }
     }
     // Fallback to first profile if no defaultShell set
     get_first_profile_name()
+}
+
+pub fn resolve_profile(target: Option<String>) -> Result<String> {
+    let profile = if let Some(p) = target.and_then(|p| normalize_profile_ref(&p)) {
+        p
+    } else if let Ok(env_profile) = env::var("FLK_FLAKE_REF") {
+        match normalize_profile_ref(&env_profile) {
+            Some(p) => p,
+            None => return get_default_shell_profile().context("Could not find default shell profile"),
+        }
+    } else {
+        return get_default_shell_profile().context("Could not find default shell profile");
+    };
+
+    // Validate profile name to prevent path traversal
+    if !is_valid_profile_name(&profile) {
+        anyhow::bail!(
+            "Invalid profile name '{}'. Profile names must be alphanumeric (with - or _) and cannot contain path separators.",
+            profile
+        );
+    }
+
+    Ok(profile)
+}
+
+fn normalize_profile_ref(profile: &str) -> Option<String> {
+    let trimmed = profile.trim();
+    if trimmed.is_empty() || trimmed == "." || trimmed == ".#" {
+        return None;
+    }
+
+    if let Some(stripped) = trimmed.strip_prefix(".#") {
+        if stripped.is_empty() {
+            return None;
+        }
+        return Some(stripped.to_string());
+    }
+
+    if let Some((_, profile_name)) = trimmed.rsplit_once('#') {
+        if !profile_name.trim().is_empty() {
+            return Some(profile_name.to_string());
+        }
+    }
+
+    Some(trimmed.to_string())
+}
+
+/// Validate profile name for safe file system usage
+pub fn is_valid_profile_name(name: &str) -> bool {
+    !name.is_empty()
+        && name != "."
+        && name != ".."
+        && !name.contains('/')
+        && !name.contains('\\')
+        && !name.contains(' ')
+        && name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_')
 }
 
 /// Get first profile name from pofiles directory
@@ -163,7 +284,15 @@ fn get_first_profile_name() -> Result<String> {
     let profiles = list_profiles()?;
     if let Some(first_profile) = profiles.first() {
         if let Some(name) = first_profile.file_stem() {
-            return Ok(name.to_string_lossy().to_string());
+            let name_str = name.to_string_lossy().to_string();
+            // Validate profile name to prevent path traversal
+            if !is_valid_profile_name(&name_str) {
+                anyhow::bail!(
+                    "Invalid profile name '{}'. Profile names must be alphanumeric (with - or _) and cannot contain path separators.",
+                    name_str
+                );
+            }
+            return Ok(name_str);
         }
     }
     Err(anyhow::anyhow!("No profiles found in .flk/profiles/"))
@@ -172,7 +301,7 @@ fn get_first_profile_name() -> Result<String> {
 /// List all profile names
 pub fn list_profiles() -> Result<Vec<PathBuf>> {
     Ok(std::fs::read_dir(".flk/profiles")
-        .unwrap()
+        .context("Failed to read profiles directory")?
         .filter_map(|e| e.ok())
         .filter(|e| e.path().extension() == Some(&OsStr::from("nix")))
         .filter(|e| e.path().file_name() != Some(&OsStr::from("default.nix")))
