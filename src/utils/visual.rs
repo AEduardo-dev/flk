@@ -1,8 +1,32 @@
+//! # Visual Output Utilities
+//!
+//! Terminal formatting, progress indicators, and display helpers.
+//!
+//! This module provides consistent styling for CLI output including
+//! colored text, spinners, and formatted lists/tables.
+
 use crate::flake::interfaces::profiles::Package;
 use anyhow::Result;
 use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 
+/// Execute a function with a spinning progress indicator.
+///
+/// Shows a spinner animation with the given message while the function
+/// executes. The spinner is cleared after completion.
+///
+/// # Arguments
+///
+/// * `message` - Status message to display alongside the spinner
+/// * `f` - Function to execute
+///
+/// # Example
+///
+/// ```rust,ignore
+/// let result = with_spinner("Searching packages...", || {
+///     search_nixpkgs("ripgrep")
+/// })?;
+/// ```
 pub fn with_spinner<F, T>(message: &str, f: F) -> Result<T>
 where
     F: FnOnce() -> Result<T>,
@@ -23,6 +47,9 @@ where
     result
 }
 
+/// Display a numbered list of packages.
+///
+/// Each package is shown with an index number and optional version.
 pub fn display_list(packages: &[Package]) -> String {
     if packages.is_empty() {
         return String::new();
@@ -47,6 +74,9 @@ pub fn display_list(packages: &[Package]) -> String {
     output
 }
 
+/// Display packages in a table format with columns.
+///
+/// Shows package names and versions in aligned columns.
 pub fn display_table(packages: &[Package]) -> String {
     if packages.is_empty() {
         return String::new();
