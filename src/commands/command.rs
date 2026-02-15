@@ -1,3 +1,10 @@
+//! # Custom Command Handler
+//!
+//! Add, remove, and list custom shell commands in the development environment.
+//!
+//! Custom commands become available as shell functions when the dev shell
+//! is activated.
+
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use std::fs;

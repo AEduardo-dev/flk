@@ -1,3 +1,7 @@
+//! # Lock Command Handler
+//!
+//! Manage flake.lock file backups, history, and restoration.
+
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use serde_json::Value;
@@ -6,7 +10,7 @@ use std::path::{Path, PathBuf};
 
 use flk::utils::backup::{create_backup, get_backup_dir};
 
-/// Show detailed lock file information
+/// Display detailed information about the current flake.lock file.
 pub fn show() -> Result<()> {
     let lock_path = Path::new("flake.lock");
 
@@ -105,7 +109,7 @@ fn display_input_info(name: &str, data: &Value) {
     println!();
 }
 
-/// Show lock file backup history
+/// Display the history of flake.lock backups.
 pub fn history() -> Result<()> {
     let backup_dir = get_backup_dir()?;
 
@@ -182,7 +186,11 @@ pub fn history() -> Result<()> {
     Ok(())
 }
 
-/// Restore lock file from a backup
+/// Restore a flake.lock from a backup.
+///
+/// # Arguments
+///
+/// * `backup_id` - Timestamp identifier or "latest" for the most recent backup
 pub fn restore(backup_id: &str) -> Result<()> {
     let backup_dir = get_backup_dir()?;
 

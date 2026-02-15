@@ -1,3 +1,8 @@
+//! # Remove Command Handler
+//!
+//! Removes packages from the development environment.
+//! If the package is version-pinned, also removes the pin entry from `pins.nix`.
+
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use flk::flake::parsers::overlays::remove_pinned_package_with_cleanup;

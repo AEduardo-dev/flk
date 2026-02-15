@@ -1,4 +1,10 @@
-// src/commands/update.rs
+//! # Update Command Handler
+//!
+//! Update flake inputs to their latest versions.
+//!
+//! Automatically creates a backup of `flake.lock` before updating,
+//! allowing easy rollback via `flk lock restore`.
+
 use anyhow::{Context, Result};
 use colored::Colorize;
 use serde_json::Value;
@@ -7,6 +13,12 @@ use std::fs;
 use crate::nix::run_nix_command;
 use flk::utils::{backup, visual::with_spinner};
 
+/// Run the update command.
+///
+/// # Arguments
+///
+/// * `packages` - Specific packages to update (not yet supported)
+/// * `show` - If true, preview updates without applying them
 pub fn run_update(packages: Vec<String>, show: bool) -> Result<()> {
     if !packages.is_empty() {
         anyhow::bail!(

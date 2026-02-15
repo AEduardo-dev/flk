@@ -1,3 +1,7 @@
+//! # Activate Command Handler
+//!
+//! Enter the Nix development shell for the current flake.
+
 use anyhow::Result;
 use colored::Colorize;
 use flk::flake::parsers::utils::resolve_profile;

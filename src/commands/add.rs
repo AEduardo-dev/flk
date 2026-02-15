@@ -1,3 +1,7 @@
+//! # Add Command Handler
+//!
+//! Add packages to the development environment with optional version pinning.
+
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use flk::flake::parsers::overlays::add_pinned_package;

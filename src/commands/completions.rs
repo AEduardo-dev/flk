@@ -1,3 +1,7 @@
+//! # Completions Command Handler
+//!
+//! Generate and install shell completions for bash, zsh, fish, and more.
+
 use anyhow::{anyhow, Result};
 use clap::CommandFactory;
 use clap_complete::{generate, generate_to, shells::Shell};
@@ -5,7 +9,12 @@ use std::{env, fs, io, path::PathBuf};
 
 use crate::Cli;
 
-/// Entry point called from main.rs
+/// Generate or install shell completions.
+///
+/// # Arguments
+///
+/// * `install` - If true, install completions to the appropriate location
+/// * `shell` - Target shell (auto-detected if not provided)
 pub fn handle_completions(install: bool, shell: Option<Shell>) -> Result<()> {
     let mut cmd = Cli::command();
     let bin_name = cmd.get_name().to_string();

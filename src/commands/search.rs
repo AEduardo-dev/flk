@@ -1,3 +1,7 @@
+//! # Search Command Handler
+//!
+//! Search nixpkgs for packages using the nix-versions tool.
+
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 
@@ -6,6 +10,16 @@ use flk::flake::interfaces::profiles::Package;
 use flk::flake::parsers::packages::extract_packages_from_output;
 use flk::utils::visual::{display_list, display_table, with_spinner};
 
+/// Search nixpkgs for packages matching the query.
+///
+/// # Arguments
+///
+/// * `query` - Search term (supports wildcards)
+/// * `limit` - Maximum number of results to display
+///
+/// # Returns
+///
+/// `true` if packages were found, `false` otherwise.
 pub fn run_search(query: &str, limit: usize) -> Result<bool> {
     println!(
         "{} Searching nixpkgs for: {}",
@@ -54,6 +68,9 @@ pub fn run_search(query: &str, limit: usize) -> Result<bool> {
     Ok(true)
 }
 
+/// Get detailed version information for a specific package.
+///
+/// Shows all available versions of a package in nixpkgs.
 pub fn run_deep_search(package: &str) -> Result<()> {
     println!(
         "{} Getting details for: {}",
