@@ -1,3 +1,29 @@
+//! # flk - A CLI for managing Nix flake development environments
+//!
+//! `flk` provides a user-friendly command-line interface for managing Nix flake-based
+//! development environments. It abstracts away the complexity of manually editing
+//! `flake.nix` files, offering simple commands for common tasks like adding packages,
+//! managing environment variables, and creating custom shell commands.
+//!
+//! ## Architecture
+//!
+//! This binary crate is the CLI entry point. It uses [clap] for argument parsing and
+//! dispatches to handler functions in the [`commands`] module. The core library
+//! functionality (flake parsing, generation, utilities) lives in the `flk` library crate.
+//!
+//! ## Subcommands
+//!
+//! - `init` - Initialize a new flake environment with language-specific templates
+//! - `add`/`remove` - Manage packages in the development environment
+//! - `search`/`deep-search` - Search nixpkgs for available packages
+//! - `command` - Manage custom shell commands
+//! - `env` - Manage environment variables
+//! - `lock` - Manage flake.lock backups and restoration
+//! - `activate` - Enter the development shell
+//! - `export` - Export configuration to Docker, Podman, or JSON
+//! - `hook` - Generate shell integration hooks
+//! - `direnv` - Manage direnv integration
+
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 
