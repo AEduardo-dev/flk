@@ -1,3 +1,17 @@
+//! # Flake Parser
+//!
+//! Parser for top-level flake structure and inputs.
+//!
+//! This module provides functionality to parse the complete flake configuration
+//! by combining the root flake.nix inputs with individual profile files.
+//!
+//! ## Workflow
+//!
+//! 1. Parse inputs from `flake.nix`
+//! 2. Discover profiles in `.flk/profiles/`
+//! 3. Parse each profile (packages, env vars, commands)
+//! 4. Combine into a unified [`FlakeConfig`]
+
 use anyhow::{Context, Result};
 use nom::{
     bytes::complete::tag,
@@ -17,7 +31,22 @@ use crate::flake::parsers::{
     },
 };
 
-/// Parse the entire flake configuration
+/// Parse the entire flake configuration from the project.
+///
+/// Reads the root `flake.nix` for inputs and all profile files from
+/// `.flk/profiles/` to build a complete [`FlakeConfig`].
+///
+/// # Arguments
+///
+/// * `path` - Path to the root `flake.nix` file
+///
+/// # Returns
+///
+/// A [`FlakeConfig`] containing all inputs and profiles.
+///
+/// # Errors
+///
+/// Returns an error if any file cannot be read or parsed.
 pub fn parse_flake(path: &str) -> Result<FlakeConfig> {
     let content = fs::read_to_string(path).context("Failed to read flake.nix file")?;
 
@@ -88,7 +117,7 @@ pub fn parse_flake(path: &str) -> Result<FlakeConfig> {
     Ok(config)
 }
 
-/// Parse a single profile file (useful for testing or individual operations)
+/// Parse a single profile file. (Internal use)
 pub fn _parse_profile_file(path: &str) -> Result<Profile> {
     let content = fs::read_to_string(path).context("Failed to read profile file")?;
 
@@ -115,21 +144,33 @@ pub fn _parse_profile_file(path: &str) -> Result<Profile> {
     Ok(profile)
 }
 
+/// A parsed input entry with position information.
 #[derive(Debug, Clone)]
 pub struct InputEntry {
+    /// Input name (e.g., "nixpkgs", "flake-utils")
     pub name: String,
+    /// Input URL (e.g., "github:NixOS/nixpkgs/nixos-unstable")
     pub _url: String,
+    /// Byte position where this entry starts
     pub _start_pos: usize,
+    /// Byte position where this entry ends
     pub _end_pos: usize,
 }
 
+/// Parsed inputs section with editing support.
 #[derive(Debug)]
 pub struct InputsSection {
+    /// All input entries
     pub entries: Vec<InputEntry>,
+    /// Byte position where the section starts
     pub _section_start: usize,
+    /// Byte position of the content start (after `{`)
     pub _content_start: usize,
+    /// Byte position of the content end (before `}`)
     pub _content_end: usize,
+    /// Byte position where the section ends
     pub _section_end: usize,
+    /// Detected indentation
     pub _indentation: String,
 }
 
@@ -210,7 +251,11 @@ fn parse_inputs_with_nom(input: &str, base_offset: usize) -> IResult<&str, Vec<I
     Ok((input, entries))
 }
 
-/// Main parser for inputs section
+/// Parse the inputs section from flake.nix content.
+///
+/// # Errors
+///
+/// Returns an error if the `inputs =` section cannot be found or parsed.
 pub fn parse_inputs_section(content: &str) -> Result<InputsSection> {
     let section_start = content
         .find("inputs =")
@@ -251,12 +296,12 @@ pub fn parse_inputs_section(content: &str) -> Result<InputsSection> {
 }
 
 impl InputsSection {
-    /// Convert to the list of input names for FlakeConfig
+    /// Convert parsed entries to a list of input names for [`FlakeConfig`].
     pub fn to_input_names(&self) -> Vec<String> {
         self.entries.iter().map(|e| e.name.clone()).collect()
     }
 
-    /// Add a new input
+    /// Add a new input. (Internal use)
     pub fn _add_input(&self, original_content: &str, name: &str, url: &str) -> String {
         // Check if exists
         if self.entries.iter().any(|e| e.name == name) {
@@ -273,7 +318,7 @@ impl InputsSection {
         result
     }
 
-    /// Remove an input
+    /// Remove an input. (Internal use)
     pub fn _remove_input(&self, original_content: &str, name: &str) -> Result<String> {
         let entry = self
             .entries
@@ -289,7 +334,7 @@ impl InputsSection {
         Ok(format!("{}{}", before, after))
     }
 
-    /// Update an input's URL
+    /// Update an input's URL. (Internal use)
     pub fn _update_input(
         &self,
         original_content: &str,

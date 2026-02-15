@@ -1,3 +1,19 @@
+//! # Commands Section Parser
+//!
+//! Parser for the `commands = [ ... ];` section in profile files.
+//!
+//! This module provides functionality to parse, add, and remove custom
+//! shell commands from profile files.
+//!
+//! ## Supported Syntax
+//!
+//! ```nix
+//! commands = [
+//!   { name = "dev"; script = ''npm run dev''; }
+//!   { name = "test"; script = ''cargo test --all''; }
+//! ];
+//! ```
+
 use crate::flake::interfaces::shellhooks::{ShellHookEntry, ShellHookSection};
 use crate::flake::nix_render::{indent_line, nix_multiline_string, nix_string};
 use crate::flake::parsers::utils::{detect_indentation, multiline_string, multiws, string_literal};
@@ -70,7 +86,19 @@ fn parse_commands_content(input: &str) -> IResult<&str, Vec<ShellHookEntry>> {
     shell_hook_entry_list(input)
 }
 
-/// Main parser for commands section: commands = [ ...  ];
+/// Parse the commands section from profile file content.
+///
+/// # Arguments
+///
+/// * `content` - The full profile file content
+///
+/// # Returns
+///
+/// A [`ShellHookSection`] containing all parsed command entries.
+///
+/// # Errors
+///
+/// Returns an error if the `commands` section cannot be found or parsed.
 pub fn parse_shell_hook_section(content: &str) -> Result<ShellHookSection> {
     let commands_start = content
         .find("commands")
@@ -141,6 +169,14 @@ pub fn parse_shell_hook_section(content: &str) -> Result<ShellHookSection> {
 // RENDER HELPERS
 // ============================================================================
 
+/// Render a commands section as Nix syntax.
+///
+/// # Arguments
+///
+/// * `out` - String buffer to append to
+/// * `indent` - Indentation unit (e.g., "  ")
+/// * `level` - Current nesting level
+/// * `entries` - Command entries to render
 pub fn render_commands_section(
     out: &mut String,
     indent: &str,
@@ -172,7 +208,7 @@ pub fn render_commands_section(
     out.push_str("];");
 }
 
-/// Render just the commands section (for splicing back into a file)
+/// Render a shell hook section for splicing back into a file.
 pub fn render_shell_hook_section(section: &ShellHookSection) -> String {
     let indent = if section.indentation.is_empty() {
         "  "
@@ -189,7 +225,17 @@ pub fn render_shell_hook_section(section: &ShellHookSection) -> String {
 // COMBINED OPERATIONS (parse -> modify -> render)
 // ============================================================================
 
-/// Add a command to the shell hook section and return the updated file content
+/// Add a command to the shell hook section and return the updated file content.
+///
+/// # Arguments
+///
+/// * `content` - The full profile file content
+/// * `name` - Command name (becomes a shell function)
+/// * `script` - Bash script to execute
+///
+/// # Errors
+///
+/// Returns an error if parsing fails or the command already exists.
 pub fn add_shell_hook_command(content: &str, name: &str, script: &str) -> Result<String> {
     let mut section = parse_shell_hook_section(content)?;
 
@@ -199,7 +245,16 @@ pub fn add_shell_hook_command(content: &str, name: &str, script: &str) -> Result
     Ok(section.apply_to_content(content, &rendered))
 }
 
-/// Remove a command from the shell hook section and return the updated file content
+/// Remove a command from the shell hook section and return the updated file content.
+///
+/// # Arguments
+///
+/// * `content` - The full profile file content
+/// * `name` - Command name to remove
+///
+/// # Errors
+///
+/// Returns an error if parsing fails or the command doesn't exist.
 pub fn remove_shell_hook_command(content: &str, name: &str) -> Result<String> {
     let mut section = parse_shell_hook_section(content)?;
 

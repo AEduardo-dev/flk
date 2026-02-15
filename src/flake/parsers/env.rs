@@ -1,3 +1,19 @@
+//! # Environment Variables Section Parser
+//!
+//! Parser for the `envVars = { ... };` section in profile files.
+//!
+//! This module provides functionality to parse, add, and remove environment
+//! variables from profile files.
+//!
+//! ## Supported Syntax
+//!
+//! ```nix
+//! envVars = {
+//!   DATABASE_URL = "postgresql://localhost:5432/mydb";
+//!   NODE_ENV = "development";
+//! };
+//! ```
+
 use crate::flake::interfaces::profiles::EnvVar;
 use crate::flake::parsers::utils::{
     byte_offset, detect_indentation, identifier, multiws, string_literal, ws,
@@ -12,21 +28,33 @@ use nom::{
     IResult,
 };
 
+/// A parsed environment variable entry with position information.
 #[derive(Debug, Clone)]
 pub struct EnvVarEntry {
+    /// Variable name
     pub name: String,
+    /// Variable value
     pub value: String,
+    /// Byte position where this entry starts
     pub start_pos: usize,
+    /// Byte position where this entry ends
     pub end_pos: usize,
 }
 
+/// Parsed environment variables section with editing support.
 #[derive(Debug)]
 pub struct EnvVarsSection {
+    /// All environment variable entries
     pub entries: Vec<EnvVarEntry>,
+    /// Byte position of the content start (after `{`)
     pub _content_start: usize,
+    /// Byte position of the content end (before `}`)
     pub _content_end: usize,
+    /// Detected indentation for consistent formatting
     pub indentation: String,
+    /// Byte position where the section starts
     pub _section_start: usize,
+    /// Byte position where the section ends
     pub _section_end: usize,
 }
 
@@ -105,7 +133,19 @@ fn parse_env_vars(input: &str, base_offset: usize) -> IResult<&str, Vec<EnvVarEn
     Ok((input, entries))
 }
 
-/// Main parser for envVars section
+/// Parse the envVars section from profile file content.
+///
+/// # Arguments
+///
+/// * `content` - The full profile file content
+///
+/// # Returns
+///
+/// An `EnvVarsSection` containing all parsed entries with position information.
+///
+/// # Errors
+///
+/// Returns an error if the `envVars =` section cannot be found or parsed.
 pub fn parse_env_vars_section(content: &str) -> Result<EnvVarsSection> {
     let section_start = content
         .find("envVars =")
@@ -146,7 +186,7 @@ pub fn parse_env_vars_section(content: &str) -> Result<EnvVarsSection> {
 }
 
 impl EnvVarsSection {
-    /// Convert to EnvVar structs
+    /// Convert parsed entries to [`EnvVar`] structs for [`crate::flake::interfaces::profiles::FlakeConfig`].
     pub fn to_env_vars(&self) -> Vec<EnvVar> {
         self.entries
             .iter()
@@ -154,7 +194,9 @@ impl EnvVarsSection {
             .collect()
     }
 
-    /// Add env var
+    /// Add an environment variable, returning the modified file content.
+    ///
+    /// If the variable already exists, returns the original content unchanged.
     pub fn add_env_var(&self, original_content: &str, name: &str, value: &str) -> String {
         if self.entries.iter().any(|e| e.name == name) {
             return original_content.to_string();
@@ -174,7 +216,11 @@ impl EnvVarsSection {
         result
     }
 
-    /// Remove env var
+    /// Remove an environment variable, returning the modified file content.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the variable is not found.
     pub fn remove_env_var(&self, original_content: &str, name: &str) -> Result<String> {
         let entry = self
             .entries
@@ -195,7 +241,7 @@ impl EnvVarsSection {
         Ok(format!("{}{}", before, after))
     }
 
-    /// Check if env var exists
+    /// Check if an environment variable exists in the section.
     pub fn env_var_exists(&self, name: &str) -> Result<bool> {
         Ok(self.entries.iter().any(|e| e.name == name))
     }
