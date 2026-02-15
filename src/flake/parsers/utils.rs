@@ -1,3 +1,10 @@
+//! # Parser Utilities
+//!
+//! Shared parsing combinators and helper functions for the nom-based parsers.
+//!
+//! This module provides low-level parsing primitives used by the specific
+//! section parsers (packages, env vars, commands, etc.).
+
 use crate::flake::interfaces::utils::INDENT_OUT;
 use anyhow::{Context, Result};
 use clap::builder::OsStr;
@@ -11,17 +18,17 @@ use nom::{
 };
 use std::{env, fs, path::PathBuf};
 
-/// Parse whitespace (spaces and tabs, not newlines)
+/// Parse horizontal whitespace (spaces and tabs, not newlines).
 pub fn ws(input: &str) -> IResult<&str, &str> {
     space0(input)
 }
 
-/// Parse whitespace including newlines
+/// Parse any whitespace including newlines.
 pub fn multiws(input: &str) -> IResult<&str, &str> {
     multispace0(input)
 }
 
-/// Parse a Nix identifier (alphanumeric + dashes + underscores)
+/// Parse a Nix identifier (alphanumeric, dashes, underscores).
 pub fn identifier(input: &str) -> IResult<&str, &str> {
     recognize(take_while1(|c: char| {
         c.is_alphanumeric() || c == '_' || c == '-'
@@ -29,8 +36,13 @@ pub fn identifier(input: &str) -> IResult<&str, &str> {
     .parse(input)
 }
 
-/// Parse a Nix attribute path token (no whitespace), returning the whole token.
-/// Example: rust-bin.stable.latest.default, rust-analyzer, pkg-config
+/// Parse a Nix attribute path token (alphanumeric, dashes, underscores, dots).
+///
+/// # Examples
+///
+/// - `rust-bin.stable.latest.default`
+/// - `rust-analyzer`
+/// - `pkg-config`
 pub fn attribute_path_token(input: &str) -> IResult<&str, &str> {
     recognize(take_while1(|c: char| {
         c.is_alphanumeric() || c == '_' || c == '-' || c == '.'
@@ -38,9 +50,11 @@ pub fn attribute_path_token(input: &str) -> IResult<&str, &str> {
     .parse(input)
 }
 
-/// Parse `pkgs.<suffix>` where suffix is either:
-/// - a quoted key: pkgs."<anything>"  -> returns inner content
-/// - a dotted attribute path: pkgs.rust-bin.stable.latest.default -> returns full suffix
+/// Parse `pkgs.<suffix>` and return the suffix.
+///
+/// Handles both:
+/// - Quoted keys: `pkgs."openssl@3.6.0"` → `openssl`
+/// - Dotted paths: `pkgs.rust-bin.stable.latest.default` → `rust-bin.stable.latest.default`
 pub fn pkgs_suffix(input: &str) -> IResult<&str, &str> {
     preceded(
         tag("pkgs."),
@@ -54,7 +68,7 @@ pub fn pkgs_suffix(input: &str) -> IResult<&str, &str> {
     .parse(input)
 }
 
-/// Parse an attribute version (e.g., "1.56.0" or 1.56.0) that comes after a "@" symbol
+/// Parse a version string after an `@` symbol.
 pub fn attribute_version(input: &str) -> IResult<&str, &str> {
     preceded(
         char('@'),
@@ -62,31 +76,35 @@ pub fn attribute_version(input: &str) -> IResult<&str, &str> {
     )
     .parse(input)
 }
+/// Parse an optional version string after an `@` symbol.
 pub fn opt_attribute_version(input: &str) -> IResult<&str, Option<&str>> {
     opt(attribute_version).parse(input)
 }
 
-/// Parse a string literal in double quotes, handling escaped quotes
+/// Parse a double-quoted string literal, returning the inner content.
 pub fn string_literal(input: &str) -> IResult<&str, &str> {
     delimited(char('"'), take_until("\""), char('"')).parse(input)
 }
 
-/// Parse a Nix multiline string ('' ...  '')
+/// Parse a Nix multiline string (`'' ... ''`), returning the inner content.
 pub fn multiline_string(input: &str) -> IResult<&str, &str> {
     delimited(tag("''"), take_until("''"), tag("''")).parse(input)
 }
 
-/// Parse an inline comment starting with #
+/// Parse an inline comment starting with `#`.
 pub fn inline_comment(input: &str) -> IResult<&str, &str> {
     preceded((ws, char('#')), take_while(|c| c != '\n')).parse(input)
 }
 
-/// Parse optional inline comment
+/// Parse an optional inline comment.
 pub fn opt_inline_comment(input: &str) -> IResult<&str, Option<&str>> {
     opt(inline_comment).parse(input)
 }
 
-/// Detect indentation pattern from content
+/// Detect the indentation pattern from content.
+///
+/// Scans lines to find the first indented line and returns its indentation.
+/// Falls back to [`INDENT_OUT`] if no indentation is detected.
 pub fn detect_indentation(content: &str) -> String {
     for line in content.lines() {
         if !line.trim().is_empty() {
@@ -104,7 +122,9 @@ pub fn _find_position(original: &str, substring: &str) -> Option<usize> {
     Some(original.as_ptr() as usize - substring.as_ptr() as usize)
 }
 
-/// Calculate byte offset between two string slices
+/// Calculate the byte offset between two string slices.
+///
+/// Used for position tracking during parsing.
 pub fn byte_offset(original: &str, remaining: &str) -> usize {
     remaining.as_ptr() as usize - original.as_ptr() as usize
 }
@@ -213,7 +233,10 @@ mod tests {
     }
 }
 
-/// Get the default shell profile from default.nix helper
+/// Get the default shell profile name from `.flk/default.nix`.
+///
+/// Looks for the `defaultShell` attribute. Falls back to the first
+/// profile found if no default is set.
 pub fn get_default_shell_profile() -> Result<String> {
     let content =
         fs::read_to_string(".flk/default.nix").context("Failed to read .flk/default.nix")?;
@@ -316,7 +339,9 @@ fn get_first_profile_name() -> Result<String> {
     Err(anyhow::anyhow!("No profiles found in .flk/profiles/"))
 }
 
-/// List all profile names
+/// List all profile files in `.flk/profiles/`.
+///
+/// Returns paths to all `.nix` files except `default.nix`.
 pub fn list_profiles() -> Result<Vec<PathBuf>> {
     Ok(std::fs::read_dir(".flk/profiles")
         .context("Failed to read profiles directory")?

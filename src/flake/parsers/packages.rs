@@ -1,3 +1,20 @@
+//! # Package Section Parser
+//!
+//! Parser for the `packages = [ ... ];` section in profile files.
+//!
+//! This module provides functionality to parse, add, and remove packages
+//! from profile files while preserving formatting and comments.
+//!
+//! ## Supported Syntax
+//!
+//! ```nix
+//! packages = [
+//!   pkgs.ripgrep
+//!   pkgs.rust-bin.stable.latest.default  # From rust-overlay
+//!   pkgs."openssl@3.6.0"  # Version pinned
+//! ];
+//! ```
+
 use crate::flake::interfaces::profiles::Package;
 use crate::flake::parsers::utils::{
     byte_offset, detect_indentation, multiws, opt_attribute_version, opt_inline_comment,
@@ -13,22 +30,35 @@ use nom::{
     IResult,
 };
 
+/// A parsed package entry with position information.
 #[derive(Debug, Clone)]
 pub struct PackageEntry {
+    /// Package name (without `pkgs.` prefix)
     pub name: String,
+    /// Optional version if pinned
     pub version: Option<String>,
+    /// Optional inline comment
     pub _comment: Option<String>,
+    /// Byte position where this entry starts
     pub start_pos: usize,
+    /// Byte position where this entry ends
     pub end_pos: usize,
 }
 
+/// Parsed packages section with editing support.
 #[derive(Debug)]
 pub struct PackagesSection {
+    /// All package entries in the section
     pub entries: Vec<PackageEntry>,
+    /// Detected indentation for consistent formatting
     pub indentation: String,
+    /// Byte position of the list start bracket
     pub _list_start: usize,
+    /// Byte position of the list end bracket
     pub list_end: usize,
+    /// Byte position where the section starts
     pub _section_start: usize,
+    /// Byte position where the section ends
     pub _section_end: usize,
 }
 
@@ -112,7 +142,19 @@ fn parse_packages(input: &str, base_offset: usize) -> IResult<&str, Vec<PackageE
     Ok((input, entries))
 }
 
-/// Main parser for packages section
+/// Parse the packages section from profile file content.
+///
+/// # Arguments
+///
+/// * `content` - The full profile file content
+///
+/// # Returns
+///
+/// A `PackagesSection` containing all parsed entries with position information.
+///
+/// # Errors
+///
+/// Returns an error if the `packages =` section cannot be found or parsed.
 pub fn parse_packages_section(content: &str) -> Result<PackagesSection> {
     let section_start = content
         .find("packages =")
@@ -153,7 +195,7 @@ pub fn parse_packages_section(content: &str) -> Result<PackagesSection> {
 }
 
 impl PackagesSection {
-    /// Convert to Package structs for FlakeConfig
+    /// Convert parsed entries to [`Package`] structs for [`crate::flake::interfaces::profiles::FlakeConfig`].
     pub fn to_packages(&self) -> Vec<Package> {
         self.entries
             .iter()
@@ -161,7 +203,15 @@ impl PackagesSection {
             .collect()
     }
 
-    /// Add a package
+    /// Add a package to the section, returning the modified file content.
+    ///
+    /// If the package already exists, returns the original content unchanged.
+    ///
+    /// # Arguments
+    ///
+    /// * `original_content` - The full file content
+    /// * `name` - Package name to add (with or without `pkgs.` prefix)
+    /// * `comment` - Optional inline comment
     pub fn add_package(&self, original_content: &str, name: &str, comment: Option<&str>) -> String {
         // Check if exists
         if self.entries.iter().any(|e| e.name == name) {
@@ -187,7 +237,16 @@ impl PackagesSection {
         result
     }
 
-    /// Remove a package
+    /// Remove a package from the section, returning the modified file content.
+    ///
+    /// # Arguments
+    ///
+    /// * `original_content` - The full file content
+    /// * `name` - Package name to remove
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the package is not found.
     pub fn remove_package(&self, original_content: &str, name: &str) -> Result<String> {
         let entry = self
             .entries
@@ -208,7 +267,7 @@ impl PackagesSection {
         Ok(format!("{}{}", before, after))
     }
 
-    /// Check if a package exists
+    /// Check if a package exists in the section.
     pub fn package_exists(&self, name: &str) -> bool {
         self.entries
             .iter()
@@ -216,6 +275,10 @@ impl PackagesSection {
     }
 }
 
+/// Extract package information from `nix search` output.
+///
+/// Used by the search command to parse nix search results into
+/// a list of packages.
 pub fn extract_packages_from_output(output: &str) -> Result<Vec<Package>> {
     Ok(output
         .lines()

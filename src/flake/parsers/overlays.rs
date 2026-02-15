@@ -1,3 +1,25 @@
+//! # Overlay Section Parser
+//!
+//! Parser for `pins.nix` overlay and source sections.
+//!
+//! This module handles parsing and modification of version pinning
+//! configurations that enable specific package versions to be installed.
+//!
+//! ## File Structure (pins.nix)
+//!
+//! ```nix
+//! {
+//!   sources = {
+//!     pkgs-abc123 = "github:NixOS/nixpkgs/abc123...";
+//!   };
+//!   pinnedPackages = {
+//!     pkgs-abc123 = [
+//!       { pkg = "ripgrep"; name = "ripgrep@15.1.0"; }
+//!     ];
+//!   };
+//! }
+//! ```
+
 use crate::flake::parsers::utils::{identifier, multiws, string_literal};
 use anyhow::{Context, Result};
 use nom::sequence::preceded;
@@ -93,7 +115,11 @@ fn parse_overlays_content(input: &str) -> IResult<&str, Vec<OverlayEntry>> {
     many0(overlay_entry).parse(input)
 }
 
-/// Main parser for overlays section: pinnedPackages = { ... }
+/// Parse the pinnedPackages section from pins.nix content.
+///
+/// # Errors
+///
+/// Returns an error if the section cannot be found or parsed.
 pub fn parse_overlay_section(content: &str) -> Result<OverlaysSection> {
     let section_start = content
         .find("pinnedPackages")
@@ -173,7 +199,11 @@ fn parse_sources_content(input: &str) -> IResult<&str, Vec<SourceEntry>> {
     many0(source_entry).parse(input)
 }
 
-/// Main parser for sources section: sources = { ... }
+/// Parse the sources section from pins.nix content.
+///
+/// # Errors
+///
+/// Returns an error if the section cannot be found or parsed.
 pub fn parse_sources_section(content: &str) -> Result<SourcesSection> {
     let section_start = content
         .find("sources")
@@ -224,7 +254,7 @@ pub fn parse_sources_section(content: &str) -> Result<SourcesSection> {
 // COMBINED OPERATIONS (parse -> modify -> render)
 // ============================================================================
 
-/// Normalize indentation between sections so `render_file` produces consistent output.
+/// Normalize indentation between sections for consistent output.
 fn normalize_indentation(sources: &mut SourcesSection, overlays: &mut OverlaysSection) {
     let indent = if !sources.indentation.is_empty() {
         sources.indentation.clone()
@@ -238,7 +268,20 @@ fn normalize_indentation(sources: &mut SourcesSection, overlays: &mut OverlaysSe
     overlays.indentation = indent;
 }
 
-/// Add a pinned package (adds source if needed, creates pin entry if needed, adds package)
+/// Add a pinned package to pins.nix.
+///
+/// This function handles the complete workflow:
+/// 1. Adds the nixpkgs source if it doesn't exist
+/// 2. Creates the pin entry if it doesn't exist
+/// 3. Adds the package to the pin entry
+///
+/// # Arguments
+///
+/// * `content` - The full pins.nix content
+/// * `pin_hash` - Short hash identifying the nixpkgs commit
+/// * `source_ref` - Full git reference (e.g., "github:NixOS/nixpkgs/abc123")
+/// * `package` - Original package name in nixpkgs
+/// * `version` - Version being pinned
 pub fn add_pinned_package(
     content: &str,
     pin_hash: &str,
@@ -271,7 +314,14 @@ pub fn add_pinned_package(
     Ok(render_file(&sources_section, &overlays_section))
 }
 
-/// Remove a pinned package and cleanup if pin is empty
+/// Remove a pinned package and cleanup empty pin entries.
+///
+/// If removing the package leaves a pin entry empty, the entry and its
+/// corresponding source are also removed.
+///
+/// # Errors
+///
+/// Returns an error if the package is not found in any pin entry.
 pub fn remove_pinned_package_with_cleanup(content: &str, package: &str) -> Result<String> {
     let mut sources_section = parse_sources_section(content)?;
     let mut overlays_section = parse_overlay_section(content)?;
@@ -310,7 +360,8 @@ pub fn remove_pinned_package_with_cleanup(content: &str, package: &str) -> Resul
 // ============================================================================
 // RENDER HELPERS
 // ============================================================================
-//
+
+/// Render a sources section as Nix syntax.
 pub fn render_sources_section(
     out: &mut String,
     indent: &str,
@@ -332,6 +383,7 @@ pub fn render_sources_section(
     out.push_str("};\n");
 }
 
+/// Render a pinnedPackages section as Nix syntax.
 pub fn render_pinned_packages_section(
     out: &mut String,
     indent: &str,
@@ -372,6 +424,7 @@ pub fn render_pinned_packages_section(
     out.push_str("};\n");
 }
 
+/// Render a complete pins.nix file from parsed sections.
 pub fn render_file(
     sources: &crate::flake::interfaces::overlays::SourcesSection,
     overlays: &crate::flake::interfaces::overlays::OverlaysSection,
