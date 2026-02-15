@@ -38,6 +38,8 @@ regex = "1.12.2"
 tempfile = "3.8"
 assert_cmd = "2.0"
 predicates = "3.0"
+clippy = "0.0.302"
+fmt = "0.1.0"
 
 [[bin]]
 name = "flk"
