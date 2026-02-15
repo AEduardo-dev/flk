@@ -7,6 +7,7 @@
 - [Installation](./installation.md)
 - [Getting Started](./getting-started.md)
 - [Core Concepts](./concepts.md)
+- [Examples](./examples.md)
 
 # Advanced Topics
 
