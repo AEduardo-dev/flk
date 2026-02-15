@@ -1,6 +1,23 @@
+//! # Nix String and Attribute Rendering
+//!
+//! Safe rendering utilities for generating valid Nix syntax.
+//!
+//! These functions handle proper escaping and formatting when generating
+//! Nix code, ensuring that special characters don't break the output.
+
 use std::borrow::Cow;
 
-/// When a key isn't a simple identifier, emit it as a quoted attribute name:  "pkgs-f720de5" = ...
+/// Render a key as a Nix attribute name, quoting if necessary.
+///
+/// Simple identifiers (alphanumeric, underscore, hyphen) are returned as-is.
+/// Keys with special characters are quoted: `"pkgs-f720de5"`.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// assert_eq!(nix_attr_key("myKey"), "myKey");
+/// assert_eq!(nix_attr_key("my.key"), "\"my.key\"");
+/// ```
 pub fn nix_attr_key(key: &str) -> Cow<'_, str> {
     let mut chars = key.chars();
     let ok_first = chars
@@ -20,7 +37,8 @@ pub fn nix_attr_key(key: &str) -> Cow<'_, str> {
 }
 
 /// Escape content for a Nix double-quoted string.
-/// Handles backslash, quotes, newlines, tabs.
+///
+/// Handles backslash, quotes, newlines, carriage returns, and tabs.
 fn nix_escape_string(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 8);
     for ch in s.chars() {
@@ -36,10 +54,34 @@ fn nix_escape_string(s: &str) -> String {
     out
 }
 
+/// Render a value as a Nix double-quoted string with proper escaping.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// assert_eq!(nix_string("hello"), "\"hello\"");
+/// assert_eq!(nix_string("say \"hi\""), "\"say \\\"hi\\\"\"");
+/// ```
 pub fn nix_string(s: &str) -> String {
     format!("\"{}\"", nix_escape_string(s))
 }
 
+/// Render a value as a Nix multiline string (`'' ... ''`).
+///
+/// # Arguments
+///
+/// * `s` - The string content
+/// * `indent` - The indentation unit (e.g., "  ")
+/// * `level` - The current nesting level
+///
+/// # Example Output
+///
+/// ```nix
+/// ''
+///     echo "hello"
+///     echo "world"
+/// ''
+/// ```
 pub fn nix_multiline_string(s: &str, indent: &str, level: usize) -> String {
     let inner_indent = indent.repeat(level + 1);
     let lines: Vec<&str> = s.lines().collect();
@@ -59,6 +101,13 @@ pub fn nix_multiline_string(s: &str, indent: &str, level: usize) -> String {
     out
 }
 
+/// Append indentation to a string builder.
+///
+/// # Arguments
+///
+/// * `out` - The output string to append to
+/// * `indent` - The indentation unit (e.g., "  ")
+/// * `level` - Number of indentation levels to add
 pub fn indent_line(out: &mut String, indent: &str, level: usize) {
     for _ in 0..level {
         out.push_str(indent);
