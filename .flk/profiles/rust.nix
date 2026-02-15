@@ -1,9 +1,13 @@
 {pkgs, ...}: {
   packages = [
     (pkgs.rust-bin.stable.latest.default.override {
-      extensions = ["llvm-tools-preview"];
+      extensions = [
+        "clippy"
+        "llvm-tools-preview"
+        "rust-src"
+        "rust-analyzer"
+      ];
     })
-    pkgs.rust-analyzer
     pkgs.pkg-config
     pkgs.openssl
     pkgs.cargo-watch
