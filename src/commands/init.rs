@@ -1,3 +1,7 @@
+//! # Initialize Command Handler
+//!
+//! Initialize a new flk-managed development environment with project type detection.
+
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use std::fs;
@@ -5,6 +9,12 @@ use std::path::Path;
 
 use flk::flake::generator;
 
+/// Initialize a new flake environment in the current directory.
+///
+/// # Arguments
+///
+/// * `template` - Optional project type (rust, python, node, go, generic)
+/// * `force` - If true, overwrite existing flake.nix
 pub fn run(template: Option<String>, force: bool) -> Result<()> {
     let flake_path = Path::new("flake.nix");
 

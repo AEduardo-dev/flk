@@ -1,3 +1,7 @@
+//! # Environment Variables Command Handler
+//!
+//! Add, remove, and list environment variables in the development environment.
+
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use std::fs;

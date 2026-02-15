@@ -1,3 +1,7 @@
+//! # Export Command Handler
+//!
+//! Export flake configurations to Docker, Podman, or JSON formats.
+
 use std::{path::Path, process::Command};
 
 use anyhow::{Context, Ok, Result};
@@ -8,11 +12,15 @@ use crate::nix::run_nix_command;
 use flk::flake::parsers::{flake::parse_flake, utils::resolve_profile};
 use flk::utils::visual::with_spinner;
 
+/// Export format options.
 #[derive(Debug, Clone, ValueEnum)]
 #[value(rename_all = "lowercase")]
 pub enum ExportType {
+    /// Export as a Docker image
     Docker,
+    /// Export as a Podman image
     Podman,
+    /// Export configuration as JSON
     Json,
 }
 

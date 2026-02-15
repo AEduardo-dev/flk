@@ -1,3 +1,7 @@
+//! # List Command Handler
+//!
+//! List packages in the active development profile.
+
 use colored::Colorize;
 use std::path::Path;
 

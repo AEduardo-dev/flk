@@ -1,3 +1,7 @@
+//! # Direnv Integration Handler
+//!
+//! Manage direnv integration for automatic environment activation.
+
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use std::fs;
@@ -11,7 +15,7 @@ for f in .flk/profiles/*.nix; do watch_file "$f"; done
 
 use flake "${FLK_PROFILE:-.#}" --impure"#;
 
-/// Initialize direnv by creating a .envrc file and adding the use flake directive.
+/// Create a new `.envrc` file with the flk directive.
 pub fn direnv_init() -> Result<()> {
     let direnv_path = Path::new(".envrc");
 
@@ -29,12 +33,12 @@ pub fn direnv_init() -> Result<()> {
     println!("\n{}", "Next steps:".bold());
     println!("  1. Review the .envrc file");
     println!("  2. Run {} to allow direnv", "direnv allow".cyan());
-    println!("  3. Enjouy your development environment with direnv and flk!");
+    println!("  3. Enjoy your development environment with direnv and flk!");
 
     Ok(())
 }
 
-/// Append use flake directive to existing .envrc file.
+/// Append the flk directive to an existing `.envrc` file.
 pub fn direnv_attach() -> Result<()> {
     let direnv_path = Path::new(".envrc");
 
@@ -66,7 +70,7 @@ pub fn direnv_attach() -> Result<()> {
     Ok(())
 }
 
-/// Remove use flake directive from existing .envrc file.
+/// Remove the flk directive from an existing `.envrc` file.
 pub fn direnv_detach() -> Result<()> {
     let direnv_path = Path::new(".envrc");
     // Check if .envrc exists

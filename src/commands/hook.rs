@@ -1,13 +1,23 @@
+//! # Hook Command Handler
+//!
+//! Generate shell hooks for bash, zsh, and fish that enable the
+//! `refresh` and `switch` commands for hot-reloading environments.
+
 use anyhow::Result;
 use clap::ValueEnum;
 
+/// Supported shell types for hook generation.
 #[derive(Copy, Clone, Debug, ValueEnum)]
 pub enum HookShell {
+    /// Bash shell
     Bash,
+    /// Zsh shell
     Zsh,
+    /// Fish shell
     Fish,
 }
 
+/// Generate and print the shell hook for the specified shell.
 pub fn run_hook(shell: HookShell) -> Result<()> {
     match shell {
         HookShell::Bash | HookShell::Zsh => print_bash_like(),
