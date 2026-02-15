@@ -84,7 +84,7 @@
           cp -r ${flkUserDocs}/* $out/docs/
 
           # Copy API docs to /api subdirectory
-          mkdir -p $out/api
+          mkdir -p $out/docs/api
           cp -r ${flkApiDocs}/* $out/docs/api/
         '';
       };
