@@ -151,19 +151,31 @@ mod tests {
     #[test]
     fn test_normalize_profile_ref_simple_name() {
         assert_eq!(normalize_profile_ref("rust"), Some("rust".to_string()));
-        assert_eq!(normalize_profile_ref("my-profile"), Some("my-profile".to_string()));
+        assert_eq!(
+            normalize_profile_ref("my-profile"),
+            Some("my-profile".to_string())
+        );
     }
 
     #[test]
     fn test_normalize_profile_ref_with_dot_hash_prefix() {
         assert_eq!(normalize_profile_ref(".#rust"), Some("rust".to_string()));
-        assert_eq!(normalize_profile_ref(".#my-profile"), Some("my-profile".to_string()));
+        assert_eq!(
+            normalize_profile_ref(".#my-profile"),
+            Some("my-profile".to_string())
+        );
     }
 
     #[test]
     fn test_normalize_profile_ref_with_path_hash() {
-        assert_eq!(normalize_profile_ref("/path/to/flake#rust"), Some("rust".to_string()));
-        assert_eq!(normalize_profile_ref("github:user/repo#profile"), Some("profile".to_string()));
+        assert_eq!(
+            normalize_profile_ref("/path/to/flake#rust"),
+            Some("rust".to_string())
+        );
+        assert_eq!(
+            normalize_profile_ref("github:user/repo#profile"),
+            Some("profile".to_string())
+        );
     }
 
     #[test]
@@ -177,7 +189,10 @@ mod tests {
     #[test]
     fn test_normalize_profile_ref_trims_whitespace() {
         assert_eq!(normalize_profile_ref("  rust  "), Some("rust".to_string()));
-        assert_eq!(normalize_profile_ref("  .#rust  "), Some("rust".to_string()));
+        assert_eq!(
+            normalize_profile_ref("  .#rust  "),
+            Some("rust".to_string())
+        );
     }
 
     #[test]
@@ -202,7 +217,8 @@ mod tests {
 
 /// Get the default shell profile from default.nix helper
 pub fn get_default_shell_profile() -> Result<String> {
-    let content = fs::read_to_string(".flk/default.nix").context("Failed to read .flk/default.nix")?;
+    let content =
+        fs::read_to_string(".flk/default.nix").context("Failed to read .flk/default.nix")?;
     if let Some(default_start) = content.find("defaultShell = \"") {
         let search_start = default_start + "defaultShell = \"".len();
         if let Some(end) = content[search_start..].find('"') {
@@ -229,7 +245,9 @@ pub fn resolve_profile(target: Option<String>) -> Result<String> {
     } else if let Ok(env_profile) = env::var("FLK_FLAKE_REF") {
         match normalize_profile_ref(&env_profile) {
             Some(p) => p,
-            None => return get_default_shell_profile().context("Could not find default shell profile"),
+            None => {
+                return get_default_shell_profile().context("Could not find default shell profile")
+            }
         }
     } else {
         return get_default_shell_profile().context("Could not find default shell profile");
@@ -276,7 +294,9 @@ pub fn is_valid_profile_name(name: &str) -> bool {
         && !name.contains('/')
         && !name.contains('\\')
         && !name.contains(' ')
-        && name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        && name
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
 }
 
 /// Get first profile name from pofiles directory
