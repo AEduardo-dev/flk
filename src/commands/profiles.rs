@@ -7,7 +7,7 @@ use std::path::Path;
 use flk::flake::generator;
 use flk::flake::parsers::utils::{get_default_shell_profile, is_valid_profile_name};
 
-pub fn run_add(profile: String, template: Option<String>, force: Option<bool>) -> Result<()> {
+pub fn run_add(profile: String, template: Option<String>, force: bool) -> Result<()> {
     let profiles_path = Path::new(".flk/profiles");
     let profile_path = profiles_path.join(format!("{}.nix", profile));
 
@@ -20,7 +20,6 @@ pub fn run_add(profile: String, template: Option<String>, force: Option<bool>) -
     }
 
     let template = template.unwrap_or_else(|| "base".to_string());
-    let force = force.unwrap_or(false);
 
     // Check if profiles directory already exists
     if profile_path.exists() && !force {
