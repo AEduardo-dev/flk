@@ -1,8 +1,8 @@
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use flk::flake::parsers::overlays::remove_pinned_package_with_cleanup;
-use std::path::Path;
 use std::fs;
+use std::path::Path;
 
 use flk::flake::parsers::{packages::parse_packages_section, utils::resolve_profile};
 
