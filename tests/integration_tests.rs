@@ -848,9 +848,20 @@ fn test_direnv_attach() {
 #[test]
 fn test_direnv_detach() {
     let temp_dir = TempDir::new().unwrap();
-    let direnv_path = temp_dir.path().join(".envrc");
 
-    fs::write(&direnv_path, "export VAR=value\nuse flake").unwrap();
+    // Init to get full directive with watch_file lines, then add user content
+    cargo::cargo_bin_cmd!("flk")
+        .current_dir(temp_dir.path())
+        .arg("direnv")
+        .arg("init")
+        .assert()
+        .success();
+
+    let direnv_path = temp_dir.path().join(".envrc");
+    let mut content = fs::read_to_string(&direnv_path).unwrap();
+    content.push_str("\nexport VAR=value\nwatch_file my_file.txt\n");
+    fs::write(&direnv_path, &content).unwrap();
+
     cargo::cargo_bin_cmd!("flk")
         .current_dir(temp_dir.path())
         .arg("direnv")
@@ -860,6 +871,12 @@ fn test_direnv_detach() {
 
     assert!(direnv_path.exists());
     let content = fs::read_to_string(direnv_path).unwrap();
-    assert!(!content.contains("use flake \"${FLK_PROFILE:-.#}\" --impure"));
+    // All flk directives removed
+    assert!(!content.contains("use flake"));
+    assert!(!content.contains("watch_file .flk/"));
+    assert!(!content.contains("for f in .flk/profiles"));
+    assert!(!content.contains("# Watch flk config files"));
+    // User content preserved
     assert!(content.contains("export VAR=value"));
+    assert!(content.contains("watch_file my_file.txt"));
 }
