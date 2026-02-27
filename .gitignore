@@ -23,3 +23,6 @@ result-*
 
 # flk backup directory
 flake.json
+
+# flk GC root profiles (nix develop --profile)
+.flk/.nix-profile-*

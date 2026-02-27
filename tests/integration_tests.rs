@@ -825,7 +825,7 @@ fn test_direnv_init() {
     let direnv_path = temp_dir.path().join(".envrc");
     assert!(direnv_path.exists());
     let content = fs::read_to_string(direnv_path).unwrap();
-    assert_eq!(content, "use flake \"${FLK_PROFILE:-.#}\" --impure");
+    assert_eq!(content, "# Watch flk config files so nix-direnv re-evaluates on changes\nwatch_file .flk/default.nix\nwatch_file .flk/pins.nix\nwatch_file .flk/overlays.nix\nfor f in .flk/profiles/*.nix; do watch_file \"$f\"; done\n\nuse flake \"${FLK_PROFILE:-.#}\" --impure");
 }
 #[test]
 fn test_direnv_attach() {

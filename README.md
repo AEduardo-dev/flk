@@ -728,6 +728,34 @@ proto  # Generate protobuf code
 build  # Build the service
 ```
 
+## ⚡ Speeding Up Shell Activation
+
+By default, `nix develop` re-evaluates and may rebuild your dev shell on every invocation. flk includes built-in optimizations, plus you can add more for near-instant activation.
+
+### GC Root Pinning (Built-in)
+
+`flk activate` automatically creates a GC root at `.flk/.nix-profile-<profile>` via `nix develop --profile`. This prevents Nix from garbage-collecting your shell closure, so after a system restart, re-activation is instant (no rebuild needed).
+
+> **Tip:** Avoid `nix-collect-garbage -d` which removes all GC roots. Prefer `nix-collect-garbage --delete-older-than 30d` to keep recent environments cached.
+
+### nix-direnv (Recommended)
+
+For the best experience, install [nix-direnv](https://github.com/nix-community/nix-direnv). It caches devShell evaluations and only re-evaluates when your flake inputs or `.flk/` config files actually change.
+
+1. Install nix-direnv following [their instructions](https://github.com/nix-community/nix-direnv#installation)
+2. Run `flk direnv init` — flk automatically generates `watch_file` directives for your `.flk/` config files
+3. Run `direnv allow`
+
+With nix-direnv, entering your project directory activates the cached environment in milliseconds.
+
+### Cachix Binary Cache
+
+flk publishes prebuilt binaries to [Cachix](https://app.cachix.org/cache/flk-cache). To skip building flk itself from source:
+
+```bash
+cachix use flk-cache
+```
+
 ## 🛠️ Development
 
 ### Prerequisites

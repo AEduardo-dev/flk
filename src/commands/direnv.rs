@@ -3,7 +3,13 @@ use colored::Colorize;
 use std::fs;
 use std::path::Path;
 
-const DIRENV_FLK_DIRECTIVE: &str = "use flake \"${FLK_PROFILE:-.#}\" --impure";
+const DIRENV_FLK_DIRECTIVE: &str = r#"# Watch flk config files so nix-direnv re-evaluates on changes
+watch_file .flk/default.nix
+watch_file .flk/pins.nix
+watch_file .flk/overlays.nix
+for f in .flk/profiles/*.nix; do watch_file "$f"; done
+
+use flake "${FLK_PROFILE:-.#}" --impure"#;
 
 /// Initialize direnv by creating a .envrc file and adding the use flake directive.
 pub fn direnv_init() -> Result<()> {
@@ -44,6 +50,7 @@ pub fn direnv_attach() -> Result<()> {
         bail!("The .envrc already contains the use flake directive!");
     }
 
+    direnv_content.push('\n');
     direnv_content.push_str(DIRENV_FLK_DIRECTIVE);
     fs::write(direnv_path, direnv_content).context("Failed to update .envrc")?;
 
@@ -67,10 +74,16 @@ pub fn direnv_detach() -> Result<()> {
         bail!(".envrc does not exist!");
     }
     let direnv_content = fs::read_to_string(direnv_path).context("Failed to read .envrc")?;
-    // Remove use flake directive
+    // Remove flk directives (use flake and watch_file for .flk/)
     let updated_content: String = direnv_content
         .lines()
-        .filter(|line| !line.contains("use flake --impure"))
+        .filter(|line| {
+            let trimmed = line.trim();
+            trimmed != r#"use flake "${FLK_PROFILE:-.#}" --impure"#
+                && !trimmed.starts_with("watch_file .flk/")
+                && !trimmed.starts_with("for f in .flk/profiles")
+                && trimmed != "# Watch flk config files so nix-direnv re-evaluates on changes"
+        })
         .map(|line| format!("{}\n", line))
         .collect();
     fs::write(direnv_path, updated_content).context("Failed to update .envrc")?;

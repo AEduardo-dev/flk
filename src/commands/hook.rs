@@ -22,11 +22,13 @@ fn print_bash_like() {
 _flk_use_direnv() {{ command -v direnv >/dev/null 2>&1 && [ -f .envrc ]; }}
 
 refresh() {{
-  export FLK_PROFILE="${{FLK_FLAKE_REF:-.}}"
+  local _flk_ref="${{FLK_FLAKE_REF:-.#default}}"
+  local _flk_profile_name="${{_flk_ref##*.#}}"
+  export FLK_PROFILE="$_flk_ref"
   if _flk_use_direnv; then
     direnv reload
   else
-    exec nix develop "$FLK_FLAKE_REF" --impure
+    exec nix develop "$_flk_ref" --impure --profile ".flk/.nix-profile-$_flk_profile_name"
   fi
 }}
 
@@ -40,7 +42,7 @@ switch() {{
      export FLK_PROFILE=".#$profile"
      direnv reload
   else
-    exec nix develop ".#$profile" --impure
+    exec nix develop ".#$profile" --impure --profile ".flk/.nix-profile-$profile"
  fi
 }}
 "#
@@ -59,7 +61,9 @@ function refresh --description "Reload env (direnv if present, else nix develop)
     set -lx FLK_PROFILE "$FLK_FLAKE_REF"
     direnv reload
   else
-    exec nix develop "$FLK_FLAKE_REF" --impure
+    set -l flk_ref (test -n "$FLK_FLAKE_REF"; and echo "$FLK_FLAKE_REF"; or echo ".#default")
+    set -l profile_name (string replace -r '.*\\.#' '' "$flk_ref")
+    exec nix develop "$flk_ref" --impure --profile ".flk/.nix-profile-$profile_name"
   end
 end
 
@@ -73,7 +77,7 @@ function switch --description "Switch profile and reload"
     set -lx FLK_PROFILE ".#$profile"
     direnv reload
   else
-    exec nix develop ".#$profile" --impure
+    exec nix develop ".#$profile" --impure --profile ".flk/.nix-profile-$profile"
   end
 end
 "#

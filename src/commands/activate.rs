@@ -11,11 +11,14 @@ pub fn run_activate(current_profile: Option<String>) -> Result<()> {
         profile.cyan()
     );
 
-    // Build nix develop command
+    // Build nix develop command with GC root pinning for faster re-activation
+    let profile_path = format!(".flk/.nix-profile-{}", profile);
     let mut cmd = Command::new("nix");
     cmd.arg("develop");
     cmd.arg(format!(".#{}", profile));
     cmd.arg("--impure");
+    cmd.arg("--profile");
+    cmd.arg(&profile_path);
 
     let status = cmd.status().expect("Failed to start nix develop shell");
     if status.success() {
