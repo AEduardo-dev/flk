@@ -236,7 +236,7 @@ enum ProfileAction {
         template: Option<String>,
         /// Force overwrite if profile already exists
         #[arg(short, long)]
-        force: Option<bool>,
+        force: bool,
     },
     /// Remove an existing profile
     Remove {
