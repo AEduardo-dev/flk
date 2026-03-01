@@ -31,6 +31,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make changelog follow git-cliff format
 - Update lockfile
 ## [unreleased]
+## [0.5.3] - 2026-03-01
+
+### 🚀 Features
+
+- Add defaultShell attribute and conditional export to flake outputs
+- Allow specifying shell profile and improve profile selection
+- Add profile management commands
+- Support specifying target profile for add/remove commands
+- Add resolve_profile with path traversal validation
+- Add --profile flag to commands
+- Improve dev shell activation speed with GC root pinning and nix-direnv support
+
+### 🐛 Bug Fixes
+
+- Add path traversal validation to profile commands
+- Set least-privilege permissions in workflow files
+- Add profile name validation in shell hook functions
+- Add guard for empty profiles list
+- Remove Option from boolean flag
+
+### 🚜 Refactor
+
+- Simplify `run_add` signature by removing Option from force param
+
+### 📚 Documentation
+
+- Add profile management and --profile flag documentation
+
+### 🧪 Testing
+
+- Add path traversal prevention tests for profile commands
+
+### ⚙️ Miscellaneous Tasks
+
+- Add dependabot for weekly dep checks
+- Update dependencies and add regex crate
+- Add code coverage with Codecov
+- Add llvm-tools-preview for local coverage
+- Run cargo fmt
 ## [0.5.2] - 2026-01-22
 
 ### 🚀 Features
