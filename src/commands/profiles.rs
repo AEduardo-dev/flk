@@ -86,7 +86,6 @@ pub fn run_list() -> Result<()> {
         bail!("No profiles found! The .flk/profiles directory does not exist.");
     }
 
-    println!("{} Available profiles:", "ℹ".blue());
     let mut profiles: Vec<String> = fs::read_dir(profiles_path)
         .context("Failed to read profiles directory")?
         .filter_map(|entry| entry.ok())
@@ -97,6 +96,13 @@ pub fn run_list() -> Result<()> {
         })
         .filter(|name| name != "default")
         .collect();
+
+    if profiles.is_empty() {
+        println!("No profiles found in .flk/profiles!");
+        return Ok(());
+    }
+
+    println!("{} Available profiles:", "ℹ".blue());
 
     profiles.sort();
     for profile_name in profiles {
