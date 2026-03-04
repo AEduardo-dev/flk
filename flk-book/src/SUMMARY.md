@@ -36,6 +36,7 @@
 - [flk switch/refresh](./commands/switch.md)
 - [flk update](./commands/update.md)
 - [flk direnv](./commands/direnv.md)
+- [flk profile](./commands/profile.md)
 
 # Reference
 

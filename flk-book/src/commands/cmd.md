@@ -14,5 +14,8 @@ flk cmd remove dev
 - `remove <NAME>`: delete a command
 - `list`: list all custom commands
 
+**Options**
+- `-p, --profile <PROFILE>`: target a specific profile instead of the default
+
 **Notes**
 - Command names: letters, numbers, hyphens, underscores; cannot start with hyphen.
