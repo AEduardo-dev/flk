@@ -6,7 +6,7 @@ use nom::{
     bytes::complete::{tag, take_until, take_while, take_while1},
     character::complete::{char, multispace0, space0},
     combinator::{opt, recognize},
-    sequence::{delimited, preceded, terminated},
+    sequence::{delimited, preceded},
     IResult, Parser,
 };
 use std::{env, fs, path::PathBuf};
@@ -52,12 +52,6 @@ pub fn pkgs_suffix(input: &str) -> IResult<&str, &str> {
         )),
     )
     .parse(input)
-}
-
-/// Parse one pkgs entry with optional trailing spaces and optional inline comment.
-/// Returns only the suffix (everything after `pkgs.`), discarding the comment.
-pub fn pkgs_entry(input: &str) -> IResult<&str, &str> {
-    terminated(pkgs_suffix, (space0, opt_inline_comment, space0)).parse(input)
 }
 
 /// Parse an attribute version (e.g., "1.56.0" or 1.56.0) that comes after a "@" symbol
