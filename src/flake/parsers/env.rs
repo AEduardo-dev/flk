@@ -3,11 +3,12 @@ use crate::flake::parsers::utils::{
     byte_offset, detect_indentation, identifier, multiws, string_literal, ws,
 };
 use anyhow::{Context, Result};
+use nom::Parser;
 use nom::{
     branch::alt,
     character::complete::{char, line_ending},
     combinator::opt,
-    sequence::{separated_pair, tuple},
+    sequence::separated_pair,
     IResult,
 };
 
@@ -31,7 +32,7 @@ pub struct EnvVarsSection {
 
 /// Parse a value (quoted string or unquoted identifier)
 fn env_value(input: &str) -> IResult<&str, &str> {
-    alt((string_literal, identifier))(input)
+    alt((string_literal, identifier)).parse(input)
 }
 
 /// Parse a single env var entry:   NAME = "value";
@@ -44,10 +45,10 @@ fn env_var_entry<'a>(
 
     let (remaining, _) = multiws(input)?;
     let (remaining, (name, value)) =
-        separated_pair(identifier, tuple((ws, char('='), ws)), env_value)(remaining)?;
+        separated_pair(identifier, (ws, char('='), ws), env_value).parse(remaining)?;
     let (remaining, _) = ws(remaining)?;
     let (remaining, _) = char(';')(remaining)?;
-    let (remaining, _) = opt(line_ending)(remaining)?;
+    let (remaining, _) = opt(line_ending).parse(remaining)?;
 
     let end_pos = base_offset + byte_offset(original_input, remaining);
 
