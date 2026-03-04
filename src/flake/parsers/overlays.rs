@@ -1,13 +1,10 @@
 use crate::flake::parsers::utils::{identifier, multiws, string_literal};
 use anyhow::{Context, Result};
 use nom::sequence::preceded;
+use nom::Parser;
 use nom::{
-    bytes::complete::tag,
-    character::complete::char,
-    combinator::map,
-    multi::many0,
-    sequence::{delimited, tuple},
-    IResult,
+    bytes::complete::tag, character::complete::char, combinator::map, multi::many0,
+    sequence::delimited, IResult,
 };
 
 use crate::flake::interfaces::{
@@ -29,13 +26,10 @@ fn pinned_package_entry(input: &str) -> IResult<&str, PinnedPackage> {
                 char('{'),
                 delimited(
                     multiws,
-                    tuple((
+                    (
+                        preceded((tag("pkg"), multiws, char('='), multiws), string_literal),
                         preceded(
-                            tuple((tag("pkg"), multiws, char('='), multiws)),
-                            string_literal,
-                        ),
-                        preceded(
-                            tuple((
+                            (
                                 multiws,
                                 char(';'),
                                 multiws,
@@ -43,14 +37,11 @@ fn pinned_package_entry(input: &str) -> IResult<&str, PinnedPackage> {
                                 multiws,
                                 char('='),
                                 multiws,
-                            )),
+                            ),
                             string_literal,
                         ),
-                        preceded(
-                            tuple((multiws, char(';'), multiws)),
-                            nom::combinator::success(()),
-                        ),
-                    )),
+                        preceded((multiws, char(';'), multiws), nom::combinator::success(())),
+                    ),
                     multiws,
                 ),
                 char('}'),
@@ -61,7 +52,8 @@ fn pinned_package_entry(input: &str) -> IResult<&str, PinnedPackage> {
             name: pkg.to_string(),
             pin_name: pin_name.to_string(),
         },
-    )(input)
+    )
+    .parse(input)
 }
 
 fn pinned_package_list(input: &str) -> IResult<&str, Vec<PinnedPackage>> {
@@ -69,12 +61,13 @@ fn pinned_package_list(input: &str) -> IResult<&str, Vec<PinnedPackage>> {
         delimited(multiws, char('['), multiws),
         many0(pinned_package_entry),
         delimited(multiws, char(']'), multiws),
-    )(input)
+    )
+    .parse(input)
 }
 
 /// Parse a pin entry: pin_name = [ ... ];
 fn overlay_entry(input: &str) -> IResult<&str, OverlayEntry> {
-    let (remaining, (_, name, _, _, _, packages, _, _)) = tuple((
+    let (remaining, (_, name, _, _, _, packages, _, _)) = (
         multiws,
         identifier,
         multiws,
@@ -83,7 +76,8 @@ fn overlay_entry(input: &str) -> IResult<&str, OverlayEntry> {
         pinned_package_list,
         multiws,
         char(';'),
-    ))(input)?;
+    )
+        .parse(input)?;
 
     Ok((
         remaining,
@@ -96,7 +90,7 @@ fn overlay_entry(input: &str) -> IResult<&str, OverlayEntry> {
 
 /// Parse the full overlays section: everything between braces `{ ... }`
 fn parse_overlays_content(input: &str) -> IResult<&str, Vec<OverlayEntry>> {
-    many0(overlay_entry)(input)
+    many0(overlay_entry).parse(input)
 }
 
 /// Main parser for overlays section: pinnedPackages = { ... }
@@ -153,7 +147,7 @@ pub fn parse_overlay_section(content: &str) -> Result<OverlaysSection> {
 
 /// Parse a single source entry:  name = "reference";
 fn source_entry(input: &str) -> IResult<&str, SourceEntry> {
-    let (remaining, (_, name, _, _, _, reference, _, _)) = tuple((
+    let (remaining, (_, name, _, _, _, reference, _, _)) = (
         multiws,
         identifier,
         multiws,
@@ -162,7 +156,8 @@ fn source_entry(input: &str) -> IResult<&str, SourceEntry> {
         string_literal,
         multiws,
         char(';'),
-    ))(input)?;
+    )
+        .parse(input)?;
 
     Ok((
         remaining,
@@ -175,7 +170,7 @@ fn source_entry(input: &str) -> IResult<&str, SourceEntry> {
 
 /// Parse the full sources section: everything between braces `{ ... }`
 fn parse_sources_content(input: &str) -> IResult<&str, Vec<SourceEntry>> {
-    many0(source_entry)(input)
+    many0(source_entry).parse(input)
 }
 
 /// Main parser for sources section: sources = { ... }

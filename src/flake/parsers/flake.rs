@@ -3,7 +3,7 @@ use nom::{
     bytes::complete::tag,
     character::complete::{char, line_ending},
     combinator::opt,
-    IResult,
+    IResult, Parser,
 };
 use std::fs;
 
@@ -152,7 +152,7 @@ fn input_entry<'a>(
     let (remaining, url) = string_literal(remaining)?;
     let (remaining, _) = ws(remaining)?;
     let (remaining, _) = char(';')(remaining)?;
-    let (remaining, _) = opt(line_ending)(remaining)?;
+    let (remaining, _) = opt(line_ending).parse(remaining)?;
 
     let end_pos = base_offset + byte_offset(original_input, remaining);
 

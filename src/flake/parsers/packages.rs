@@ -4,6 +4,7 @@ use crate::flake::parsers::utils::{
     pkgs_suffix, ws,
 };
 use anyhow::{Context, Result};
+use nom::Parser;
 use nom::{
     bytes::complete::tag,
     character::complete::{char, line_ending},
@@ -33,7 +34,7 @@ pub struct PackagesSection {
 
 /// Parse "with pkgs;" prefix (optional)
 fn with_pkgs(input: &str) -> IResult<&str, Option<&str>> {
-    opt(delimited(ws, tag("with pkgs;"), ws))(input)
+    opt(delimited(ws, tag("with pkgs;"), ws)).parse(input)
 }
 
 /// Parse a single package entry with optional comment
@@ -48,7 +49,7 @@ fn package_entry<'a>(
     let (remaining, name) = pkgs_suffix(remaining)?;
     let (remaining, version) = opt_attribute_version(remaining)?;
     let (remaining, comment) = opt_inline_comment(remaining)?;
-    let (remaining, _) = opt(line_ending)(remaining)?;
+    let (remaining, _) = opt(line_ending).parse(remaining)?;
 
     let end_pos = base_offset + byte_offset(original_input, remaining);
 

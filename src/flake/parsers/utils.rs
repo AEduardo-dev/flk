@@ -6,8 +6,8 @@ use nom::{
     bytes::complete::{tag, take_until, take_while, take_while1},
     character::complete::{char, multispace0, space0},
     combinator::{opt, recognize},
-    sequence::{delimited, preceded, terminated, tuple},
-    IResult,
+    sequence::{delimited, preceded, terminated},
+    IResult, Parser,
 };
 use std::{env, fs, path::PathBuf};
 
@@ -25,7 +25,8 @@ pub fn multiws(input: &str) -> IResult<&str, &str> {
 pub fn identifier(input: &str) -> IResult<&str, &str> {
     recognize(take_while1(|c: char| {
         c.is_alphanumeric() || c == '_' || c == '-'
-    }))(input)
+    }))
+    .parse(input)
 }
 
 /// Parse a Nix attribute path token (no whitespace), returning the whole token.
@@ -33,7 +34,8 @@ pub fn identifier(input: &str) -> IResult<&str, &str> {
 pub fn attribute_path_token(input: &str) -> IResult<&str, &str> {
     recognize(take_while1(|c: char| {
         c.is_alphanumeric() || c == '_' || c == '-' || c == '.'
-    }))(input)
+    }))
+    .parse(input)
 }
 
 /// Parse `pkgs.<suffix>` where suffix is either:
@@ -48,13 +50,14 @@ pub fn pkgs_suffix(input: &str) -> IResult<&str, &str> {
             // pkgs.rust-bin.stable.latest.default -> rust-bin.stable.latest.default
             attribute_path_token,
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 /// Parse one pkgs entry with optional trailing spaces and optional inline comment.
 /// Returns only the suffix (everything after `pkgs.`), discarding the comment.
 pub fn pkgs_entry(input: &str) -> IResult<&str, &str> {
-    terminated(pkgs_suffix, tuple((space0, opt_inline_comment, space0)))(input)
+    terminated(pkgs_suffix, (space0, opt_inline_comment, space0)).parse(input)
 }
 
 /// Parse an attribute version (e.g., "1.56.0" or 1.56.0) that comes after a "@" symbol
@@ -62,30 +65,31 @@ pub fn attribute_version(input: &str) -> IResult<&str, &str> {
     preceded(
         char('@'),
         take_while1(|c: char| c.is_alphanumeric() || c == '.' || c == '_' || c == '-'),
-    )(input)
+    )
+    .parse(input)
 }
 pub fn opt_attribute_version(input: &str) -> IResult<&str, Option<&str>> {
-    opt(attribute_version)(input)
+    opt(attribute_version).parse(input)
 }
 
 /// Parse a string literal in double quotes, handling escaped quotes
 pub fn string_literal(input: &str) -> IResult<&str, &str> {
-    delimited(char('"'), take_until("\""), char('"'))(input)
+    delimited(char('"'), take_until("\""), char('"')).parse(input)
 }
 
 /// Parse a Nix multiline string ('' ...  '')
 pub fn multiline_string(input: &str) -> IResult<&str, &str> {
-    delimited(tag("''"), take_until("''"), tag("''"))(input)
+    delimited(tag("''"), take_until("''"), tag("''")).parse(input)
 }
 
 /// Parse an inline comment starting with #
 pub fn inline_comment(input: &str) -> IResult<&str, &str> {
-    preceded(tuple((ws, char('#'))), take_while(|c| c != '\n'))(input)
+    preceded((ws, char('#')), take_while(|c| c != '\n')).parse(input)
 }
 
 /// Parse optional inline comment
 pub fn opt_inline_comment(input: &str) -> IResult<&str, Option<&str>> {
-    opt(inline_comment)(input)
+    opt(inline_comment).parse(input)
 }
 
 /// Detect indentation pattern from content

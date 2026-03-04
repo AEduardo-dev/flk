@@ -2,12 +2,13 @@ use crate::flake::interfaces::shellhooks::{ShellHookEntry, ShellHookSection};
 use crate::flake::nix_render::{indent_line, nix_multiline_string, nix_string};
 use crate::flake::parsers::utils::{detect_indentation, multiline_string, multiws, string_literal};
 use anyhow::{Context, Result};
+use nom::Parser;
 use nom::{
     bytes::complete::tag,
     character::complete::char,
     combinator::map,
     multi::many0,
-    sequence::{delimited, preceded, tuple},
+    sequence::{delimited, preceded},
     IResult,
 };
 
@@ -24,13 +25,10 @@ fn shell_hook_entry(input: &str) -> IResult<&str, ShellHookEntry> {
                 char('{'),
                 delimited(
                     multiws,
-                    tuple((
+                    (
+                        preceded((tag("name"), multiws, char('='), multiws), string_literal),
                         preceded(
-                            tuple((tag("name"), multiws, char('='), multiws)),
-                            string_literal,
-                        ),
-                        preceded(
-                            tuple((
+                            (
                                 multiws,
                                 char(';'),
                                 multiws,
@@ -38,14 +36,11 @@ fn shell_hook_entry(input: &str) -> IResult<&str, ShellHookEntry> {
                                 multiws,
                                 char('='),
                                 multiws,
-                            )),
+                            ),
                             multiline_string,
                         ),
-                        preceded(
-                            tuple((multiws, char(';'), multiws)),
-                            nom::combinator::success(()),
-                        ),
-                    )),
+                        preceded((multiws, char(';'), multiws), nom::combinator::success(())),
+                    ),
                     multiws,
                 ),
                 char('}'),
@@ -56,7 +51,8 @@ fn shell_hook_entry(input: &str) -> IResult<&str, ShellHookEntry> {
             name: name.to_string(),
             script: script.to_string(),
         },
-    )(input)
+    )
+    .parse(input)
 }
 
 /// Parse a list of command entries: [ { ...  } { ... } ]
@@ -65,7 +61,8 @@ fn shell_hook_entry_list(input: &str) -> IResult<&str, Vec<ShellHookEntry>> {
         delimited(multiws, char('['), multiws),
         many0(shell_hook_entry),
         delimited(multiws, char(']'), multiws),
-    )(input)
+    )
+    .parse(input)
 }
 
 /// Parse the full commands section content
