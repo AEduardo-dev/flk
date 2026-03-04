@@ -260,6 +260,17 @@ pub fn get_default_shell_profile() -> Result<String> {
     get_first_profile_name()
 }
 
+/// Resolve which profile to use based on priority order.
+///
+/// Resolution order:
+/// 1. Explicit `--profile` argument (if provided)
+/// 2. `FLK_FLAKE_REF` environment variable
+/// 3. `defaultShell` attribute in `.flk/default.nix`
+/// 4. First available profile in `.flk/profiles/`
+///
+/// # Arguments
+///
+/// * `target` - Optional explicit profile from the `--profile` CLI flag
 pub fn resolve_profile(target: Option<String>) -> Result<String> {
     let profile = if let Some(p) = target.and_then(|p| normalize_profile_ref(&p)) {
         p

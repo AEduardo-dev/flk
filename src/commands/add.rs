@@ -11,6 +11,16 @@ use crate::nix::run_nix_command;
 use flk::flake::parsers::{packages::parse_packages_section, utils::resolve_profile};
 use flk::utils::visual::with_spinner;
 
+/// Add a package to the development environment.
+///
+/// Validates the package exists in nixpkgs, then writes it to the active
+/// profile. When `--version` is specified, also pins the package in `.flk/pins.nix`.
+///
+/// # Arguments
+///
+/// * `package` - Package name to add (e.g., "ripgrep", "nodejs")
+/// * `version` - Optional version to pin (e.g., "15.1.0")
+/// * `target_profile` - Optional profile override
 pub fn run_add(
     package: &str,
     version: Option<String>,

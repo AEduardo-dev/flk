@@ -9,6 +9,7 @@
 //! ### Project Setup
 //! - [`init`] - Initialize a new flake environment with language detection
 //! - [`activate`] - Enter the Nix development shell
+//! - [`profiles`] - Create, remove, list, and set default profiles
 //!
 //! ### Package Management
 //! - [`add`] - Add packages to the environment (with optional version pinning)

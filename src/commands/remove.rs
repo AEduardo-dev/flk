@@ -11,6 +11,15 @@ use std::path::Path;
 
 use flk::flake::parsers::{packages::parse_packages_section, utils::resolve_profile};
 
+/// Remove a package from the development environment.
+///
+/// Removes the package from the active profile file. If the package was
+/// version-pinned, also cleans up the corresponding entry in `.flk/pins.nix`.
+///
+/// # Arguments
+///
+/// * `package` - Package name to remove
+/// * `target_profile` - Optional profile override
 pub fn run_remove(package: &str, target_profile: Option<String>) -> Result<()> {
     let profile = resolve_profile(target_profile)?;
     let flake_path = Path::new(".flk/profiles/").join(format!("{}.nix", profile));

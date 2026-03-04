@@ -117,7 +117,10 @@ pub fn parse_flake(path: &str) -> Result<FlakeConfig> {
     Ok(config)
 }
 
-/// Parse a single profile file. (Internal use)
+/// Parse a single profile file into a [`Profile`] struct.
+///
+/// Internal helper used by [`parse_flake`] to process each `.nix` file
+/// in `.flk/profiles/`.
 pub fn _parse_profile_file(path: &str) -> Result<Profile> {
     let content = fs::read_to_string(path).context("Failed to read profile file")?;
 
@@ -301,7 +304,7 @@ impl InputsSection {
         self.entries.iter().map(|e| e.name.clone()).collect()
     }
 
-    /// Add a new input. (Internal use)
+    /// Add a new input entry to the section (internal).
     pub fn _add_input(&self, original_content: &str, name: &str, url: &str) -> String {
         // Check if exists
         if self.entries.iter().any(|e| e.name == name) {
@@ -318,7 +321,7 @@ impl InputsSection {
         result
     }
 
-    /// Remove an input. (Internal use)
+    /// Remove an input entry by name (internal).
     pub fn _remove_input(&self, original_content: &str, name: &str) -> Result<String> {
         let entry = self
             .entries
@@ -334,7 +337,7 @@ impl InputsSection {
         Ok(format!("{}{}", before, after))
     }
 
-    /// Update an input's URL. (Internal use)
+    /// Update an existing input's URL (internal).
     pub fn _update_input(
         &self,
         original_content: &str,

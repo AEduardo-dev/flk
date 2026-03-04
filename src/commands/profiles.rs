@@ -1,3 +1,8 @@
+//! # Profile Management Handler
+//!
+//! Create, remove, list, and set default profiles for managing multiple
+//! development environment configurations within a single project.
+
 use anyhow::{bail, Context, Result};
 use colored::Colorize;
 use regex::Regex;
@@ -7,6 +12,13 @@ use std::path::Path;
 use flk::flake::generator;
 use flk::flake::parsers::utils::{get_default_shell_profile, is_valid_profile_name};
 
+/// Create a new profile from a template.
+///
+/// # Arguments
+///
+/// * `profile` - Name for the new profile
+/// * `template` - Template type (base, rust, python, node, go, generic); defaults to base
+/// * `force` - If true, overwrite an existing profile
 pub fn run_add(profile: String, template: Option<String>, force: bool) -> Result<()> {
     let profiles_path = Path::new(".flk/profiles");
     let profile_path = profiles_path.join(format!("{}.nix", profile));
@@ -43,6 +55,14 @@ pub fn run_add(profile: String, template: Option<String>, force: bool) -> Result
     Ok(())
 }
 
+/// Remove an existing profile.
+///
+/// Validates the profile name, checks it exists, and ensures it is not
+/// the current default profile before deleting.
+///
+/// # Arguments
+///
+/// * `profile` - Name of the profile to remove
 pub fn run_remove(profile: String) -> Result<()> {
     // Validate profile name to prevent path traversal
     if !is_valid_profile_name(&profile) {
@@ -78,6 +98,7 @@ pub fn run_remove(profile: String) -> Result<()> {
     Ok(())
 }
 
+/// List all available profiles in `.flk/profiles/`.
 pub fn run_list() -> Result<()> {
     let profiles_path = Path::new(".flk/profiles");
 
@@ -112,7 +133,13 @@ pub fn run_list() -> Result<()> {
     Ok(())
 }
 
-// Insert in the let block, not at the end of file
+/// Set the default profile used when no `--profile` flag is provided.
+///
+/// Updates the `defaultShell` attribute in `.flk/default.nix`.
+///
+/// # Arguments
+///
+/// * `profile` - Name of the profile to set as default
 pub fn run_set_default(profile: String) -> Result<()> {
     // Validate profile name to prevent path traversal
     if !is_valid_profile_name(&profile) {

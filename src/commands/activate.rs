@@ -7,6 +7,14 @@ use colored::Colorize;
 use flk::flake::parsers::utils::resolve_profile;
 use std::process::Command;
 
+/// Enter the Nix development shell for the resolved profile.
+///
+/// Runs `nix develop` with `--impure` and GC root pinning for faster
+/// re-activation on subsequent runs.
+///
+/// # Arguments
+///
+/// * `current_profile` - Optional profile override
 pub fn run_activate(current_profile: Option<String>) -> Result<()> {
     let profile = resolve_profile(current_profile)?;
 

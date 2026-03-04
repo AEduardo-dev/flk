@@ -195,7 +195,7 @@ pub fn parse_packages_section(content: &str) -> Result<PackagesSection> {
 }
 
 impl PackagesSection {
-    /// Convert parsed entries to [`Package`] structs for [`crate::flake::interfaces::profiles::FlakeConfig`].
+    /// Convert parsed entries to a list of [`Package`] structs.
     pub fn to_packages(&self) -> Vec<Package> {
         self.entries
             .iter()
@@ -267,7 +267,7 @@ impl PackagesSection {
         Ok(format!("{}{}", before, after))
     }
 
-    /// Check if a package exists in the section.
+    /// Check whether a package with the given name already exists in the section.
     pub fn package_exists(&self, name: &str) -> bool {
         self.entries
             .iter()
