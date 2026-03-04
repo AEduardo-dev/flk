@@ -361,7 +361,9 @@ pub fn remove_pinned_package_with_cleanup(content: &str, package: &str) -> Resul
 // RENDER HELPERS
 // ============================================================================
 
-/// Render a sources section as Nix syntax.
+/// Render the sources section back to Nix syntax.
+///
+/// Produces the `sources = { ... };` block for `pins.nix`.
 pub fn render_sources_section(
     out: &mut String,
     indent: &str,
@@ -383,7 +385,9 @@ pub fn render_sources_section(
     out.push_str("};\n");
 }
 
-/// Render a pinnedPackages section as Nix syntax.
+/// Render the pinned packages section back to Nix syntax.
+///
+/// Produces the `pinnedPackages = { ... };` block for `pins.nix`.
 pub fn render_pinned_packages_section(
     out: &mut String,
     indent: &str,
@@ -424,7 +428,7 @@ pub fn render_pinned_packages_section(
     out.push_str("};\n");
 }
 
-/// Render a complete pins.nix file from parsed sections.
+/// Render a complete `pins.nix` file from sources and overlay sections.
 pub fn render_file(
     sources: &crate::flake::interfaces::overlays::SourcesSection,
     overlays: &crate::flake::interfaces::overlays::OverlaysSection,

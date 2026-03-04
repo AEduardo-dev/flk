@@ -9,6 +9,11 @@ use anyhow::{Context, Result};
 
 use flk::flake::parsers::{packages::parse_packages_section, utils::resolve_profile};
 
+/// List all packages in the active development profile.
+///
+/// # Arguments
+///
+/// * `target_profile` - Optional profile to list packages from
 pub fn run_list(target_profile: Option<String>) -> Result<()> {
     let profile = resolve_profile(target_profile)?;
     let flake_path = Path::new(".flk/profiles/").join(format!("{}.nix", profile));

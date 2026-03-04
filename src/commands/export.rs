@@ -24,6 +24,16 @@ pub enum ExportType {
     Json,
 }
 
+/// Export the flake configuration to the specified format.
+///
+/// Supports Docker image, Podman image, and JSON export. Docker and Podman
+/// exports build a Nix-based container image and load it into the respective
+/// runtime. JSON export serializes the parsed flake configuration to `flake.json`.
+///
+/// # Arguments
+///
+/// * `export_type` - Target format (Docker, Podman, or JSON)
+/// * `target_profile` - Optional profile override
 pub fn run_export(export_type: &ExportType, target_profile: Option<String>) -> Result<()> {
     let profile = resolve_profile(target_profile)?;
     match export_type {

@@ -15,6 +15,17 @@ use flk::flake::parsers::{
     utils::resolve_profile,
 };
 
+/// Add a custom shell command to the development environment.
+///
+/// The command becomes available as a shell function when the dev shell
+/// is activated. Can accept inline command text or read from a file.
+///
+/// # Arguments
+///
+/// * `name` - Command name (alphanumeric, hyphens, underscores)
+/// * `command` - Command body (bash code)
+/// * `file` - Optional path to read command body from a file instead
+/// * `target_profile` - Optional profile override
 pub fn run_add(
     name: &str,
     command: &str,
@@ -79,6 +90,12 @@ pub fn run_add(
     Ok(())
 }
 
+/// Remove a custom shell command from the development environment.
+///
+/// # Arguments
+///
+/// * `name` - Name of the command to remove
+/// * `target_profile` - Optional profile override
 pub fn run_remove(name: &str, target_profile: Option<String>) -> Result<()> {
     let profile = resolve_profile(target_profile)?;
     let flake_path = Path::new(".flk/profiles/").join(format!("{}.nix", profile));

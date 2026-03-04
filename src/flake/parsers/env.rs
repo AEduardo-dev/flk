@@ -186,7 +186,7 @@ pub fn parse_env_vars_section(content: &str) -> Result<EnvVarsSection> {
 }
 
 impl EnvVarsSection {
-    /// Convert parsed entries to [`EnvVar`] structs for [`crate::flake::interfaces::profiles::FlakeConfig`].
+    /// Convert parsed entries to a list of [`EnvVar`] structs.
     pub fn to_env_vars(&self) -> Vec<EnvVar> {
         self.entries
             .iter()
@@ -241,7 +241,7 @@ impl EnvVarsSection {
         Ok(format!("{}{}", before, after))
     }
 
-    /// Check if an environment variable exists in the section.
+    /// Check whether an environment variable with the given name exists.
     pub fn env_var_exists(&self, name: &str) -> Result<bool> {
         Ok(self.entries.iter().any(|e| e.name == name))
     }

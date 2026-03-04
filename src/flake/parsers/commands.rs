@@ -208,7 +208,9 @@ pub fn render_commands_section(
     out.push_str("];");
 }
 
-/// Render a shell hook section for splicing back into a file.
+/// Render a shell hook section back to Nix syntax.
+///
+/// Produces the `commands = [ ... ];` block from a [`ShellHookSection`].
 pub fn render_shell_hook_section(section: &ShellHookSection) -> String {
     let indent = if section.indentation.is_empty() {
         "  "
