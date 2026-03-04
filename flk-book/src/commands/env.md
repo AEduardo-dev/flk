@@ -13,5 +13,8 @@ flk env list
 - `remove <NAME>`: delete a variable
 - `list`: show all configured variables
 
+**Options**
+- `-p, --profile <PROFILE>`: target a specific profile instead of the default
+
 **Notes**
 - Names must start with a letter/underscore and contain only letters, numbers, underscores.
