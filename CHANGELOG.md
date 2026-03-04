@@ -75,6 +75,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update extensions from rust overlay
 - Update cargo and flake lockfiles
 - Add workflow for pages deployment
+- Release v0.6.0
+## [0.6.0] - 2026-03-04
+
+### 🚀 Features
+
+- Add docs.nix profile for documentation tooling
+- Add documentation links for deep-search, export, hook, list, show, and direnv commands in SUMMARY.md
+
+### 🐛 Bug Fixes
+
+- Remove unused parser
+- Conflict resolution leftover
+- Remove faulty key in book.toml
+- Branch typo
+
+### 💼 Other
+
+- Update flake.nix configuration
+
+### 📚 Documentation
+
+- Add targets for nix build of documentation with mdbook
+- Add skeleton of documentation book
+- [**breaking**] Restructure and expand documentation with new book sections
+- Update book documentation
+- Expand crate-level documentation for flk core library
+- Add crate-level documentation for flk CLI binary
+- Update utilities doc strings
+- Document nix interface modules
+- Parsers documentation
+- Interfaces documentation
+- Commands documentation
+- Flake utilities and mods documentation
+- Complete cargo docs documentation
+- Update mdbook
+- Update README to remove duplicate docs
+
+### ⚙️ Miscellaneous Tasks
+
+- Update dependencies
+- Update nom usage to v8 approach
+- Add missing dev dependencies
+- Update extensions from rust overlay
+- Update cargo and flake lockfiles
+- Add workflow for pages deployment
 ## [0.5.3] - 2026-03-01
 
 ### 🚀 Features
