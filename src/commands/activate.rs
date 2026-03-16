@@ -30,6 +30,8 @@ pub fn run_activate(current_profile: Option<String>) -> Result<()> {
     cmd.arg(format!(".#{}", profile));
     cmd.arg("--impure");
     cmd.arg("--profile");
+    cmd.arg("-c");
+    cmd.arg("$SHELL");
     cmd.arg(&profile_path);
 
     let status = cmd.status().expect("Failed to start nix develop shell");
