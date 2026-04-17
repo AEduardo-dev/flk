@@ -30,7 +30,7 @@ pub fn run_add(
     let flake_path = path::Path::new(".flk/profiles/").join(format!("{}.nix", profile));
     let flake_content = fs::read_to_string(&flake_path).with_context(|| {
         format!(
-            "Failed to read flake file at {}",
+            "Failed to read profile file at '{}'. Have you run 'flk init'?",
             flake_path.to_str().unwrap()
         )
     })?;
