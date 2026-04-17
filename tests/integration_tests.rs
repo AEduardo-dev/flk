@@ -4,9 +4,16 @@ use predicates::str::contains;
 use std::fs;
 use tempfile::TempDir;
 
+/// Create a `flk` command with a clean environment (no `FLK_FLAKE_REF` leaking in).
+fn flk_cmd() -> assert_cmd::Command {
+    let mut cmd = cargo::cargo_bin_cmd!("flk");
+    cmd.env_remove("FLK_FLAKE_REF");
+    cmd
+}
+
 #[test]
 fn test_version() {
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .arg("--version")
         .assert()
         .success()
@@ -15,7 +22,7 @@ fn test_version() {
 
 #[test]
 fn test_help() {
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .arg("--help")
         .assert()
         .success()
@@ -27,7 +34,7 @@ fn test_help() {
 #[test]
 fn test_init_without_template() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
@@ -54,7 +61,7 @@ fn test_init_without_template() {
 #[test]
 fn test_init_with_rust_template() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .arg("--template")
@@ -74,7 +81,7 @@ fn test_init_with_rust_template() {
 #[test]
 fn test_init_with_python_template() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .arg("--template")
@@ -94,7 +101,7 @@ fn test_init_with_python_template() {
 #[test]
 fn test_init_with_node_template() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .arg("--template")
@@ -110,7 +117,7 @@ fn test_init_with_node_template() {
 #[test]
 fn test_init_with_go_template() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .arg("--template")
@@ -126,14 +133,14 @@ fn test_init_with_go_template() {
 #[test]
 fn test_init_force_overwrite() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
         .success();
 
     // Try to create again without force - should fail
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
@@ -141,7 +148,7 @@ fn test_init_force_overwrite() {
         .stderr(predicate::str::contains("already exists"));
 
     // Try with force - should succeed
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .arg("--force")
@@ -152,7 +159,7 @@ fn test_init_force_overwrite() {
 #[test]
 fn test_init_creates_flk_directory_structure() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
@@ -167,13 +174,13 @@ fn test_init_creates_flk_directory_structure() {
 #[test]
 fn test_list_empty_flake() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
         .success();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("list")
         .assert()
@@ -184,13 +191,13 @@ fn test_list_empty_flake() {
 #[test]
 fn test_show_flake() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
         .success();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("show")
         .assert()
@@ -202,7 +209,7 @@ fn test_show_flake() {
 #[test]
 fn test_add_package_without_init() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("add")
         .arg("ripgrep")
@@ -216,7 +223,7 @@ fn test_add_package_without_init() {
 #[test]
 fn test_remove_package_without_init() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("remove")
         .arg("ripgrep")
@@ -230,7 +237,7 @@ fn test_remove_package_without_init() {
 #[test]
 fn test_add_command_without_init() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("command")
         .arg("add")
@@ -246,7 +253,7 @@ fn test_add_command_without_init() {
 #[test]
 fn test_env_add_without_init() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("env")
         .arg("add")
@@ -262,7 +269,7 @@ fn test_env_add_without_init() {
 #[test]
 fn test_env_list_without_init() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("env")
         .arg("list")
@@ -276,7 +283,7 @@ fn test_env_list_without_init() {
 #[test]
 fn test_remove_command_without_init() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("command")
         .arg("remove")
@@ -291,13 +298,13 @@ fn test_remove_command_without_init() {
 #[test]
 fn test_invalid_command_name() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
         .success();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("command")
         .arg("add")
@@ -311,13 +318,13 @@ fn test_invalid_command_name() {
 #[test]
 fn test_env_add_invalid_name() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
         .success();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("env")
         .arg("add")
@@ -341,7 +348,7 @@ fn test_auto_detect_rust_project() {
     )
     .unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
@@ -360,7 +367,7 @@ fn test_auto_detect_python_project() {
     // Create a pyproject.toml to trigger Python detection
     fs::write(temp_dir.path().join("pyproject.toml"), "[tool.poetry]").unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
@@ -379,7 +386,7 @@ fn test_auto_detect_node_project() {
     // Create a package.json to trigger Node.js detection
     fs::write(temp_dir.path().join("package.json"), "{}").unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
@@ -398,7 +405,7 @@ fn test_auto_detect_go_project() {
     // Create a go.mod to trigger Go detection
     fs::write(temp_dir.path().join("go.mod"), "module test").unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
@@ -412,7 +419,7 @@ fn test_auto_detect_go_project() {
 
 #[test]
 fn test_completions_prints_bash_script() {
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .args(["completions", "bash"])
         .assert()
         .success()
@@ -426,7 +433,7 @@ fn test_completions_install_creates_file() {
         std::env::set_var("HOME", temp.path());
     }
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .args(["completions", "--install", "zsh"])
         .assert()
         .success();
@@ -444,10 +451,7 @@ fn test_completions_all_shells() {
     let shells = vec!["bash", "zsh", "fish", "powershell", "elvish"];
 
     for shell in shells {
-        cargo::cargo_bin_cmd!("flk")
-            .args(["completions", shell])
-            .assert()
-            .success();
+        flk_cmd().args(["completions", shell]).assert().success();
     }
 }
 
@@ -455,7 +459,7 @@ fn test_completions_all_shells() {
 fn test_multiple_packages() {
     let temp_dir = TempDir::new().unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
@@ -463,7 +467,7 @@ fn test_multiple_packages() {
 
     let packages = vec!["ripgrep", "git", "wget"];
     for pkg in &packages {
-        cargo::cargo_bin_cmd!("flk")
+        flk_cmd()
             .current_dir(temp_dir.path())
             .arg("add")
             .arg(pkg)
@@ -478,7 +482,7 @@ fn test_multiple_packages() {
     }
 
     // List should show all packages
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("list")
         .assert()
@@ -489,13 +493,13 @@ fn test_multiple_packages() {
 fn test_profile_add_list_set_default_remove() {
     let temp_dir = TempDir::new().unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
         .success();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("profile")
         .arg("add")
@@ -505,7 +509,7 @@ fn test_profile_add_list_set_default_remove() {
         .assert()
         .success();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("profile")
         .arg("list")
@@ -514,7 +518,7 @@ fn test_profile_add_list_set_default_remove() {
         .stdout(predicate::str::contains("generic"))
         .stdout(predicate::str::contains("rust"));
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("profile")
         .arg("set-default")
@@ -526,7 +530,7 @@ fn test_profile_add_list_set_default_remove() {
     assert!(default_content.contains("defaultShell = \"rust\";"));
 
     // Cannot remove rust while it's the default
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("profile")
         .arg("remove")
@@ -536,7 +540,7 @@ fn test_profile_add_list_set_default_remove() {
         .stderr(predicate::str::contains("currently set as the default"));
 
     // Switch back to generic, then remove rust
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("profile")
         .arg("set-default")
@@ -544,7 +548,7 @@ fn test_profile_add_list_set_default_remove() {
         .assert()
         .success();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("profile")
         .arg("remove")
@@ -559,14 +563,14 @@ fn test_profile_add_list_set_default_remove() {
 fn test_profile_name_validation() {
     let temp_dir = TempDir::new().unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
         .success();
 
     // Invalid names should fail
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("profile")
         .arg("add")
@@ -575,7 +579,7 @@ fn test_profile_name_validation() {
         .failure()
         .stderr(predicate::str::contains("Invalid profile name"));
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("profile")
         .arg("add")
@@ -589,14 +593,14 @@ fn test_profile_name_validation() {
 fn test_path_traversal_prevention() {
     let temp_dir = TempDir::new().unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
         .success();
 
     // Path traversal via --profile flag should be rejected
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("add")
         .arg("ripgrep")
@@ -607,7 +611,7 @@ fn test_path_traversal_prevention() {
         .stderr(predicate::str::contains("Invalid profile name"));
 
     // Path traversal via env command should also be rejected
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("env")
         .arg("--profile")
@@ -618,7 +622,7 @@ fn test_path_traversal_prevention() {
         .stderr(predicate::str::contains("Invalid profile name"));
 
     // Path traversal via profile remove should be rejected
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("profile")
         .arg("remove")
@@ -628,7 +632,7 @@ fn test_path_traversal_prevention() {
         .stderr(predicate::str::contains("Invalid profile name"));
 
     // Path traversal via profile set-default should be rejected
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("profile")
         .arg("set-default")
@@ -642,14 +646,14 @@ fn test_path_traversal_prevention() {
 fn test_add_package_to_specific_profile() {
     let temp_dir = TempDir::new().unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
         .success();
 
     // Create a second profile
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("profile")
         .arg("add")
@@ -660,7 +664,7 @@ fn test_add_package_to_specific_profile() {
         .success();
 
     // Add package to the rust profile specifically
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("add")
         .arg("ripgrep")
@@ -683,14 +687,14 @@ fn test_add_package_to_specific_profile() {
 fn test_env_operations_on_specific_profile() {
     let temp_dir = TempDir::new().unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
         .success();
 
     // Create a second profile
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("profile")
         .arg("add")
@@ -701,7 +705,7 @@ fn test_env_operations_on_specific_profile() {
         .success();
 
     // Add env var to dev profile
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("env")
         .arg("--profile")
@@ -717,7 +721,7 @@ fn test_env_operations_on_specific_profile() {
     assert!(dev_profile.contains("MY_VAR"));
 
     // List env vars on specific profile
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("env")
         .arg("--profile")
@@ -732,13 +736,13 @@ fn test_env_operations_on_specific_profile() {
 fn test_export_json() {
     let temp_dir = TempDir::new().unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
         .success();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("export")
         .arg("--format")
@@ -757,7 +761,7 @@ fn test_export_json() {
 fn test_profile_directory_isolation() {
     let temp_dir = TempDir::new().unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .arg("--template")
@@ -782,7 +786,7 @@ fn test_profile_directory_isolation() {
 fn test_flake_nix_exists_at_root() {
     let temp_dir = TempDir::new().unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
@@ -796,7 +800,7 @@ fn test_flake_nix_exists_at_root() {
 fn test_dendritic_structure_complete() {
     let temp_dir = TempDir::new().unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
@@ -816,7 +820,7 @@ fn test_dendritic_structure_complete() {
 #[test]
 fn test_direnv_init() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("direnv")
         .arg("init")
@@ -833,7 +837,7 @@ fn test_direnv_attach() {
     let direnv_path = temp_dir.path().join(".envrc");
     fs::write(&direnv_path, "export VAR=value").unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("direnv")
         .arg("attach")
@@ -850,7 +854,7 @@ fn test_direnv_detach() {
     let temp_dir = TempDir::new().unwrap();
 
     // Init to get full directive with watch_file lines, then add user content
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("direnv")
         .arg("init")
@@ -862,7 +866,7 @@ fn test_direnv_detach() {
     content.push_str("\nexport VAR=value\nwatch_file my_file.txt\n");
     fs::write(&direnv_path, &content).unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("direnv")
         .arg("detach")
