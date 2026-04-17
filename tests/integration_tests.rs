@@ -884,3 +884,290 @@ fn test_direnv_detach() {
     assert!(content.contains("export VAR=value"));
     assert!(content.contains("watch_file my_file.txt"));
 }
+
+// --- command.rs success & error paths ---
+
+#[test]
+fn test_command_add_list_remove() {
+    let temp_dir = TempDir::new().unwrap();
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["command", "add", "greet", "echo hello"])
+        .assert()
+        .success()
+        .stdout(contains("Command 'greet' added successfully"));
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["command", "list"])
+        .assert()
+        .success()
+        .stdout(contains("greet"));
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["command", "remove", "greet"])
+        .assert()
+        .success()
+        .stdout(contains("Command 'greet' removed successfully"));
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["command", "list"])
+        .assert()
+        .success()
+        .stdout(contains("No commands found"));
+}
+
+#[test]
+fn test_command_add_nonexistent_profile() {
+    let temp_dir = TempDir::new().unwrap();
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args([
+            "command",
+            "--profile",
+            "nonexistent",
+            "add",
+            "greet",
+            "echo hi",
+        ])
+        .assert()
+        .failure()
+        .stderr(contains("Failed to read profile file"));
+}
+
+#[test]
+fn test_command_remove_nonexistent_profile() {
+    let temp_dir = TempDir::new().unwrap();
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["command", "--profile", "nonexistent", "remove", "greet"])
+        .assert()
+        .failure()
+        .stderr(contains("Profile file"));
+}
+
+#[test]
+fn test_command_remove_nonexistent_command() {
+    let temp_dir = TempDir::new().unwrap();
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["command", "remove", "nonexistent_cmd"])
+        .assert()
+        .failure()
+        .stderr(contains("not found in profile"));
+}
+
+#[test]
+fn test_command_list_nonexistent_profile() {
+    let temp_dir = TempDir::new().unwrap();
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["command", "--profile", "nonexistent", "list"])
+        .assert()
+        .failure()
+        .stderr(contains("Failed to read profile file"));
+}
+
+// --- env.rs success & error paths ---
+
+#[test]
+fn test_env_add_and_remove() {
+    let temp_dir = TempDir::new().unwrap();
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["env", "add", "MY_VAR", "my_value"])
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["env", "remove", "MY_VAR"])
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["env", "list"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("MY_VAR").not());
+}
+
+#[test]
+fn test_env_add_nonexistent_profile() {
+    let temp_dir = TempDir::new().unwrap();
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["env", "--profile", "nonexistent", "add", "MY_VAR", "value"])
+        .assert()
+        .failure()
+        .stderr(contains("Failed to read profile file"));
+}
+
+#[test]
+fn test_env_remove_nonexistent_profile() {
+    let temp_dir = TempDir::new().unwrap();
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["env", "--profile", "nonexistent", "remove", "MY_VAR"])
+        .assert()
+        .failure()
+        .stderr(contains("Failed to read profile file"));
+}
+
+#[test]
+fn test_env_list_nonexistent_profile() {
+    let temp_dir = TempDir::new().unwrap();
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["env", "--profile", "nonexistent", "list"])
+        .assert()
+        .failure()
+        .stderr(contains("Failed to read profile file"));
+}
+
+// --- remove.rs & list.rs error paths ---
+
+#[test]
+fn test_remove_nonexistent_profile() {
+    let temp_dir = TempDir::new().unwrap();
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["remove", "ripgrep", "--profile", "nonexistent"])
+        .assert()
+        .failure()
+        .stderr(contains("Failed to read profile file"));
+}
+
+#[test]
+fn test_list_nonexistent_profile() {
+    let temp_dir = TempDir::new().unwrap();
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["list", "--profile", "nonexistent"])
+        .assert()
+        .failure()
+        .stderr(contains("Failed to read profile file"));
+}
+
+// --- utils.rs resolve_profile paths ---
+
+#[test]
+fn test_resolve_profile_flk_flake_ref_empty_fallback() {
+    let temp_dir = TempDir::new().unwrap();
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    // FLK_FLAKE_REF=".#" normalizes to None, triggering fallback to default profile
+    let mut cmd = cargo::cargo_bin_cmd!("flk");
+    cmd.env("FLK_FLAKE_REF", ".#");
+    cmd.current_dir(temp_dir.path())
+        .arg("list")
+        .assert()
+        .success();
+}
+
+#[test]
+fn test_resolve_profile_flk_flake_ref_valid() {
+    let temp_dir = TempDir::new().unwrap();
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    // FLK_FLAKE_REF=".#generic" normalizes to "generic", using it as the profile
+    let mut cmd = cargo::cargo_bin_cmd!("flk");
+    cmd.env("FLK_FLAKE_REF", ".#generic");
+    cmd.current_dir(temp_dir.path())
+        .arg("list")
+        .assert()
+        .success();
+}
+
+#[test]
+fn test_no_profiles_available() {
+    let temp_dir = TempDir::new().unwrap();
+
+    // Create minimal .flk structure with no profiles
+    fs::create_dir_all(temp_dir.path().join(".flk/profiles")).unwrap();
+    fs::write(temp_dir.path().join(".flk/default.nix"), "{ }").unwrap();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("list")
+        .assert()
+        .failure()
+        .stderr(contains("No profiles found"));
+}
