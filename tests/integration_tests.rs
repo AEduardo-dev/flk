@@ -456,6 +456,33 @@ fn test_completions_all_shells() {
 }
 
 #[test]
+fn test_hook_bash_includes_shell_command() {
+    flk_cmd()
+        .args(["hook", "bash"])
+        .assert()
+        .success()
+        .stdout(contains("-c \"$SHELL\""));
+}
+
+#[test]
+fn test_hook_fish_includes_shell_command() {
+    flk_cmd()
+        .args(["hook", "fish"])
+        .assert()
+        .success()
+        .stdout(contains("-c \"$SHELL\""));
+}
+
+#[test]
+fn test_hook_zsh_includes_shell_command() {
+    flk_cmd()
+        .args(["hook", "zsh"])
+        .assert()
+        .success()
+        .stdout(contains("-c \"$SHELL\""));
+}
+
+#[test]
 fn test_multiple_packages() {
     let temp_dir = TempDir::new().unwrap();
 
