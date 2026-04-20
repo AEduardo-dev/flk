@@ -2,7 +2,7 @@
 //!
 //! Enter the Nix development shell for the current flake.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use colored::Colorize;
 use flk::flake::parsers::utils::resolve_profile;
 use std::env;
@@ -39,7 +39,12 @@ pub fn run_activate(current_profile: Option<String>) -> Result<()> {
     cmd.arg("-c");
     cmd.arg(shell);
 
-    let status = cmd.status().expect("Failed to start nix develop shell");
+    let status = cmd.status().with_context(|| {
+        format!(
+            "Failed to start nix develop shell for profile '{}'",
+            profile
+        )
+    })?;
     if status.success() {
         Ok(())
     } else {

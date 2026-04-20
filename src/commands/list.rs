@@ -24,8 +24,12 @@ pub fn run_list(target_profile: Option<String>) -> Result<()> {
             flake_path.display()
         )
     })?;
-    let section = parse_packages_section(&flake_content)
-        .context("Failed to parse packages section in flake.nix")?;
+    let section = parse_packages_section(&flake_content).with_context(|| {
+        format!(
+            "Failed to parse packages section in profile file '{}'",
+            flake_path.display()
+        )
+    })?;
     let packages_info = section.to_packages();
 
     if packages_info.is_empty() {

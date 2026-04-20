@@ -429,11 +429,9 @@ fn test_completions_prints_bash_script() {
 #[test]
 fn test_completions_install_creates_file() {
     let temp = tempfile::tempdir().unwrap();
-    unsafe {
-        std::env::set_var("HOME", temp.path());
-    }
 
     flk_cmd()
+        .env("HOME", temp.path())
         .args(["completions", "--install", "zsh"])
         .assert()
         .success();
@@ -457,13 +455,26 @@ fn test_completions_all_shells() {
 
 #[test]
 fn test_hook_shells_include_shell_command() {
-    for shell in ["bash", "zsh", "fish"] {
-        flk_cmd()
-            .args(["hook", shell])
-            .assert()
-            .success()
-            .stdout(contains("-c \"$SHELL\""));
-    }
+    flk_cmd()
+        .args(["hook", "bash"])
+        .assert()
+        .success()
+        .stdout(contains("-c \"${SHELL:-/bin/sh}\""));
+
+    flk_cmd()
+        .args(["hook", "zsh"])
+        .assert()
+        .success()
+        .stdout(contains("-c \"${SHELL:-/bin/sh}\""));
+
+    flk_cmd()
+        .args(["hook", "fish"])
+        .assert()
+        .success()
+        .stdout(contains(
+            "set -l flk_shell (test -n \"$SHELL\"; and echo \"$SHELL\"; or echo \"/bin/sh\")",
+        ))
+        .stdout(contains("-c \"$flk_shell\""));
 }
 
 #[test]
