@@ -5,13 +5,25 @@
 use anyhow::{Context, Result};
 use colored::Colorize;
 use flk::flake::parsers::utils::resolve_profile;
-use std::env;
 use std::process::Command;
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
+
+const PROFILE_CACHE_INPUTS: [&str; 5] = [
+    "flake.nix",
+    "flake.lock",
+    ".flk/default.nix",
+    ".flk/pins.nix",
+    ".flk/overlays.nix",
+];
 
 /// Enter the Nix development shell for the resolved profile.
 ///
-/// Runs `nix develop` with `--impure` and GC root pinning for faster
-/// re-activation on subsequent runs.
+/// Reuses a cached `nix develop --profile` environment when the relevant flake
+/// files are unchanged, and refreshes that cache when the environment
+/// definition changes.
 ///
 /// # Arguments
 ///
@@ -24,18 +36,25 @@ pub fn run_activate(current_profile: Option<String>) -> Result<()> {
         profile.cyan()
     );
 
-    // Build nix develop command with GC root pinning for faster re-activation
-    let profile_path = format!(".flk/.nix-profile-{}", profile);
     let shell = env::var("SHELL")
         .ok()
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| "/bin/sh".to_string());
+    let profile_path = profile_cache_path(&profile);
+    let stamp_path = profile_cache_stamp_path(&profile);
+    let use_cached_profile = profile_cache_is_fresh(&profile, &profile_path, &stamp_path)?;
     let mut cmd = Command::new("nix");
     cmd.arg("develop");
-    cmd.arg(format!(".#{}", profile));
+    if use_cached_profile {
+        cmd.arg(&profile_path);
+    } else {
+        cmd.arg(format!(".#{}", profile));
+    }
     cmd.arg("--impure");
-    cmd.arg("--profile");
-    cmd.arg(&profile_path);
+    if !use_cached_profile {
+        cmd.arg("--profile");
+        cmd.arg(&profile_path);
+    }
     cmd.arg("-c");
     cmd.arg(shell);
 
@@ -46,6 +65,9 @@ pub fn run_activate(current_profile: Option<String>) -> Result<()> {
         )
     })?;
     if status.success() {
+        if !use_cached_profile && profile_path.exists() {
+            refresh_profile_cache_stamp(&stamp_path)?;
+        }
         Ok(())
     } else {
         Err(anyhow::anyhow!(
@@ -53,4 +75,70 @@ pub fn run_activate(current_profile: Option<String>) -> Result<()> {
             status
         ))
     }
+}
+
+fn profile_cache_path(profile: &str) -> PathBuf {
+    Path::new(".flk").join(format!(".nix-profile-{profile}"))
+}
+
+fn profile_cache_stamp_path(profile: &str) -> PathBuf {
+    Path::new(".flk").join(format!(".nix-profile-{profile}.stamp"))
+}
+
+fn profile_cache_is_fresh(profile: &str, profile_path: &Path, stamp_path: &Path) -> Result<bool> {
+    if !profile_path.exists() || !stamp_path.exists() {
+        return Ok(false);
+    }
+
+    let stamp_modified = fs::metadata(stamp_path)
+        .with_context(|| {
+            format!(
+                "Failed to read metadata for profile cache stamp '{}'",
+                stamp_path.display()
+            )
+        })?
+        .modified()
+        .with_context(|| {
+            format!(
+                "Failed to read modification time for profile cache stamp '{}'",
+                stamp_path.display()
+            )
+        })?;
+
+    for path in profile_cache_inputs(profile) {
+        if !path.exists() {
+            continue;
+        }
+
+        let modified = fs::metadata(&path)
+            .with_context(|| format!("Failed to read metadata for '{}'", path.display()))?
+            .modified()
+            .with_context(|| {
+                format!("Failed to read modification time for '{}'", path.display())
+            })?;
+
+        if modified > stamp_modified {
+            return Ok(false);
+        }
+    }
+
+    Ok(true)
+}
+
+fn profile_cache_inputs(profile: &str) -> Vec<PathBuf> {
+    let mut paths = PROFILE_CACHE_INPUTS
+        .iter()
+        .map(PathBuf::from)
+        .collect::<Vec<_>>();
+    paths.push(Path::new(".flk/profiles").join(format!("{profile}.nix")));
+    paths
+}
+
+fn refresh_profile_cache_stamp(stamp_path: &Path) -> Result<()> {
+    fs::write(stamp_path, "").with_context(|| {
+        format!(
+            "Failed to update profile cache stamp '{}'",
+            stamp_path.display()
+        )
+    })
 }
