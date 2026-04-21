@@ -31,11 +31,15 @@ pub fn run_add(
     let flake_content = fs::read_to_string(&flake_path).with_context(|| {
         format!(
             "Failed to read profile file at '{}'. Have you run 'flk init'?",
-            flake_path.to_str().unwrap()
+            flake_path.display()
         )
     })?;
-    let section = parse_packages_section(&flake_content)
-        .context("Failed to parse packages section in flake file")?;
+    let section = parse_packages_section(&flake_content).with_context(|| {
+        format!(
+            "Failed to parse packages section in profile file '{}'",
+            flake_path.display()
+        )
+    })?;
 
     if package.trim().is_empty() {
         bail!("Package name cannot be empty");

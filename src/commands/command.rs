@@ -63,8 +63,12 @@ pub fn run_add(
             flake_path.display()
         )
     })?;
-    let section = parse_shell_hook_section(&flake_content)
-        .context("Failed to parse shellHook section in profile file")?;
+    let section = parse_shell_hook_section(&flake_content).with_context(|| {
+        format!(
+            "Failed to parse shellHook section in profile file '{}'",
+            flake_path.display()
+        )
+    })?;
     if section.command_exists(name) {
         bail!(
             "Command '{}' already exists. Remove it with: {}",
@@ -113,8 +117,12 @@ pub fn run_remove(name: &str, target_profile: Option<String>) -> Result<()> {
 
     let flake_content = fs::read_to_string(&flake_path)
         .with_context(|| format!("Failed to read profile file at '{}'", flake_path.display()))?;
-    let section = parse_shell_hook_section(&flake_content)
-        .context("Failed to parse shellHook section in profile file")?;
+    let section = parse_shell_hook_section(&flake_content).with_context(|| {
+        format!(
+            "Failed to parse shellHook section in profile file '{}'",
+            flake_path.display()
+        )
+    })?;
 
     // Check if command exists
     if !section.command_exists(name) {
@@ -147,8 +155,12 @@ pub fn list(target_profile: Option<String>) -> Result<()> {
             flake_path.display()
         )
     })?;
-    let section = parse_shell_hook_section(&flake_content)
-        .context("Failed to parse shellHook section in profile file")?;
+    let section = parse_shell_hook_section(&flake_content).with_context(|| {
+        format!(
+            "Failed to parse shellHook section in profile file '{}'",
+            flake_path.display()
+        )
+    })?;
 
     if section.entries.is_empty() {
         println!(

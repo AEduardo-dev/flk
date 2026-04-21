@@ -1152,7 +1152,7 @@ fn test_resolve_profile_flk_flake_ref_empty_fallback() {
         .success();
 
     // FLK_FLAKE_REF=".#" normalizes to None, triggering fallback to default profile
-    let mut cmd = cargo::cargo_bin_cmd!("flk");
+    let mut cmd = flk_cmd();
     cmd.env("FLK_FLAKE_REF", ".#");
     cmd.current_dir(temp_dir.path())
         .arg("list")
@@ -1170,7 +1170,7 @@ fn test_resolve_profile_flk_flake_ref_valid() {
         .success();
 
     // FLK_FLAKE_REF=".#generic" normalizes to "generic", using it as the profile
-    let mut cmd = cargo::cargo_bin_cmd!("flk");
+    let mut cmd = flk_cmd();
     cmd.env("FLK_FLAKE_REF", ".#generic");
     cmd.current_dir(temp_dir.path())
         .arg("list")
