@@ -54,9 +54,24 @@ pub fn run_activate(current_profile: Option<String>) -> Result<()> {
     if !use_cached_profile {
         cmd.arg("--profile");
         cmd.arg(&profile_path);
+        cmd.env("FLK_PROFILE_PATH", &profile_path);
+        cmd.env("FLK_PROFILE_STAMP", &stamp_path);
+        cmd.env("FLK_SHELL_CMD", &shell);
     }
     cmd.arg("-c");
-    cmd.arg(shell);
+    if use_cached_profile {
+        cmd.arg(shell);
+    } else {
+        cmd.arg("/bin/sh");
+        cmd.arg("-c");
+        cmd.arg(
+            "if [ -e \"$FLK_PROFILE_PATH\" ]; then \
+             mkdir -p \"$(dirname \"$FLK_PROFILE_STAMP\")\"; \
+             touch \"$FLK_PROFILE_STAMP\"; \
+             fi; \
+             exec \"$FLK_SHELL_CMD\"",
+        );
+    }
 
     let status = cmd.status().with_context(|| {
         format!(
@@ -65,9 +80,6 @@ pub fn run_activate(current_profile: Option<String>) -> Result<()> {
         )
     })?;
     if status.success() {
-        if !use_cached_profile && profile_path.exists() {
-            refresh_profile_cache_stamp(&stamp_path)?;
-        }
         Ok(())
     } else {
         Err(anyhow::anyhow!(
@@ -132,13 +144,4 @@ fn profile_cache_inputs(profile: &str) -> Vec<PathBuf> {
         .collect::<Vec<_>>();
     paths.push(Path::new(".flk/profiles").join(format!("{profile}.nix")));
     paths
-}
-
-fn refresh_profile_cache_stamp(stamp_path: &Path) -> Result<()> {
-    fs::write(stamp_path, "").with_context(|| {
-        format!(
-            "Failed to update profile cache stamp '{}'",
-            stamp_path.display()
-        )
-    })
 }

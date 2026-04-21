@@ -54,13 +54,12 @@ _flk_exec_nix_develop() {{
   if _flk_profile_is_fresh "$profile"; then
     exec nix develop "$profile_path" --impure -c "$flk_shell"
   else
-    exec env FLK_REF="$ref" FLK_PROFILE_PATH="$profile_path" FLK_SHELL_CMD="$flk_shell" FLK_PROFILE_STAMP="$stamp_path" /bin/sh -c '
-      nix develop "$FLK_REF" --impure --profile "$FLK_PROFILE_PATH" -c "$FLK_SHELL_CMD"
-      status=$?
-      if [ "$status" -eq 0 ] && [ -e "$FLK_PROFILE_PATH" ]; then
+    exec env FLK_REF="$ref" FLK_PROFILE_PATH="$profile_path" FLK_SHELL_CMD="$flk_shell" FLK_PROFILE_STAMP="$stamp_path" nix develop "$ref" --impure --profile "$profile_path" -c /bin/sh -c '
+      if [ -e "$FLK_PROFILE_PATH" ]; then
+        mkdir -p "$(dirname "$FLK_PROFILE_STAMP")"
         touch "$FLK_PROFILE_STAMP"
       fi
-      exit "$status"
+      exec "$FLK_SHELL_CMD"
     '
   fi
 }}
@@ -97,6 +96,8 @@ switch() {{
       export FLK_PROFILE=".#$profile"
       direnv reload
     else
+    export FLK_FLAKE_REF=".#$profile"
+    export FLK_PROFILE=".#$profile"
     _flk_exec_nix_develop ".#$profile" "$profile" "${{SHELL:-/bin/sh}}"
   fi
 }}
@@ -144,13 +145,12 @@ function _flk_exec_nix_develop
   if _flk_profile_is_fresh "$profile"
     exec nix develop "$profile_path" --impure -c "$flk_shell"
   else
-    exec env FLK_REF="$ref" FLK_PROFILE_PATH="$profile_path" FLK_SHELL_CMD="$flk_shell" FLK_PROFILE_STAMP="$stamp_path" /bin/sh -c '
-      nix develop "$FLK_REF" --impure --profile "$FLK_PROFILE_PATH" -c "$FLK_SHELL_CMD"
-      status=$?
-      if [ "$status" -eq 0 ] && [ -e "$FLK_PROFILE_PATH" ]; then
+    exec env FLK_REF="$ref" FLK_PROFILE_PATH="$profile_path" FLK_SHELL_CMD="$flk_shell" FLK_PROFILE_STAMP="$stamp_path" nix develop "$ref" --impure --profile "$profile_path" -c /bin/sh -c '
+      if [ -e "$FLK_PROFILE_PATH" ]; then
+        mkdir -p "$(dirname "$FLK_PROFILE_STAMP")"
         touch "$FLK_PROFILE_STAMP"
       fi
-      exit "$status"
+      exec "$FLK_SHELL_CMD"
     '
   end
 end
@@ -188,6 +188,8 @@ function switch --description "Switch profile and reload"
     set -lx FLK_PROFILE ".#$profile"
     direnv reload
   else
+    set -lx FLK_FLAKE_REF ".#$profile"
+    set -lx FLK_PROFILE ".#$profile"
     set -l flk_shell (test -n "$SHELL"; and echo "$SHELL"; or echo "/bin/sh")
     _flk_exec_nix_develop ".#$profile" "$profile" "$flk_shell"
   end

@@ -489,6 +489,11 @@ fn test_hook_shells_include_shell_command() {
         .assert()
         .success()
         .stdout(contains("\"${SHELL:-/bin/sh}\""))
+        .stdout(contains("exec \"$FLK_SHELL_CMD\""))
+        .stdout(contains("export FLK_FLAKE_REF=\".#$profile\""))
+        .stdout(contains(
+            "export FLK_PROFILE=\".#$profile\"\n    _flk_exec_nix_develop",
+        ))
         .stdout(contains(".nix-profile-"))
         .stdout(contains(".stamp"));
 
@@ -497,6 +502,11 @@ fn test_hook_shells_include_shell_command() {
         .assert()
         .success()
         .stdout(contains("\"${SHELL:-/bin/sh}\""))
+        .stdout(contains("exec \"$FLK_SHELL_CMD\""))
+        .stdout(contains("export FLK_FLAKE_REF=\".#$profile\""))
+        .stdout(contains(
+            "export FLK_PROFILE=\".#$profile\"\n    _flk_exec_nix_develop",
+        ))
         .stdout(contains(".nix-profile-"))
         .stdout(contains(".stamp"));
 
@@ -508,6 +518,11 @@ fn test_hook_shells_include_shell_command() {
             "set -l flk_shell (test -n \"$SHELL\"; and echo \"$SHELL\"; or echo \"/bin/sh\")",
         ))
         .stdout(contains("-c \"$flk_shell\""))
+        .stdout(contains("exec \"$FLK_SHELL_CMD\""))
+        .stdout(contains("set -lx FLK_FLAKE_REF \".#$profile\""))
+        .stdout(contains(
+            "set -lx FLK_PROFILE \".#$profile\"\n    set -l flk_shell",
+        ))
         .stdout(contains(".nix-profile-"))
         .stdout(contains(".stamp"));
 }
@@ -559,6 +574,8 @@ fn test_activate_uses_shell_fallback_and_profile_gc_root() {
             ".flk/.nix-profile-generic",
             "-c",
             "/bin/sh",
+            "-c",
+            "if [ -e \"$FLK_PROFILE_PATH\" ]; then mkdir -p \"$(dirname \"$FLK_PROFILE_STAMP\")\"; touch \"$FLK_PROFILE_STAMP\"; fi; exec \"$FLK_SHELL_CMD\"",
         ]
     );
 }
@@ -670,6 +687,8 @@ fn test_activate_refreshes_stale_profile_cache() {
             ".flk/.nix-profile-generic",
             "-c",
             "/bin/sh",
+            "-c",
+            "if [ -e \"$FLK_PROFILE_PATH\" ]; then mkdir -p \"$(dirname \"$FLK_PROFILE_STAMP\")\"; touch \"$FLK_PROFILE_STAMP\"; fi; exec \"$FLK_SHELL_CMD\"",
         ]
     );
 }
