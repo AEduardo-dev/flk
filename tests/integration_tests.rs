@@ -477,13 +477,17 @@ fn test_hook_shells_include_shell_command() {
         .args(["hook", "bash"])
         .assert()
         .success()
-        .stdout(contains("-c \"${SHELL:-/bin/sh}\""));
+        .stdout(contains("\"${SHELL:-/bin/sh}\""))
+        .stdout(contains(".nix-profile-"))
+        .stdout(contains(".stamp"));
 
     flk_cmd()
         .args(["hook", "zsh"])
         .assert()
         .success()
-        .stdout(contains("-c \"${SHELL:-/bin/sh}\""));
+        .stdout(contains("\"${SHELL:-/bin/sh}\""))
+        .stdout(contains(".nix-profile-"))
+        .stdout(contains(".stamp"));
 
     flk_cmd()
         .args(["hook", "fish"])
@@ -492,7 +496,9 @@ fn test_hook_shells_include_shell_command() {
         .stdout(contains(
             "set -l flk_shell (test -n \"$SHELL\"; and echo \"$SHELL\"; or echo \"/bin/sh\")",
         ))
-        .stdout(contains("-c \"$flk_shell\""));
+        .stdout(contains("-c \"$flk_shell\""))
+        .stdout(contains(".nix-profile-"))
+        .stdout(contains(".stamp"));
 }
 
 #[cfg(unix)]
@@ -526,6 +532,122 @@ fn test_activate_uses_shell_fallback_and_profile_gc_root() {
         .assert()
         .success()
         .stdout(contains("Activating nix develop shell with profile:"));
+
+    let args: Vec<String> = fs::read_to_string(&log_path)
+        .unwrap()
+        .lines()
+        .map(ToOwned::to_owned)
+        .collect();
+    assert_eq!(
+        args,
+        vec![
+            "develop",
+            ".#generic",
+            "--impure",
+            "--profile",
+            ".flk/.nix-profile-generic",
+            "-c",
+            "/bin/sh",
+        ]
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn test_activate_reuses_fresh_profile_cache() {
+    let temp_dir = TempDir::new().unwrap();
+    let fake_bin_dir = temp_dir.path().join("bin");
+    let fake_nix_path = fake_bin_dir.join("nix");
+    let log_path = temp_dir.path().join("nix-args.log");
+    let profile_path = temp_dir.path().join(".flk/.nix-profile-generic");
+    let stamp_path = temp_dir.path().join(".flk/.nix-profile-generic.stamp");
+
+    fs::create_dir_all(&fake_bin_dir).unwrap();
+    fs::write(
+        &fake_nix_path,
+        "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$FAKE_NIX_LOG\"\n",
+    )
+    .unwrap();
+    make_executable(&fake_nix_path);
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    fs::write(&profile_path, "cached-profile").unwrap();
+    fs::write(&stamp_path, "").unwrap();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .env("PATH", prepend_path(&fake_bin_dir))
+        .env("FAKE_NIX_LOG", &log_path)
+        .env_remove("SHELL")
+        .args(["activate", "--profile", "generic"])
+        .assert()
+        .success();
+
+    let args: Vec<String> = fs::read_to_string(&log_path)
+        .unwrap()
+        .lines()
+        .map(ToOwned::to_owned)
+        .collect();
+    assert_eq!(
+        args,
+        vec![
+            "develop",
+            ".flk/.nix-profile-generic",
+            "--impure",
+            "-c",
+            "/bin/sh",
+        ]
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn test_activate_refreshes_stale_profile_cache() {
+    let temp_dir = TempDir::new().unwrap();
+    let fake_bin_dir = temp_dir.path().join("bin");
+    let fake_nix_path = fake_bin_dir.join("nix");
+    let log_path = temp_dir.path().join("nix-args.log");
+    let profile_path = temp_dir.path().join(".flk/.nix-profile-generic");
+    let stamp_path = temp_dir.path().join(".flk/.nix-profile-generic.stamp");
+    let profile_file = temp_dir.path().join(".flk/profiles/generic.nix");
+
+    fs::create_dir_all(&fake_bin_dir).unwrap();
+    fs::write(
+        &fake_nix_path,
+        "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$FAKE_NIX_LOG\"\n",
+    )
+    .unwrap();
+    make_executable(&fake_nix_path);
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    fs::write(&profile_path, "cached-profile").unwrap();
+    fs::write(&stamp_path, "").unwrap();
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    fs::write(
+        &profile_file,
+        fs::read_to_string(&profile_file).unwrap() + "\n# stale\n",
+    )
+    .unwrap();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .env("PATH", prepend_path(&fake_bin_dir))
+        .env("FAKE_NIX_LOG", &log_path)
+        .env_remove("SHELL")
+        .args(["activate", "--profile", "generic"])
+        .assert()
+        .success();
 
     let args: Vec<String> = fs::read_to_string(&log_path)
         .unwrap()
