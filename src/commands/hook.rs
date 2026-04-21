@@ -30,7 +30,7 @@ fn print_bash_like() {
     println!(
         r#"# flk hook: refresh/switch for direnv + nix develop
 _flk_use_direnv() {{ command -v direnv >/dev/null 2>&1 && [ -f .envrc ]; }}
-_flk_valid_profile() {{ [[ "$1" =~ ^[a-zA-Z0-9_+-]+$ ]]; }}
+_flk_valid_profile() {{ [[ "$1" =~ ^[a-zA-Z0-9_-]+$ ]]; }}
 _flk_profile_path() {{ printf '.flk/.nix-profile-%s' "$1"; }}
 _flk_profile_stamp() {{ printf '.flk/.nix-profile-%s.stamp' "$1"; }}
 _flk_profile_is_fresh() {{
@@ -66,12 +66,13 @@ _flk_exec_nix_develop() {{
 }}
 
 refresh() {{
-  local _flk_ref="${{FLK_FLAKE_REF:-.#default}}"
+  local _flk_ref="${{FLK_FLAKE_REF:-${{FLK_PROFILE:-.#default}}}}"
   local _flk_profile_name="${{_flk_ref##*.#}}"
   if ! _flk_valid_profile "$_flk_profile_name"; then
     printf 'invalid profile name: %s\n' "$_flk_profile_name" >&2
     return 1
   fi
+  export FLK_FLAKE_REF="$_flk_ref"
   export FLK_PROFILE="$_flk_ref"
   if _flk_use_direnv; then
     direnv reload
@@ -91,9 +92,10 @@ switch() {{
     return 1
   fi
   if _flk_use_direnv; then
-     export FLK_PROFILE=".#$profile"
-     direnv reload
-   else
+      export FLK_FLAKE_REF=".#$profile"
+      export FLK_PROFILE=".#$profile"
+      direnv reload
+    else
     _flk_exec_nix_develop ".#$profile" "$profile" "${{SHELL:-/bin/sh}}"
   fi
 }}
@@ -109,7 +111,7 @@ function _flk_use_direnv
 end
 
 function _flk_valid_profile
-  string match -qr '^[a-zA-Z0-9_+-]+$' -- $argv[1]
+  string match -qr '^[a-zA-Z0-9_-]+$' -- $argv[1]
 end
 
 function _flk_profile_path
@@ -153,16 +155,17 @@ function _flk_exec_nix_develop
 end
 
 function refresh --description "Reload env (direnv if present, else nix develop)"
+  set -l flk_ref (test -n "$FLK_FLAKE_REF"; and echo "$FLK_FLAKE_REF"; or test -n "$FLK_PROFILE"; and echo "$FLK_PROFILE"; or echo ".#default")
+  set -l profile_name (string replace -r '.*\\.#' '' "$flk_ref")
+  if not _flk_valid_profile "$profile_name"
+    echo "invalid profile name: $profile_name" 1>&2
+    return 1
+  end
   if _flk_use_direnv
-    set -lx FLK_PROFILE "$FLK_FLAKE_REF"
+    set -lx FLK_FLAKE_REF "$flk_ref"
+    set -lx FLK_PROFILE "$flk_ref"
     direnv reload
   else
-    set -l flk_ref (test -n "$FLK_FLAKE_REF"; and echo "$FLK_FLAKE_REF"; or echo ".#default")
-    set -l profile_name (string replace -r '.*\\.#' '' "$flk_ref")
-    if not _flk_valid_profile "$profile_name"
-      echo "invalid profile name: $profile_name" 1>&2
-      return 1
-    end
     set -l flk_shell (test -n "$SHELL"; and echo "$SHELL"; or echo "/bin/sh")
     _flk_exec_nix_develop "$flk_ref" "$profile_name" "$flk_shell"
   end
@@ -179,6 +182,7 @@ function switch --description "Switch profile and reload"
     return 1
   end
   if _flk_use_direnv
+    set -lx FLK_FLAKE_REF ".#$profile"
     set -lx FLK_PROFILE ".#$profile"
     direnv reload
   else

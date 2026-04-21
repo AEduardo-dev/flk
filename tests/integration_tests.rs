@@ -29,6 +29,17 @@ fn make_executable(path: &Path) {
     fs::set_permissions(path, permissions).unwrap();
 }
 
+#[cfg(unix)]
+fn set_modified_time(path: &Path, modified: std::time::SystemTime) {
+    let file = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(path)
+        .unwrap();
+    let times = fs::FileTimes::new().set_modified(modified);
+    file.set_times(times).unwrap();
+}
+
 #[test]
 fn test_version() {
     flk_cmd()
@@ -576,7 +587,6 @@ fn test_activate_reuses_fresh_profile_cache() {
         .assert()
         .success();
 
-    std::thread::sleep(std::time::Duration::from_secs(1));
     fs::write(&profile_path, "cached-profile").unwrap();
     fs::write(&stamp_path, "").unwrap();
 
@@ -615,7 +625,6 @@ fn test_activate_refreshes_stale_profile_cache() {
     let log_path = temp_dir.path().join("nix-args.log");
     let profile_path = temp_dir.path().join(".flk/.nix-profile-generic");
     let stamp_path = temp_dir.path().join(".flk/.nix-profile-generic.stamp");
-    let profile_file = temp_dir.path().join(".flk/profiles/generic.nix");
 
     fs::create_dir_all(&fake_bin_dir).unwrap();
     fs::write(
@@ -633,12 +642,10 @@ fn test_activate_refreshes_stale_profile_cache() {
 
     fs::write(&profile_path, "cached-profile").unwrap();
     fs::write(&stamp_path, "").unwrap();
-    std::thread::sleep(std::time::Duration::from_secs(1));
-    fs::write(
-        &profile_file,
-        fs::read_to_string(&profile_file).unwrap() + "\n# stale\n",
-    )
-    .unwrap();
+    set_modified_time(
+        &stamp_path,
+        std::time::UNIX_EPOCH + std::time::Duration::from_secs(1),
+    );
 
     flk_cmd()
         .current_dir(temp_dir.path())
