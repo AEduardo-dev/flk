@@ -32,7 +32,8 @@ refresh
 
 **Behavior**
 - With direnv: runs `direnv reload`
-- Without direnv: runs `exec nix develop` with the current profile (replaces the shell process)
+- Without direnv: reuses a saved `nix develop` profile when it is current
+- Without direnv: refreshes that saved profile when the environment definition changes
 - Reads the active profile from `FLK_FLAKE_REF` environment variable
 
 ## `switch <profile>`
@@ -47,7 +48,7 @@ switch frontend
 **Behavior**
 - Validates the profile name (alphanumeric, `-`, `_` only)
 - Sets `FLK_FLAKE_REF` to the new profile reference
-- Reloads via direnv or `nix develop` as appropriate
+- Reloads via direnv or `nix develop` as appropriate, reusing the saved profile cache when possible
 
 ## Direnv Integration
 
