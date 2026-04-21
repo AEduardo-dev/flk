@@ -67,7 +67,7 @@ pub fn run_activate(current_profile: Option<String>) -> Result<()> {
         cmd.arg(
             "if [ -e \"$FLK_PROFILE_PATH\" ]; then \
              mkdir -p \"$(dirname \"$FLK_PROFILE_STAMP\")\"; \
-             touch \"$FLK_PROFILE_STAMP\"; \
+             touch \"$FLK_PROFILE_STAMP\" || exit 1; \
              fi; \
              exec \"$FLK_SHELL_CMD\"",
         );

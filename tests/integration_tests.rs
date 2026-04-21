@@ -572,7 +572,7 @@ fn test_activate_uses_shell_fallback_and_profile_gc_root() {
             "-c",
             "/bin/sh",
             "-c",
-            "if [ -e \"$FLK_PROFILE_PATH\" ]; then mkdir -p \"$(dirname \"$FLK_PROFILE_STAMP\")\"; touch \"$FLK_PROFILE_STAMP\"; fi; exec \"$FLK_SHELL_CMD\"",
+            "if [ -e \"$FLK_PROFILE_PATH\" ]; then mkdir -p \"$(dirname \"$FLK_PROFILE_STAMP\")\"; touch \"$FLK_PROFILE_STAMP\" || exit 1; fi; exec \"$FLK_SHELL_CMD\"",
         ]
     );
 }
@@ -685,7 +685,7 @@ fn test_activate_refreshes_stale_profile_cache() {
             "-c",
             "/bin/sh",
             "-c",
-            "if [ -e \"$FLK_PROFILE_PATH\" ]; then mkdir -p \"$(dirname \"$FLK_PROFILE_STAMP\")\"; touch \"$FLK_PROFILE_STAMP\"; fi; exec \"$FLK_SHELL_CMD\"",
+            "if [ -e \"$FLK_PROFILE_PATH\" ]; then mkdir -p \"$(dirname \"$FLK_PROFILE_STAMP\")\"; touch \"$FLK_PROFILE_STAMP\" || exit 1; fi; exec \"$FLK_SHELL_CMD\"",
         ]
     );
 }
