@@ -238,8 +238,8 @@ mod tests {
 /// Looks for the `defaultShell` attribute. Falls back to the first
 /// profile found if no default is set.
 pub fn get_default_shell_profile() -> Result<String> {
-    let content =
-        fs::read_to_string(".flk/default.nix").context("Failed to read .flk/default.nix")?;
+    let content = fs::read_to_string(".flk/default.nix")
+        .context("Failed to read .flk/default.nix. Have you run 'flk init'?")?;
     if let Some(default_start) = content.find("defaultShell = \"") {
         let search_start = default_start + "defaultShell = \"".len();
         if let Some(end) = content[search_start..].find('"') {
@@ -278,11 +278,13 @@ pub fn resolve_profile(target: Option<String>) -> Result<String> {
         match normalize_profile_ref(&env_profile) {
             Some(p) => p,
             None => {
-                return get_default_shell_profile().context("Could not find default shell profile")
+                return get_default_shell_profile()
+                    .context("Could not find default shell profile. Run 'flk init' to create one")
             }
         }
     } else {
-        return get_default_shell_profile().context("Could not find default shell profile");
+        return get_default_shell_profile()
+            .context("Could not find default shell profile. Run 'flk init' to create one");
     };
 
     // Validate profile name to prevent path traversal
@@ -347,7 +349,9 @@ fn get_first_profile_name() -> Result<String> {
             return Ok(name_str);
         }
     }
-    Err(anyhow::anyhow!("No profiles found in .flk/profiles/"))
+    Err(anyhow::anyhow!(
+        "No profiles found in .flk/profiles/. Run 'flk init' to create a profile"
+    ))
 }
 
 /// List all profile files in `.flk/profiles/`.

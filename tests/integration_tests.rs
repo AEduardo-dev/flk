@@ -1,12 +1,37 @@
 use assert_cmd::cargo;
 use predicates::prelude::*;
 use predicates::str::contains;
-use std::fs;
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
+use std::{env, fs, path::Path};
 use tempfile::TempDir;
+
+/// Create a `flk` command with a clean environment (no `FLK_FLAKE_REF` leaking in).
+fn flk_cmd() -> assert_cmd::Command {
+    let mut cmd = cargo::cargo_bin_cmd!("flk");
+    cmd.env_remove("FLK_FLAKE_REF");
+    cmd
+}
+
+fn prepend_path(path: &Path) -> String {
+    match env::var_os("PATH") {
+        Some(existing) if !existing.is_empty() => {
+            format!("{}:{}", path.display(), existing.to_string_lossy())
+        }
+        _ => path.display().to_string(),
+    }
+}
+
+#[cfg(unix)]
+fn make_executable(path: &Path) {
+    let mut permissions = fs::metadata(path).unwrap().permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(path, permissions).unwrap();
+}
 
 #[test]
 fn test_version() {
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .arg("--version")
         .assert()
         .success()
@@ -15,7 +40,7 @@ fn test_version() {
 
 #[test]
 fn test_help() {
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .arg("--help")
         .assert()
         .success()
@@ -27,7 +52,7 @@ fn test_help() {
 #[test]
 fn test_init_without_template() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
@@ -54,7 +79,7 @@ fn test_init_without_template() {
 #[test]
 fn test_init_with_rust_template() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .arg("--template")
@@ -74,7 +99,7 @@ fn test_init_with_rust_template() {
 #[test]
 fn test_init_with_python_template() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .arg("--template")
@@ -94,7 +119,7 @@ fn test_init_with_python_template() {
 #[test]
 fn test_init_with_node_template() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .arg("--template")
@@ -110,7 +135,7 @@ fn test_init_with_node_template() {
 #[test]
 fn test_init_with_go_template() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .arg("--template")
@@ -126,14 +151,14 @@ fn test_init_with_go_template() {
 #[test]
 fn test_init_force_overwrite() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
         .success();
 
     // Try to create again without force - should fail
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
@@ -141,7 +166,7 @@ fn test_init_force_overwrite() {
         .stderr(predicate::str::contains("already exists"));
 
     // Try with force - should succeed
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .arg("--force")
@@ -152,7 +177,7 @@ fn test_init_force_overwrite() {
 #[test]
 fn test_init_creates_flk_directory_structure() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
@@ -167,13 +192,13 @@ fn test_init_creates_flk_directory_structure() {
 #[test]
 fn test_list_empty_flake() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
         .success();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("list")
         .assert()
@@ -184,13 +209,13 @@ fn test_list_empty_flake() {
 #[test]
 fn test_show_flake() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
         .success();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("show")
         .assert()
@@ -202,7 +227,7 @@ fn test_show_flake() {
 #[test]
 fn test_add_package_without_init() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("add")
         .arg("ripgrep")
@@ -216,7 +241,7 @@ fn test_add_package_without_init() {
 #[test]
 fn test_remove_package_without_init() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("remove")
         .arg("ripgrep")
@@ -230,7 +255,7 @@ fn test_remove_package_without_init() {
 #[test]
 fn test_add_command_without_init() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("command")
         .arg("add")
@@ -246,7 +271,7 @@ fn test_add_command_without_init() {
 #[test]
 fn test_env_add_without_init() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("env")
         .arg("add")
@@ -262,7 +287,7 @@ fn test_env_add_without_init() {
 #[test]
 fn test_env_list_without_init() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("env")
         .arg("list")
@@ -276,7 +301,7 @@ fn test_env_list_without_init() {
 #[test]
 fn test_remove_command_without_init() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("command")
         .arg("remove")
@@ -291,13 +316,13 @@ fn test_remove_command_without_init() {
 #[test]
 fn test_invalid_command_name() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
         .success();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("command")
         .arg("add")
@@ -311,13 +336,13 @@ fn test_invalid_command_name() {
 #[test]
 fn test_env_add_invalid_name() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
         .success();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("env")
         .arg("add")
@@ -341,7 +366,7 @@ fn test_auto_detect_rust_project() {
     )
     .unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
@@ -360,7 +385,7 @@ fn test_auto_detect_python_project() {
     // Create a pyproject.toml to trigger Python detection
     fs::write(temp_dir.path().join("pyproject.toml"), "[tool.poetry]").unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
@@ -379,7 +404,7 @@ fn test_auto_detect_node_project() {
     // Create a package.json to trigger Node.js detection
     fs::write(temp_dir.path().join("package.json"), "{}").unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
@@ -398,7 +423,7 @@ fn test_auto_detect_go_project() {
     // Create a go.mod to trigger Go detection
     fs::write(temp_dir.path().join("go.mod"), "module test").unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
@@ -412,7 +437,7 @@ fn test_auto_detect_go_project() {
 
 #[test]
 fn test_completions_prints_bash_script() {
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .args(["completions", "bash"])
         .assert()
         .success()
@@ -422,11 +447,9 @@ fn test_completions_prints_bash_script() {
 #[test]
 fn test_completions_install_creates_file() {
     let temp = tempfile::tempdir().unwrap();
-    unsafe {
-        std::env::set_var("HOME", temp.path());
-    }
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
+        .env("HOME", temp.path())
         .args(["completions", "--install", "zsh"])
         .assert()
         .success();
@@ -444,18 +467,90 @@ fn test_completions_all_shells() {
     let shells = vec!["bash", "zsh", "fish", "powershell", "elvish"];
 
     for shell in shells {
-        cargo::cargo_bin_cmd!("flk")
-            .args(["completions", shell])
-            .assert()
-            .success();
+        flk_cmd().args(["completions", shell]).assert().success();
     }
+}
+
+#[test]
+fn test_hook_shells_include_shell_command() {
+    flk_cmd()
+        .args(["hook", "bash"])
+        .assert()
+        .success()
+        .stdout(contains("-c \"${SHELL:-/bin/sh}\""));
+
+    flk_cmd()
+        .args(["hook", "zsh"])
+        .assert()
+        .success()
+        .stdout(contains("-c \"${SHELL:-/bin/sh}\""));
+
+    flk_cmd()
+        .args(["hook", "fish"])
+        .assert()
+        .success()
+        .stdout(contains(
+            "set -l flk_shell (test -n \"$SHELL\"; and echo \"$SHELL\"; or echo \"/bin/sh\")",
+        ))
+        .stdout(contains("-c \"$flk_shell\""));
+}
+
+#[cfg(unix)]
+#[test]
+fn test_activate_uses_shell_fallback_and_profile_gc_root() {
+    let temp_dir = TempDir::new().unwrap();
+    let fake_bin_dir = temp_dir.path().join("bin");
+    let fake_nix_path = fake_bin_dir.join("nix");
+    let log_path = temp_dir.path().join("nix-args.log");
+
+    fs::create_dir_all(&fake_bin_dir).unwrap();
+    fs::write(
+        &fake_nix_path,
+        "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$FAKE_NIX_LOG\"\n",
+    )
+    .unwrap();
+    make_executable(&fake_nix_path);
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .env("PATH", prepend_path(&fake_bin_dir))
+        .env("FAKE_NIX_LOG", &log_path)
+        .env_remove("SHELL")
+        .args(["activate", "--profile", "generic"])
+        .assert()
+        .success()
+        .stdout(contains("Activating nix develop shell with profile:"));
+
+    let args: Vec<String> = fs::read_to_string(&log_path)
+        .unwrap()
+        .lines()
+        .map(ToOwned::to_owned)
+        .collect();
+    assert_eq!(
+        args,
+        vec![
+            "develop",
+            ".#generic",
+            "--impure",
+            "--profile",
+            ".flk/.nix-profile-generic",
+            "-c",
+            "/bin/sh",
+        ]
+    );
 }
 
 #[test]
 fn test_multiple_packages() {
     let temp_dir = TempDir::new().unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
@@ -463,7 +558,7 @@ fn test_multiple_packages() {
 
     let packages = vec!["ripgrep", "git", "wget"];
     for pkg in &packages {
-        cargo::cargo_bin_cmd!("flk")
+        flk_cmd()
             .current_dir(temp_dir.path())
             .arg("add")
             .arg(pkg)
@@ -478,7 +573,7 @@ fn test_multiple_packages() {
     }
 
     // List should show all packages
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("list")
         .assert()
@@ -489,13 +584,13 @@ fn test_multiple_packages() {
 fn test_profile_add_list_set_default_remove() {
     let temp_dir = TempDir::new().unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
         .success();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("profile")
         .arg("add")
@@ -505,7 +600,7 @@ fn test_profile_add_list_set_default_remove() {
         .assert()
         .success();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("profile")
         .arg("list")
@@ -514,7 +609,7 @@ fn test_profile_add_list_set_default_remove() {
         .stdout(predicate::str::contains("generic"))
         .stdout(predicate::str::contains("rust"));
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("profile")
         .arg("set-default")
@@ -526,7 +621,7 @@ fn test_profile_add_list_set_default_remove() {
     assert!(default_content.contains("defaultShell = \"rust\";"));
 
     // Cannot remove rust while it's the default
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("profile")
         .arg("remove")
@@ -536,7 +631,7 @@ fn test_profile_add_list_set_default_remove() {
         .stderr(predicate::str::contains("currently set as the default"));
 
     // Switch back to generic, then remove rust
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("profile")
         .arg("set-default")
@@ -544,7 +639,7 @@ fn test_profile_add_list_set_default_remove() {
         .assert()
         .success();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("profile")
         .arg("remove")
@@ -559,14 +654,14 @@ fn test_profile_add_list_set_default_remove() {
 fn test_profile_name_validation() {
     let temp_dir = TempDir::new().unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
         .success();
 
     // Invalid names should fail
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("profile")
         .arg("add")
@@ -575,7 +670,7 @@ fn test_profile_name_validation() {
         .failure()
         .stderr(predicate::str::contains("Invalid profile name"));
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("profile")
         .arg("add")
@@ -589,14 +684,14 @@ fn test_profile_name_validation() {
 fn test_path_traversal_prevention() {
     let temp_dir = TempDir::new().unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
         .success();
 
     // Path traversal via --profile flag should be rejected
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("add")
         .arg("ripgrep")
@@ -607,7 +702,7 @@ fn test_path_traversal_prevention() {
         .stderr(predicate::str::contains("Invalid profile name"));
 
     // Path traversal via env command should also be rejected
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("env")
         .arg("--profile")
@@ -618,7 +713,7 @@ fn test_path_traversal_prevention() {
         .stderr(predicate::str::contains("Invalid profile name"));
 
     // Path traversal via profile remove should be rejected
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("profile")
         .arg("remove")
@@ -628,7 +723,7 @@ fn test_path_traversal_prevention() {
         .stderr(predicate::str::contains("Invalid profile name"));
 
     // Path traversal via profile set-default should be rejected
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("profile")
         .arg("set-default")
@@ -642,14 +737,14 @@ fn test_path_traversal_prevention() {
 fn test_add_package_to_specific_profile() {
     let temp_dir = TempDir::new().unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
         .success();
 
     // Create a second profile
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("profile")
         .arg("add")
@@ -660,7 +755,7 @@ fn test_add_package_to_specific_profile() {
         .success();
 
     // Add package to the rust profile specifically
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("add")
         .arg("ripgrep")
@@ -683,14 +778,14 @@ fn test_add_package_to_specific_profile() {
 fn test_env_operations_on_specific_profile() {
     let temp_dir = TempDir::new().unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
         .success();
 
     // Create a second profile
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("profile")
         .arg("add")
@@ -701,7 +796,7 @@ fn test_env_operations_on_specific_profile() {
         .success();
 
     // Add env var to dev profile
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("env")
         .arg("--profile")
@@ -717,7 +812,7 @@ fn test_env_operations_on_specific_profile() {
     assert!(dev_profile.contains("MY_VAR"));
 
     // List env vars on specific profile
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("env")
         .arg("--profile")
@@ -732,13 +827,13 @@ fn test_env_operations_on_specific_profile() {
 fn test_export_json() {
     let temp_dir = TempDir::new().unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
         .success();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("export")
         .arg("--format")
@@ -757,7 +852,7 @@ fn test_export_json() {
 fn test_profile_directory_isolation() {
     let temp_dir = TempDir::new().unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .arg("--template")
@@ -782,7 +877,7 @@ fn test_profile_directory_isolation() {
 fn test_flake_nix_exists_at_root() {
     let temp_dir = TempDir::new().unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
@@ -796,7 +891,7 @@ fn test_flake_nix_exists_at_root() {
 fn test_dendritic_structure_complete() {
     let temp_dir = TempDir::new().unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("init")
         .assert()
@@ -816,7 +911,7 @@ fn test_dendritic_structure_complete() {
 #[test]
 fn test_direnv_init() {
     let temp_dir = TempDir::new().unwrap();
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("direnv")
         .arg("init")
@@ -833,7 +928,7 @@ fn test_direnv_attach() {
     let direnv_path = temp_dir.path().join(".envrc");
     fs::write(&direnv_path, "export VAR=value").unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("direnv")
         .arg("attach")
@@ -850,7 +945,7 @@ fn test_direnv_detach() {
     let temp_dir = TempDir::new().unwrap();
 
     // Init to get full directive with watch_file lines, then add user content
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("direnv")
         .arg("init")
@@ -862,7 +957,7 @@ fn test_direnv_detach() {
     content.push_str("\nexport VAR=value\nwatch_file my_file.txt\n");
     fs::write(&direnv_path, &content).unwrap();
 
-    cargo::cargo_bin_cmd!("flk")
+    flk_cmd()
         .current_dir(temp_dir.path())
         .arg("direnv")
         .arg("detach")
@@ -879,4 +974,432 @@ fn test_direnv_detach() {
     // User content preserved
     assert!(content.contains("export VAR=value"));
     assert!(content.contains("watch_file my_file.txt"));
+}
+
+#[test]
+fn test_lock_show_without_lock_file() {
+    let temp_dir = TempDir::new().unwrap();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["lock", "show"])
+        .assert()
+        .failure()
+        .stderr(contains("No flake.lock found"));
+}
+
+#[test]
+fn test_lock_show_displays_locked_inputs() {
+    let temp_dir = TempDir::new().unwrap();
+    fs::write(
+        temp_dir.path().join("flake.lock"),
+        r#"{
+  "version": 7,
+  "nodes": {
+    "root": {
+      "inputs": {
+        "flake-utils": "flake-utils",
+        "nixpkgs": "nixpkgs"
+      }
+    },
+    "flake-utils": {
+      "locked": {
+        "type": "github",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "1234567890abcdef1234567890abcdef12345678",
+        "lastModified": 1700000000,
+        "narHash": "sha256-flake-utils"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "type": "github",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "abcdef1234567890abcdef1234567890abcdef12",
+        "lastModified": 1700000100,
+        "narHash": "sha256-nixpkgs"
+      }
+    }
+  }
+}"#,
+    )
+    .unwrap();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["lock", "show"])
+        .assert()
+        .success()
+        .stdout(contains("Flake Lock File Information"))
+        .stdout(contains("Lock Version:"))
+        .stdout(contains("flake-utils"))
+        .stdout(contains("nixpkgs"))
+        .stdout(contains("1234567890ab"))
+        .stdout(contains("abcdef123456"));
+}
+
+#[test]
+fn test_lock_history_lists_available_backups() {
+    let temp_dir = TempDir::new().unwrap();
+    let backup_dir = temp_dir.path().join(".flk/backups");
+    fs::create_dir_all(&backup_dir).unwrap();
+    fs::write(backup_dir.join("flake.lock.2025-01-27_14-30-00"), "old").unwrap();
+    fs::write(backup_dir.join("flake.lock.latest-manual"), "new").unwrap();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["lock", "history"])
+        .assert()
+        .success()
+        .stdout(contains("Lock File Backup History"))
+        .stdout(contains("2025-01-27_14-30-00"))
+        .stdout(contains("latest-manual"));
+}
+
+#[test]
+fn test_lock_restore_replaces_current_lock_file() {
+    let temp_dir = TempDir::new().unwrap();
+    let backup_dir = temp_dir.path().join(".flk/backups");
+    fs::create_dir_all(&backup_dir).unwrap();
+    fs::write(temp_dir.path().join("flake.lock"), "{\"version\":1}").unwrap();
+    fs::write(backup_dir.join("flake.lock.snapshot"), "{\"version\":2}").unwrap();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["lock", "restore", "snapshot"])
+        .assert()
+        .success()
+        .stdout(contains("Lock file restored successfully"));
+
+    assert_eq!(
+        fs::read_to_string(temp_dir.path().join("flake.lock")).unwrap(),
+        "{\"version\":2}"
+    );
+
+    let backup_count = fs::read_dir(&backup_dir)
+        .unwrap()
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| {
+            entry
+                .file_name()
+                .to_string_lossy()
+                .starts_with("flake.lock.")
+        })
+        .count();
+    assert!(backup_count >= 2);
+}
+
+// --- command.rs success & error paths ---
+
+#[test]
+fn test_command_add_list_remove() {
+    let temp_dir = TempDir::new().unwrap();
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["command", "add", "greet", "echo hello"])
+        .assert()
+        .success()
+        .stdout(contains("Command 'greet' added successfully"));
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["command", "list"])
+        .assert()
+        .success()
+        .stdout(contains("greet"));
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["command", "remove", "greet"])
+        .assert()
+        .success()
+        .stdout(contains("Command 'greet' removed successfully"));
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["command", "list"])
+        .assert()
+        .success()
+        .stdout(contains("No commands found"));
+}
+
+#[test]
+fn test_command_add_nonexistent_profile() {
+    let temp_dir = TempDir::new().unwrap();
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args([
+            "command",
+            "--profile",
+            "nonexistent",
+            "add",
+            "greet",
+            "echo hi",
+        ])
+        .assert()
+        .failure()
+        .stderr(contains("Failed to read profile file"));
+}
+
+#[test]
+fn test_command_remove_nonexistent_profile() {
+    let temp_dir = TempDir::new().unwrap();
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["command", "--profile", "nonexistent", "remove", "greet"])
+        .assert()
+        .failure()
+        .stderr(contains("Profile file"));
+}
+
+#[test]
+fn test_command_remove_nonexistent_command() {
+    let temp_dir = TempDir::new().unwrap();
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["command", "remove", "nonexistent_cmd"])
+        .assert()
+        .failure()
+        .stderr(contains("not found in profile"));
+}
+
+#[test]
+fn test_command_list_nonexistent_profile() {
+    let temp_dir = TempDir::new().unwrap();
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["command", "--profile", "nonexistent", "list"])
+        .assert()
+        .failure()
+        .stderr(contains("Failed to read profile file"));
+}
+
+// --- env.rs success & error paths ---
+
+#[test]
+fn test_env_add_and_remove() {
+    let temp_dir = TempDir::new().unwrap();
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["env", "add", "MY_VAR", "my_value"])
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["env", "remove", "MY_VAR"])
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["env", "list"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("MY_VAR").not());
+}
+
+#[test]
+fn test_env_add_nonexistent_profile() {
+    let temp_dir = TempDir::new().unwrap();
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["env", "--profile", "nonexistent", "add", "MY_VAR", "value"])
+        .assert()
+        .failure()
+        .stderr(contains("Failed to read profile file"));
+}
+
+#[test]
+fn test_env_remove_nonexistent_profile() {
+    let temp_dir = TempDir::new().unwrap();
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["env", "--profile", "nonexistent", "remove", "MY_VAR"])
+        .assert()
+        .failure()
+        .stderr(contains("Failed to read profile file"));
+}
+
+#[test]
+fn test_env_list_nonexistent_profile() {
+    let temp_dir = TempDir::new().unwrap();
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["env", "--profile", "nonexistent", "list"])
+        .assert()
+        .failure()
+        .stderr(contains("Failed to read profile file"));
+}
+
+// --- remove.rs & list.rs error paths ---
+
+#[test]
+fn test_remove_nonexistent_profile() {
+    let temp_dir = TempDir::new().unwrap();
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["remove", "ripgrep", "--profile", "nonexistent"])
+        .assert()
+        .failure()
+        .stderr(contains("Failed to read profile file"));
+}
+
+#[test]
+fn test_list_nonexistent_profile() {
+    let temp_dir = TempDir::new().unwrap();
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["list", "--profile", "nonexistent"])
+        .assert()
+        .failure()
+        .stderr(contains("Failed to read profile file"));
+}
+
+// --- utils.rs resolve_profile paths ---
+
+#[test]
+fn test_resolve_profile_flk_flake_ref_empty_fallback() {
+    let temp_dir = TempDir::new().unwrap();
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    // FLK_FLAKE_REF=".#" normalizes to None, triggering fallback to default profile
+    let mut cmd = flk_cmd();
+    cmd.env("FLK_FLAKE_REF", ".#");
+    cmd.current_dir(temp_dir.path())
+        .arg("list")
+        .assert()
+        .success();
+}
+
+#[test]
+fn test_resolve_profile_flk_flake_ref_valid() {
+    let temp_dir = TempDir::new().unwrap();
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    // FLK_FLAKE_REF=".#generic" normalizes to "generic", using it as the profile
+    let mut cmd = flk_cmd();
+    cmd.env("FLK_FLAKE_REF", ".#generic");
+    cmd.current_dir(temp_dir.path())
+        .arg("list")
+        .assert()
+        .success();
+}
+
+#[test]
+fn test_no_profiles_available() {
+    let temp_dir = TempDir::new().unwrap();
+
+    // Create minimal .flk structure with no profiles
+    fs::create_dir_all(temp_dir.path().join(".flk/profiles")).unwrap();
+    fs::write(temp_dir.path().join(".flk/default.nix"), "{ }").unwrap();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("list")
+        .assert()
+        .failure()
+        .stderr(contains("No profiles found"));
+}
+
+#[test]
+fn test_update_with_specific_packages_is_rejected() {
+    let temp_dir = TempDir::new().unwrap();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["update", "ripgrep"])
+        .assert()
+        .failure()
+        .stderr(contains(
+            "Updating specific packages requires version pinning",
+        ));
+}
+
+#[test]
+fn test_update_show_requires_existing_lock_file() {
+    let temp_dir = TempDir::new().unwrap();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["update", "--show"])
+        .assert()
+        .failure()
+        .stderr(contains("flake.lock not found"));
 }

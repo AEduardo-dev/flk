@@ -2,9 +2,10 @@
 //!
 //! Enter the Nix development shell for the current flake.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use colored::Colorize;
 use flk::flake::parsers::utils::resolve_profile;
+use std::env;
 use std::process::Command;
 
 /// Enter the Nix development shell for the resolved profile.
@@ -25,14 +26,25 @@ pub fn run_activate(current_profile: Option<String>) -> Result<()> {
 
     // Build nix develop command with GC root pinning for faster re-activation
     let profile_path = format!(".flk/.nix-profile-{}", profile);
+    let shell = env::var("SHELL")
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| "/bin/sh".to_string());
     let mut cmd = Command::new("nix");
     cmd.arg("develop");
     cmd.arg(format!(".#{}", profile));
     cmd.arg("--impure");
     cmd.arg("--profile");
     cmd.arg(&profile_path);
+    cmd.arg("-c");
+    cmd.arg(shell);
 
-    let status = cmd.status().expect("Failed to start nix develop shell");
+    let status = cmd.status().with_context(|| {
+        format!(
+            "Failed to start nix develop shell for profile '{}'",
+            profile
+        )
+    })?;
     if status.success() {
         Ok(())
     } else {

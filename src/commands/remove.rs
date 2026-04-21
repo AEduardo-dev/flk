@@ -28,7 +28,12 @@ pub fn run_remove(package: &str, target_profile: Option<String>) -> Result<()> {
         bail!("Package name cannot be empty!");
     }
 
-    let flake_content = fs::read_to_string(&flake_path).context("Failed to read flake.nix")?;
+    let flake_content = fs::read_to_string(&flake_path).with_context(|| {
+        format!(
+            "Failed to read profile file at '{}'. Have you run 'flk init'?",
+            flake_path.display()
+        )
+    })?;
     let section = parse_packages_section(&flake_content)?;
 
     if !section.package_exists(package) {

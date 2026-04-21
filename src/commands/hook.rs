@@ -43,7 +43,7 @@ refresh() {{
   if _flk_use_direnv; then
     direnv reload
   else
-    exec nix develop "$_flk_ref" --impure --profile ".flk/.nix-profile-$_flk_profile_name"
+    exec nix develop "$_flk_ref" --impure --profile ".flk/.nix-profile-$_flk_profile_name" -c "${{SHELL:-/bin/sh}}"
   fi
 }}
 
@@ -61,7 +61,7 @@ switch() {{
      export FLK_PROFILE=".#$profile"
      direnv reload
   else
-    exec nix develop ".#$profile" --impure --profile ".flk/.nix-profile-$profile"
+    exec nix develop ".#$profile" --impure --profile ".flk/.nix-profile-$profile" -c "${{SHELL:-/bin/sh}}"
  fi
 }}
 "#
@@ -90,7 +90,8 @@ function refresh --description "Reload env (direnv if present, else nix develop)
       echo "invalid profile name: $profile_name" 1>&2
       return 1
     end
-    exec nix develop "$flk_ref" --impure --profile ".flk/.nix-profile-$profile_name"
+    set -l flk_shell (test -n "$SHELL"; and echo "$SHELL"; or echo "/bin/sh")
+    exec nix develop "$flk_ref" --impure --profile ".flk/.nix-profile-$profile_name" -c "$flk_shell"
   end
 end
 
@@ -108,7 +109,8 @@ function switch --description "Switch profile and reload"
     set -lx FLK_PROFILE ".#$profile"
     direnv reload
   else
-    exec nix develop ".#$profile" --impure --profile ".flk/.nix-profile-$profile"
+    set -l flk_shell (test -n "$SHELL"; and echo "$SHELL"; or echo "/bin/sh")
+    exec nix develop ".#$profile" --impure --profile ".flk/.nix-profile-$profile" -c "$flk_shell"
   end
 end
 "#

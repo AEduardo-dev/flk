@@ -386,4 +386,21 @@ mod tests {
         assert!(!new_content.contains("cargo-watch"));
         assert!(new_content.contains("rust-analyzer"));
     }
+
+    #[test]
+    fn test_extract_packages_from_output_skips_header_and_invalid_lines() {
+        let output = r#"Name Version Description
+ripgrep 14.1.0 x86_64-linux Fast grep
+invalid line
+fd 9.0.0 x86_64-linux Fast find
+"#;
+
+        let packages = extract_packages_from_output(output).unwrap();
+
+        assert_eq!(packages.len(), 2);
+        assert_eq!(packages[0].name, "ripgrep");
+        assert_eq!(packages[0].version.as_deref(), Some("14.1.0"));
+        assert_eq!(packages[1].name, "fd");
+        assert_eq!(packages[1].version.as_deref(), Some("9.0.0"));
+    }
 }

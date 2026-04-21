@@ -18,9 +18,18 @@ pub fn run_list(target_profile: Option<String>) -> Result<()> {
     let profile = resolve_profile(target_profile)?;
     let flake_path = Path::new(".flk/profiles/").join(format!("{}.nix", profile));
 
-    let flake_content = std::fs::read_to_string(&flake_path).context("Failed to read flake.nix")?;
-    let section = parse_packages_section(&flake_content)
-        .context("Failed to parse packages section in flake.nix")?;
+    let flake_content = std::fs::read_to_string(&flake_path).with_context(|| {
+        format!(
+            "Failed to read profile file at '{}'. Have you run 'flk init'?",
+            flake_path.display()
+        )
+    })?;
+    let section = parse_packages_section(&flake_content).with_context(|| {
+        format!(
+            "Failed to parse packages section in profile file '{}'",
+            flake_path.display()
+        )
+    })?;
     let packages_info = section.to_packages();
 
     if packages_info.is_empty() {

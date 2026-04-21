@@ -33,8 +33,12 @@ pub fn add(name: &str, value: &str, target_profile: Option<String>) -> Result<()
         value.green()
     );
 
-    // Read the current flake.nix
-    let flake_content = fs::read_to_string(&flake_path).context("Failed to read flake.nix")?;
+    let flake_content = fs::read_to_string(&flake_path).with_context(|| {
+        format!(
+            "Failed to read profile file at '{}'. Have you run 'flk init'?",
+            flake_path.display()
+        )
+    })?;
     let section = parse_env_vars_section(&flake_content)?;
 
     if section.env_var_exists(name)? {
@@ -69,8 +73,12 @@ pub fn remove(name: &str, target_profile: Option<String>) -> Result<()> {
         name.cyan()
     );
 
-    // Read the current flake.nix
-    let flake_content = fs::read_to_string(&flake_path).context("Failed to read flake.nix")?;
+    let flake_content = fs::read_to_string(&flake_path).with_context(|| {
+        format!(
+            "Failed to read profile file at '{}'. Have you run 'flk init'?",
+            flake_path.display()
+        )
+    })?;
     let section = parse_env_vars_section(&flake_content)?;
 
     if !section.env_var_exists(name)? {
@@ -93,7 +101,12 @@ pub fn remove(name: &str, target_profile: Option<String>) -> Result<()> {
 pub fn list(target_profile: Option<String>) -> Result<()> {
     let profile = resolve_profile(target_profile)?;
     let flake_path = Path::new(".flk/profiles/").join(format!("{}.nix", profile));
-    let flake_content = fs::read_to_string(&flake_path).context("Failed to read flake.nix")?;
+    let flake_content = fs::read_to_string(&flake_path).with_context(|| {
+        format!(
+            "Failed to read profile file at '{}'. Have you run 'flk init'?",
+            flake_path.display()
+        )
+    })?;
     let section = parse_env_vars_section(&flake_content)?;
     let env_vars = section.to_env_vars();
 
