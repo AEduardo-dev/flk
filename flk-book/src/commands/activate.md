@@ -12,7 +12,8 @@ flk activate --profile backend
 
 **Behavior**
 - Runs `nix develop .#<profile> --impure` to enter the dev shell
-- Uses GC root pinning (`.flk/.nix-profile-<profile>`) for faster re-activation on subsequent runs
+- Reuses a cached develop profile from `.flk/.nix-profile-<profile>` when your flake config is unchanged
+- Refreshes that cached profile when `flake.nix`, `flake.lock`, or the relevant `.flk` profile files change
 - Uses standard [profile resolution](../concepts.md#profiles) when `--profile` is not specified
 - Custom commands and environment variables from the profile are available inside the shell
 

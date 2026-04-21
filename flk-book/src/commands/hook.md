@@ -43,7 +43,8 @@ refresh
 ```
 
 - If direnv is present and `.envrc` exists, runs `direnv reload`
-- Otherwise, runs `nix develop` with the current profile
+- Otherwise, reuses a cached `nix develop` profile when it is still fresh
+- Rebuilds that cached profile when the flake inputs or relevant `.flk` files change
 - Uses the `FLK_FLAKE_REF` environment variable to determine the active profile
 
 ### `switch <profile>`
@@ -57,6 +58,7 @@ switch frontend
 
 - Validates the profile name before switching
 - Updates `FLK_FLAKE_REF` and reloads via direnv or `nix develop`
+- Reuses the saved profile cache until the environment definition changes
 
 **Notes**
 - The hook integrates with direnv automatically — if `.envrc` is present, it uses `direnv reload` instead of `exec nix develop`
