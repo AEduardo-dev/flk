@@ -642,10 +642,9 @@ fn test_activate_refreshes_stale_profile_cache() {
 
     fs::write(&profile_path, "cached-profile").unwrap();
     fs::write(&stamp_path, "").unwrap();
-    set_modified_time(
-        &stamp_path,
-        std::time::UNIX_EPOCH + std::time::Duration::from_secs(1),
-    );
+    // Force an obviously stale stamp timestamp so tracked inputs are always newer.
+    let stale_stamp_mtime = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1);
+    set_modified_time(&stamp_path, stale_stamp_mtime);
 
     flk_cmd()
         .current_dir(temp_dir.path())

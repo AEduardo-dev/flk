@@ -66,6 +66,7 @@ _flk_exec_nix_develop() {{
 }}
 
 refresh() {{
+  # Fallback order: FLK_FLAKE_REF -> FLK_PROFILE -> .#default
   local _flk_ref="${{FLK_FLAKE_REF:-${{FLK_PROFILE:-.#default}}}}"
   local _flk_profile_name="${{_flk_ref##*.#}}"
   if ! _flk_valid_profile "$_flk_profile_name"; then
@@ -155,6 +156,7 @@ function _flk_exec_nix_develop
 end
 
 function refresh --description "Reload env (direnv if present, else nix develop)"
+  # Fallback order: FLK_FLAKE_REF -> FLK_PROFILE -> .#default
   set -l flk_ref (test -n "$FLK_FLAKE_REF"; and echo "$FLK_FLAKE_REF"; or test -n "$FLK_PROFILE"; and echo "$FLK_PROFILE"; or echo ".#default")
   set -l profile_name (string replace -r '.*\\.#' '' "$flk_ref")
   if not _flk_valid_profile "$profile_name"
