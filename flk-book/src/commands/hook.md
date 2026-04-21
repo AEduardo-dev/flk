@@ -45,7 +45,7 @@ refresh
 - If direnv is present and `.envrc` exists, runs `direnv reload`
 - Otherwise, reuses a cached `nix develop` profile when it is still fresh
 - Rebuilds that cached profile when the flake inputs or relevant `.flk` files change
-- Uses the `FLK_FLAKE_REF` environment variable to determine the active profile
+- Uses `FLK_FLAKE_REF` (fallback: `FLK_PROFILE`) to determine the active profile
 
 ### `switch <profile>`
 
@@ -57,7 +57,7 @@ switch frontend
 ```
 
 - Validates the profile name before switching
-- Updates `FLK_FLAKE_REF` and reloads via direnv or `nix develop`
+- Updates `FLK_FLAKE_REF` and `FLK_PROFILE`, then reloads via direnv or `nix develop`
 - Reuses the saved profile cache until the environment definition changes
 
 **Notes**
