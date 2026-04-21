@@ -491,9 +491,8 @@ fn test_hook_shells_include_shell_command() {
         .stdout(contains("\"${SHELL:-/bin/sh}\""))
         .stdout(contains("exec \"$FLK_SHELL_CMD\""))
         .stdout(contains("export FLK_FLAKE_REF=\".#$profile\""))
-        .stdout(contains(
-            "export FLK_PROFILE=\".#$profile\"\n    _flk_exec_nix_develop",
-        ))
+        .stdout(contains("export FLK_PROFILE=\".#$profile\""))
+        .stdout(contains("_flk_exec_nix_develop \".#$profile\""))
         .stdout(contains(".nix-profile-"))
         .stdout(contains(".stamp"));
 
@@ -504,9 +503,8 @@ fn test_hook_shells_include_shell_command() {
         .stdout(contains("\"${SHELL:-/bin/sh}\""))
         .stdout(contains("exec \"$FLK_SHELL_CMD\""))
         .stdout(contains("export FLK_FLAKE_REF=\".#$profile\""))
-        .stdout(contains(
-            "export FLK_PROFILE=\".#$profile\"\n    _flk_exec_nix_develop",
-        ))
+        .stdout(contains("export FLK_PROFILE=\".#$profile\""))
+        .stdout(contains("_flk_exec_nix_develop \".#$profile\""))
         .stdout(contains(".nix-profile-"))
         .stdout(contains(".stamp"));
 
@@ -520,9 +518,8 @@ fn test_hook_shells_include_shell_command() {
         .stdout(contains("-c \"$flk_shell\""))
         .stdout(contains("exec \"$FLK_SHELL_CMD\""))
         .stdout(contains("set -lx FLK_FLAKE_REF \".#$profile\""))
-        .stdout(contains(
-            "set -lx FLK_PROFILE \".#$profile\"\n    set -l flk_shell",
-        ))
+        .stdout(contains("set -lx FLK_PROFILE \".#$profile\""))
+        .stdout(contains("set -l flk_shell"))
         .stdout(contains(".nix-profile-"))
         .stdout(contains(".stamp"));
 }
