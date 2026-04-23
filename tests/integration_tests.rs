@@ -682,7 +682,7 @@ fn test_activate_reuses_fresh_profile_cache() {
 
 #[cfg(unix)]
 #[test]
-fn test_activate_reuses_cache_when_stamp_equals_input_mtime() {
+fn test_activate_treats_cache_fresh_when_stamp_equals_input_mtime() {
     let temp_dir = TempDir::new().unwrap();
     let fake_bin_dir = temp_dir.path().join("bin");
     let fake_nix_path = fake_bin_dir.join("nix");
