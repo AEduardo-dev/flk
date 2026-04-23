@@ -40,7 +40,7 @@ _flk_profile_is_fresh() {{
   local profile_path="$(_flk_profile_path "$profile")"
   local stamp_path="$(_flk_profile_stamp "$profile")"
   local f
-  [ -e "$profile_path" ] && [ -e "$stamp_path" ] || return 1
+  if [ ! -e "$profile_path" ] || [ ! -e "$stamp_path" ]; then return 1; fi
   for f in {cache_inputs}; do
     [ -e "$f" ] || continue
     [ "$f" -nt "$stamp_path" ] && return 1
