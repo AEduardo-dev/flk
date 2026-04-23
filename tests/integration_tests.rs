@@ -49,6 +49,20 @@ fn nix_available() -> bool {
         .unwrap_or(false)
 }
 
+/// Return the absolute path to the `true` binary.
+///
+/// macOS does not have `/bin/true` (it lives under `/usr/bin/true`), so we
+/// resolve it at runtime to keep the test portable across Linux and macOS.
+#[cfg(unix)]
+fn true_binary() -> String {
+    for candidate in &["/usr/bin/true", "/bin/true"] {
+        if Path::new(candidate).exists() {
+            return candidate.to_string();
+        }
+    }
+    panic!("could not find `true` binary on this system");
+}
+
 #[test]
 fn test_version() {
     flk_cmd()
@@ -660,9 +674,11 @@ fn test_activate_profile_cache_with_real_nix_when_available() {
         .assert()
         .success();
 
+    let true_bin = true_binary();
+
     flk_cmd()
         .current_dir(temp_dir.path())
-        .env("SHELL", "/bin/true")
+        .env("SHELL", &true_bin)
         .args(["activate", "--profile", "generic"])
         .assert()
         .success();
@@ -683,7 +699,7 @@ fn test_activate_profile_cache_with_real_nix_when_available() {
     // Second activation should reuse the cached profile (stamp unchanged).
     flk_cmd()
         .current_dir(temp_dir.path())
-        .env("SHELL", "/bin/true")
+        .env("SHELL", &true_bin)
         .args(["activate", "--profile", "generic"])
         .assert()
         .success();
@@ -708,7 +724,7 @@ fn test_activate_profile_cache_with_real_nix_when_available() {
 
     flk_cmd()
         .current_dir(temp_dir.path())
-        .env("SHELL", "/bin/true")
+        .env("SHELL", &true_bin)
         .args(["activate", "--profile", "generic"])
         .assert()
         .success();
