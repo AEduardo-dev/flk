@@ -122,6 +122,8 @@ fn profile_cache_is_fresh(profile: &str, profile_path: &Path, stamp_path: &Path)
                 format!("Failed to read modification time for '{}'", path.display())
             })?;
 
+        // Treat equal mtimes as fresh — the stamp is written after a successful
+        // build, so inputs touched in the same clock tick were already incorporated.
         if modified > stamp_modified {
             return Ok(false);
         }
