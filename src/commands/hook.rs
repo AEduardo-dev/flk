@@ -54,7 +54,7 @@ _flk_exec_nix_develop() {{
   if _flk_profile_is_fresh "$profile"; then
     exec nix develop "$profile_path" --impure -c "$flk_shell"
   else
-    exec env FLK_REF="$ref" FLK_PROFILE_PATH="$profile_path" FLK_SHELL_CMD="$flk_shell" FLK_PROFILE_STAMP="$stamp_path" nix develop "$ref" --impure --profile "$profile_path" -c /bin/sh -c '
+    exec env FLK_PROFILE_PATH="$profile_path" FLK_SHELL_CMD="$flk_shell" FLK_PROFILE_STAMP="$stamp_path" nix develop "$ref" --impure --profile "$profile_path" -c /bin/sh -c '
       if [ -e "$FLK_PROFILE_PATH" ]; then
         mkdir -p "$(dirname "$FLK_PROFILE_STAMP")" &&
         touch "$FLK_PROFILE_STAMP" ||
@@ -146,7 +146,7 @@ function _flk_exec_nix_develop
   if _flk_profile_is_fresh "$profile"
     exec nix develop "$profile_path" --impure -c "$flk_shell"
   else
-    exec env FLK_REF="$ref" FLK_PROFILE_PATH="$profile_path" FLK_SHELL_CMD="$flk_shell" FLK_PROFILE_STAMP="$stamp_path" nix develop "$ref" --impure --profile "$profile_path" -c /bin/sh -c '
+    exec env FLK_PROFILE_PATH="$profile_path" FLK_SHELL_CMD="$flk_shell" FLK_PROFILE_STAMP="$stamp_path" nix develop "$ref" --impure --profile "$profile_path" -c /bin/sh -c '
       if [ -e "$FLK_PROFILE_PATH" ]; then
         mkdir -p "$(dirname "$FLK_PROFILE_STAMP")" &&
         touch "$FLK_PROFILE_STAMP" ||

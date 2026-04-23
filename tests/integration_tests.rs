@@ -40,6 +40,15 @@ fn set_modified_time(path: &Path, modified: std::time::SystemTime) {
     file.set_times(times).unwrap();
 }
 
+#[cfg(unix)]
+fn nix_available() -> bool {
+    std::process::Command::new("nix")
+        .arg("--version")
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
+}
+
 #[test]
 fn test_version() {
     flk_cmd()
@@ -489,6 +498,7 @@ fn test_hook_shells_include_shell_command() {
         .assert()
         .success()
         .stdout(contains("\"${SHELL:-/bin/sh}\""))
+        .stdout(predicate::str::contains("FLK_REF=\"").not())
         .stdout(contains("exec \"$FLK_SHELL_CMD\""))
         .stdout(contains("export FLK_FLAKE_REF=\".#$profile\""))
         .stdout(contains("export FLK_PROFILE=\".#$profile\""))
@@ -501,6 +511,7 @@ fn test_hook_shells_include_shell_command() {
         .assert()
         .success()
         .stdout(contains("\"${SHELL:-/bin/sh}\""))
+        .stdout(predicate::str::contains("FLK_REF=\"").not())
         .stdout(contains("exec \"$FLK_SHELL_CMD\""))
         .stdout(contains("export FLK_FLAKE_REF=\".#$profile\""))
         .stdout(contains("export FLK_PROFILE=\".#$profile\""))
@@ -512,6 +523,7 @@ fn test_hook_shells_include_shell_command() {
         .args(["hook", "fish"])
         .assert()
         .success()
+        .stdout(predicate::str::contains("FLK_REF=\"").not())
         .stdout(contains(
             "set -l flk_shell (test -n \"$SHELL\"; and echo \"$SHELL\"; or echo \"/bin/sh\")",
         ))
@@ -627,6 +639,77 @@ fn test_activate_reuses_fresh_profile_cache() {
             "-c",
             "/bin/sh",
         ]
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn test_activate_profile_cache_with_real_nix_when_available() {
+    if !nix_available() {
+        eprintln!("skipping test_activate_profile_cache_with_real_nix_when_available: `nix` not available");
+        return;
+    }
+
+    let temp_dir = TempDir::new().unwrap();
+    let profile_path = temp_dir.path().join(".flk/.nix-profile-generic");
+    let stamp_path = temp_dir.path().join(".flk/.nix-profile-generic.stamp");
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .env("SHELL", "/bin/true")
+        .args(["activate", "--profile", "generic"])
+        .assert()
+        .success();
+
+    assert!(
+        profile_path.exists(),
+        "expected first activation to create cached profile at {}",
+        profile_path.display()
+    );
+    assert!(
+        stamp_path.exists(),
+        "expected first activation to create cache stamp at {}",
+        stamp_path.display()
+    );
+
+    let first_stamp_mtime = fs::metadata(&stamp_path).unwrap().modified().unwrap();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .env("SHELL", "/bin/true")
+        .args(["activate", "--profile", "generic"])
+        .assert()
+        .success();
+
+    let flake_path = temp_dir.path().join("flake.nix");
+    let original_flake = fs::read_to_string(&flake_path).unwrap();
+    fs::write(
+        &flake_path,
+        format!("{original_flake}\n# force cache refresh\n"),
+    )
+    .unwrap();
+    set_modified_time(
+        &flake_path,
+        std::time::SystemTime::now() + std::time::Duration::from_secs(2),
+    );
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .env("SHELL", "/bin/true")
+        .args(["activate", "--profile", "generic"])
+        .assert()
+        .success();
+
+    let refreshed_stamp_mtime = fs::metadata(&stamp_path).unwrap().modified().unwrap();
+    assert!(
+        refreshed_stamp_mtime > first_stamp_mtime,
+        "expected cache stamp to be refreshed after flake input changed"
     );
 }
 
