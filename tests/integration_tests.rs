@@ -41,9 +41,19 @@ fn set_modified_time(path: &Path, modified: std::time::SystemTime) {
 }
 
 #[cfg(unix)]
-fn nix_available() -> bool {
+fn real_nix_tests_enabled() -> bool {
+    if env::var("RUN_REAL_NIX_TESTS").as_deref() != Ok("1") {
+        return false;
+    }
+
     std::process::Command::new("nix")
-        .arg("--version")
+        .args([
+            "--extra-experimental-features",
+            "nix-command flakes",
+            "flake",
+            "metadata",
+            "--help",
+        ])
         .status()
         .map(|status| status.success())
         .unwrap_or(false)
@@ -517,6 +527,7 @@ fn test_hook_shells_include_shell_command() {
         .stdout(contains("export FLK_FLAKE_REF=\".#$profile\""))
         .stdout(contains("export FLK_PROFILE=\".#$profile\""))
         .stdout(contains("_flk_exec_nix_develop \".#$profile\""))
+        .stdout(contains("[ \"$stamp_path\" -nt \"$f\" ] || return 1"))
         .stdout(contains(".nix-profile-"))
         .stdout(contains(".stamp"));
 
@@ -530,6 +541,7 @@ fn test_hook_shells_include_shell_command() {
         .stdout(contains("export FLK_FLAKE_REF=\".#$profile\""))
         .stdout(contains("export FLK_PROFILE=\".#$profile\""))
         .stdout(contains("_flk_exec_nix_develop \".#$profile\""))
+        .stdout(contains("[ \"$stamp_path\" -nt \"$f\" ] || return 1"))
         .stdout(contains(".nix-profile-"))
         .stdout(contains(".stamp"));
 
@@ -546,6 +558,7 @@ fn test_hook_shells_include_shell_command() {
         .stdout(contains("set -gx FLK_FLAKE_REF"))
         .stdout(contains("set -gx FLK_PROFILE"))
         .stdout(contains("set -l flk_shell"))
+        .stdout(contains("test \"$stamp_path\" -nt \"$f\"; or return 1"))
         .stdout(contains(".nix-profile-"))
         .stdout(contains(".stamp"));
 }
@@ -659,8 +672,10 @@ fn test_activate_reuses_fresh_profile_cache() {
 #[cfg(unix)]
 #[test]
 fn test_activate_profile_cache_with_real_nix_when_available() {
-    if !nix_available() {
-        eprintln!("skipping test_activate_profile_cache_with_real_nix_when_available: `nix` not available");
+    if !real_nix_tests_enabled() {
+        eprintln!(
+            "skipping test_activate_profile_cache_with_real_nix_when_available: set RUN_REAL_NIX_TESTS=1 and ensure nix flakes support is available"
+        );
         return;
     }
 

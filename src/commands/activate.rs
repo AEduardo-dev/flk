@@ -129,7 +129,7 @@ fn profile_cache_is_fresh(profile: &str, profile_path: &Path, stamp_path: &Path)
                 format!("Failed to read modification time for '{}'", path.display())
             })?;
 
-        if modified > stamp_modified {
+        if modified >= stamp_modified {
             return Ok(false);
         }
     }
