@@ -45,6 +45,7 @@ pub mod hook;
 pub mod init;
 pub mod list;
 pub mod lock;
+pub mod profile_cache;
 pub mod profiles;
 pub mod remove;
 pub mod search;

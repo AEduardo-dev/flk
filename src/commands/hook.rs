@@ -3,6 +3,7 @@
 //! Generate shell hooks for bash, zsh, and fish that enable the
 //! `refresh` and `switch` commands for hot-reloading environments.
 
+use crate::commands::profile_cache::profile_cache_hook_inputs;
 use anyhow::Result;
 use clap::ValueEnum;
 
@@ -27,6 +28,7 @@ pub fn run_hook(shell: HookShell) -> Result<()> {
 }
 
 fn print_bash_like() {
+    let cache_inputs = profile_cache_hook_inputs("$profile");
     println!(
         r#"# flk hook: refresh/switch for direnv + nix develop
 _flk_use_direnv() {{ command -v direnv >/dev/null 2>&1 && [ -f .envrc ]; }}
@@ -39,7 +41,7 @@ _flk_profile_is_fresh() {{
   local stamp_path="$(_flk_profile_stamp "$profile")"
   local f
   [ -e "$profile_path" ] && [ -e "$stamp_path" ] || return 1
-  for f in "flake.nix" "flake.lock" ".flk/default.nix" ".flk/pins.nix" ".flk/overlays.nix" ".flk/profiles/$profile.nix"; do
+  for f in {cache_inputs}; do
     [ -e "$f" ] || continue
     [ "$stamp_path" -nt "$f" ] || return 1
   done
@@ -102,11 +104,13 @@ switch() {{
     _flk_exec_nix_develop ".#$profile" "$profile" "${{SHELL:-/bin/sh}}"
   fi
 }}
-"#
+"#,
+        cache_inputs = cache_inputs
     );
 }
 
 fn print_fish() {
+    let cache_inputs = profile_cache_hook_inputs("$profile");
     println!(
         r#"# flk hook: refresh/switch for direnv + nix develop (fish)
 function _flk_use_direnv
@@ -130,7 +134,7 @@ function _flk_profile_is_fresh
   set profile_path (_flk_profile_path "$profile")
   set stamp_path (_flk_profile_stamp "$profile")
   test -e "$profile_path"; and test -e "$stamp_path"; or return 1
-  for f in "flake.nix" "flake.lock" ".flk/default.nix" ".flk/pins.nix" ".flk/overlays.nix" ".flk/profiles/$profile.nix"
+  for f in {cache_inputs}
     test -e "$f"; or continue
     test "$stamp_path" -nt "$f"; or return 1
   end
@@ -194,6 +198,7 @@ function switch --description "Switch profile and reload"
     _flk_exec_nix_develop ".#$profile" "$profile" "$flk_shell"
   end
 end
-"#
+"#,
+        cache_inputs = cache_inputs
     );
 }
