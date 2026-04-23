@@ -49,7 +49,9 @@ fn real_nix_tests_enabled() -> bool {
     std::process::Command::new("nix")
         .args([
             "--extra-experimental-features",
-            "nix-command flakes",
+            "nix-command",
+            "--extra-experimental-features",
+            "flakes",
             "flake",
             "metadata",
             "--help",
