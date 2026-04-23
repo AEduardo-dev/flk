@@ -522,7 +522,7 @@ fn test_hook_shells_include_shell_command() {
         .stdout(contains("export FLK_FLAKE_REF=\".#$profile\""))
         .stdout(contains("export FLK_PROFILE=\".#$profile\""))
         .stdout(contains("_flk_exec_nix_develop \".#$profile\""))
-        .stdout(contains("[ \"$stamp_path\" -nt \"$f\" ] || return 1"))
+        .stdout(contains("[ \"$f\" -nt \"$stamp_path\" ] && return 1"))
         .stdout(contains(".nix-profile-"))
         .stdout(contains(".stamp"));
 
@@ -536,7 +536,7 @@ fn test_hook_shells_include_shell_command() {
         .stdout(contains("export FLK_FLAKE_REF=\".#$profile\""))
         .stdout(contains("export FLK_PROFILE=\".#$profile\""))
         .stdout(contains("_flk_exec_nix_develop \".#$profile\""))
-        .stdout(contains("[ \"$stamp_path\" -nt \"$f\" ] || return 1"))
+        .stdout(contains("[ \"$f\" -nt \"$stamp_path\" ] && return 1"))
         .stdout(contains(".nix-profile-"))
         .stdout(contains(".stamp"));
 
@@ -553,7 +553,7 @@ fn test_hook_shells_include_shell_command() {
         .stdout(contains("set -gx FLK_FLAKE_REF"))
         .stdout(contains("set -gx FLK_PROFILE"))
         .stdout(contains("set -l flk_shell"))
-        .stdout(contains("test \"$stamp_path\" -nt \"$f\"; or return 1"))
+        .stdout(contains("test \"$f\" -nt \"$stamp_path\"; and return 1"))
         .stdout(contains(".nix-profile-"))
         .stdout(contains(".stamp"));
 }
@@ -653,6 +653,75 @@ fn test_activate_reuses_fresh_profile_cache() {
     }
     let fresh_stamp_mtime = std::time::UNIX_EPOCH + std::time::Duration::from_secs(2);
     set_modified_time(&stamp_path, fresh_stamp_mtime);
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .env("PATH", prepend_path(&fake_bin_dir))
+        .env("FAKE_NIX_LOG", &log_path)
+        .env_remove("SHELL")
+        .args(["activate", "--profile", "generic"])
+        .assert()
+        .success();
+
+    let args: Vec<String> = fs::read_to_string(&log_path)
+        .unwrap()
+        .lines()
+        .map(ToOwned::to_owned)
+        .collect();
+    assert_eq!(
+        args,
+        vec![
+            "develop",
+            ".flk/.nix-profile-generic",
+            "--impure",
+            "-c",
+            "/bin/sh",
+        ]
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn test_activate_reuses_cache_when_stamp_equals_input_mtime() {
+    let temp_dir = TempDir::new().unwrap();
+    let fake_bin_dir = temp_dir.path().join("bin");
+    let fake_nix_path = fake_bin_dir.join("nix");
+    let log_path = temp_dir.path().join("nix-args.log");
+    let profile_path = temp_dir.path().join(".flk/.nix-profile-generic");
+    let stamp_path = temp_dir.path().join(".flk/.nix-profile-generic.stamp");
+
+    fs::create_dir_all(&fake_bin_dir).unwrap();
+    fs::write(
+        &fake_nix_path,
+        "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$FAKE_NIX_LOG\"\n",
+    )
+    .unwrap();
+    make_executable(&fake_nix_path);
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    fs::write(&profile_path, "cached-profile").unwrap();
+    fs::write(&stamp_path, "").unwrap();
+
+    let equal_mtime = std::time::UNIX_EPOCH + std::time::Duration::from_secs(2);
+    for input in [
+        "flake.nix",
+        "flake.lock",
+        ".flk/default.nix",
+        ".flk/pins.nix",
+        ".flk/overlays.nix",
+        ".flk/profiles/generic.nix",
+    ] {
+        let input_path = temp_dir.path().join(input);
+        if input_path.exists() {
+            set_modified_time(&input_path, equal_mtime);
+        }
+    }
+    set_modified_time(&stamp_path, equal_mtime);
 
     flk_cmd()
         .current_dir(temp_dir.path())

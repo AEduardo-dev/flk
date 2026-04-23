@@ -43,7 +43,7 @@ _flk_profile_is_fresh() {{
   [ -e "$profile_path" ] && [ -e "$stamp_path" ] || return 1
   for f in {cache_inputs}; do
     [ -e "$f" ] || continue
-    [ "$stamp_path" -nt "$f" ] || return 1
+    [ "$f" -nt "$stamp_path" ] && return 1
   done
   return 0
 }}
@@ -136,7 +136,7 @@ function _flk_profile_is_fresh
   test -e "$profile_path"; and test -e "$stamp_path"; or return 1
   for f in {cache_inputs}
     test -e "$f"; or continue
-    test "$stamp_path" -nt "$f"; or return 1
+    test "$f" -nt "$stamp_path"; and return 1
   end
   return 0
 end
