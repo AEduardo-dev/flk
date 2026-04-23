@@ -529,8 +529,8 @@ fn test_hook_shells_include_shell_command() {
         ))
         .stdout(contains("-c \"$flk_shell\""))
         .stdout(contains("exec \"$FLK_SHELL_CMD\""))
-        .stdout(contains("set -lx FLK_FLAKE_REF \".#$profile\""))
-        .stdout(contains("set -lx FLK_PROFILE \".#$profile\""))
+        .stdout(contains("set -gx FLK_FLAKE_REF"))
+        .stdout(contains("set -gx FLK_PROFILE"))
         .stdout(contains("set -l flk_shell"))
         .stdout(contains(".nix-profile-"))
         .stdout(contains(".stamp"));
