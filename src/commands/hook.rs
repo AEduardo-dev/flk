@@ -165,9 +165,9 @@ function refresh --description "Reload env (direnv if present, else nix develop)
     echo "invalid profile name: $profile_name" 1>&2
     return 1
   end
+  set -gx FLK_FLAKE_REF "$flk_ref"
+  set -gx FLK_PROFILE "$flk_ref"
   if _flk_use_direnv
-    set -lx FLK_FLAKE_REF "$flk_ref"
-    set -lx FLK_PROFILE "$flk_ref"
     direnv reload
   else
     set -l flk_shell (test -n "$SHELL"; and echo "$SHELL"; or echo "/bin/sh")
@@ -185,13 +185,11 @@ function switch --description "Switch profile and reload"
     echo "invalid profile name: $profile" 1>&2
     return 1
   end
+  set -gx FLK_FLAKE_REF ".#$profile"
+  set -gx FLK_PROFILE ".#$profile"
   if _flk_use_direnv
-    set -lx FLK_FLAKE_REF ".#$profile"
-    set -lx FLK_PROFILE ".#$profile"
     direnv reload
   else
-    set -lx FLK_FLAKE_REF ".#$profile"
-    set -lx FLK_PROFILE ".#$profile"
     set -l flk_shell (test -n "$SHELL"; and echo "$SHELL"; or echo "/bin/sh")
     _flk_exec_nix_develop ".#$profile" "$profile" "$flk_shell"
   end
