@@ -17,6 +17,10 @@ pub(crate) fn profile_cache_inputs(profile: &str) -> Vec<PathBuf> {
     paths
 }
 
+/// Generate a space-separated list of quoted cache-input paths for shell `for` loops.
+///
+/// `profile_expr` should be a shell variable reference (e.g. `"$profile"`) so it is
+/// expanded at runtime by the target shell.
 pub(crate) fn profile_cache_hook_inputs(profile_expr: &str) -> String {
     PROFILE_CACHE_INPUTS
         .iter()
