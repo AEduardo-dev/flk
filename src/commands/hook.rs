@@ -93,10 +93,10 @@ switch() {{
     return 1
   fi
   if _flk_use_direnv; then
-      export FLK_FLAKE_REF=".#$profile"
-      export FLK_PROFILE=".#$profile"
-      direnv reload
-    else
+    export FLK_FLAKE_REF=".#$profile"
+    export FLK_PROFILE=".#$profile"
+    direnv reload
+  else
     export FLK_FLAKE_REF=".#$profile"
     export FLK_PROFILE=".#$profile"
     _flk_exec_nix_develop ".#$profile" "$profile" "${{SHELL:-/bin/sh}}"
