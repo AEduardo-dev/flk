@@ -2,6 +2,7 @@
 //!
 //! Enter the Nix development shell for the current flake.
 
+use crate::commands::profile_cache::profile_cache_inputs;
 use anyhow::{Context, Result};
 use colored::Colorize;
 use flk::flake::parsers::utils::resolve_profile;
@@ -10,14 +11,6 @@ use std::{
     env, fs,
     path::{Path, PathBuf},
 };
-
-const PROFILE_CACHE_INPUTS: [&str; 5] = [
-    "flake.nix",
-    "flake.lock",
-    ".flk/default.nix",
-    ".flk/pins.nix",
-    ".flk/overlays.nix",
-];
 
 /// Enter the Nix development shell for the resolved profile.
 ///
@@ -135,13 +128,4 @@ fn profile_cache_is_fresh(profile: &str, profile_path: &Path, stamp_path: &Path)
     }
 
     Ok(true)
-}
-
-fn profile_cache_inputs(profile: &str) -> Vec<PathBuf> {
-    let mut paths = PROFILE_CACHE_INPUTS
-        .iter()
-        .map(PathBuf::from)
-        .collect::<Vec<_>>();
-    paths.push(Path::new(".flk/profiles").join(format!("{profile}.nix")));
-    paths
 }

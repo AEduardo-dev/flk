@@ -637,6 +637,22 @@ fn test_activate_reuses_fresh_profile_cache() {
 
     fs::write(&profile_path, "cached-profile").unwrap();
     fs::write(&stamp_path, "").unwrap();
+    let tracked_input_mtime = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1);
+    for input in [
+        "flake.nix",
+        "flake.lock",
+        ".flk/default.nix",
+        ".flk/pins.nix",
+        ".flk/overlays.nix",
+        ".flk/profiles/generic.nix",
+    ] {
+        let input_path = temp_dir.path().join(input);
+        if input_path.exists() {
+            set_modified_time(&input_path, tracked_input_mtime);
+        }
+    }
+    let fresh_stamp_mtime = std::time::UNIX_EPOCH + std::time::Duration::from_secs(2);
+    set_modified_time(&stamp_path, fresh_stamp_mtime);
 
     flk_cmd()
         .current_dir(temp_dir.path())
@@ -727,10 +743,9 @@ fn test_activate_profile_cache_with_real_nix_when_available() {
         format!("{original_flake}\n# force cache refresh\n"),
     )
     .unwrap();
-    set_modified_time(
-        &flake_path,
-        std::time::SystemTime::now() + std::time::Duration::from_secs(2),
-    );
+    // Force a stale stamp timestamp so tracked inputs are always newer.
+    let stale_stamp_mtime = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1);
+    set_modified_time(&stamp_path, stale_stamp_mtime);
 
     flk_cmd()
         .current_dir(temp_dir.path())
