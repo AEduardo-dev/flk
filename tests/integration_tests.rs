@@ -680,12 +680,19 @@ fn test_activate_profile_cache_with_real_nix_when_available() {
 
     let first_stamp_mtime = fs::metadata(&stamp_path).unwrap().modified().unwrap();
 
+    // Second activation should reuse the cached profile (stamp unchanged).
     flk_cmd()
         .current_dir(temp_dir.path())
         .env("SHELL", "/bin/true")
         .args(["activate", "--profile", "generic"])
         .assert()
         .success();
+
+    let reused_stamp_mtime = fs::metadata(&stamp_path).unwrap().modified().unwrap();
+    assert_eq!(
+        first_stamp_mtime, reused_stamp_mtime,
+        "expected cache stamp to remain unchanged when reusing cached profile"
+    );
 
     let flake_path = temp_dir.path().join("flake.nix");
     let original_flake = fs::read_to_string(&flake_path).unwrap();
