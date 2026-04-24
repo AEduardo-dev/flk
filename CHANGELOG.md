@@ -31,6 +31,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Make changelog follow git-cliff format
 - Update lockfile
 ## [unreleased]
+## [0.6.2] - 2026-04-24
+
+### 🚀 Features
+
+- Add default shell var ([#102](https://github.com/AEduardo-dev/flk/pull/102))
+
+### 🐛 Bug Fixes
+
+- Fail fast when stamp update cannot be written
+- Drop unused FLK_REF and add real nix cache reuse test
+- Export FLK_FLAKE_REF and FLK_PROFILE at function scope in fish hooks
+- Use portable path to `true` binary in real-nix integration test
+- Treat equal mtimes as stale and gate real nix cache test
+- Allow equal mtimes in profile cache freshness
+
+### 💼 Other
+
+- Update docs
+- Use cached profile unless profile changes are detected
+
+### 🚜 Refactor
+
+- Share cache-input definitions for activate and hooks
+
+### 📚 Documentation
+
+- Add doc comment to profile_cache_hook_inputs
+- Explain mtime boundary semantics in profile cache freshness check
+
+### 🎨 Styling
+
+- Fix indentation in bash switch() hook function
+- Replace bash A && B || C idiom with explicit if in hook
+
+### 🧪 Testing
+
+- Check that cached profile is used in correct scenarios
+- Make hook output assertions less formatting-fragile
+- Assert stamp mtime is unchanged on cached profile reuse
+- Probe nix features with explicit flags in real-nix gate
+- Simplify real-nix gate using NIX_CONFIG flakes probe
+- Clarify equal-mtime cache freshness regression name
+
+### ⚙️ Miscellaneous Tasks
+
+- Clarify hook fallback order and stale stamp intent
 ## [0.6.1] - 2026-03-22
 
 ### ⚙️ Miscellaneous Tasks
