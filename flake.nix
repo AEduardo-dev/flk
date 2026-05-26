@@ -11,13 +11,19 @@
     self,
     nixpkgs,
     flake-utils,
+    profile-lib,
     ...
   }: let
-    base = import ./.flk inputs;
+    flkLib = {
+      mkProject = import ./lib/mkProject.nix {
+        inherit nixpkgs flake-utils profile-lib;
+      };
+    };
+    base = flkLib.mkProject {src = ./.flk;} inputs;
     cargoToml = (nixpkgs.lib.importTOML ./Cargo.toml).package;
   in
-    nixpkgs.lib.recursiveUpdate base
-    (flake-utils.lib.eachDefaultSystem (system: let
+    (nixpkgs.lib.recursiveUpdate base
+      (flake-utils.lib.eachDefaultSystem (system: let
       pkgs = import nixpkgs {inherit system;};
 
       flkPackage = pkgs.rustPlatform.buildRustPackage {
@@ -106,5 +112,6 @@
       overlay = final: prev: {
         flk = self.packages.${final.system}.flk;
       };
-    }));
+    })))
+    // {lib = flkLib;};
 }

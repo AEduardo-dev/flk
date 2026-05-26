@@ -22,6 +22,9 @@ const IMPORTER_TEMPLATE: &str = include_str!("../../templates/profiles/default.n
 const OVERLAYS_TEMPLATE: &str = include_str!("../../templates/overlays.nix");
 const PINS_TEMPLATE: &str = include_str!("../../templates/pins.nix");
 
+const SLIM_FLAKE_TEMPLATE: &str = include_str!("../../templates/slim/flake.nix");
+const CONFIG_TEMPLATE: &str = include_str!("../../templates/slim/config.nix");
+
 const GENERIC_TEMPLATE: &str = include_str!("../../templates/profiles/base.nix");
 const RUST_TEMPLATE: &str = include_str!("../../templates/profiles/rust.nix");
 const PYTHON_TEMPLATE: &str = include_str!("../../templates/profiles/python.nix");
@@ -86,4 +89,23 @@ pub fn generate_overlays() -> Result<String> {
 /// version-specific package installations.
 pub fn generate_pins() -> Result<String> {
     Ok(PINS_TEMPLATE.to_string())
+}
+
+/// Generate the slim `flake.nix` content that delegates to `flk.lib.mkProject`.
+///
+/// This is the default `flk init` shape: the user's project only carries data
+/// (`.flk/config.nix`, `.flk/pins.nix`, `.flk/profiles/*.nix`), and the driver
+/// lives in the flk repo.
+pub fn generate_slim_flake() -> Result<String> {
+    Ok(SLIM_FLAKE_TEMPLATE.to_string())
+}
+
+/// Generate the `.flk/config.nix` content with the given default profile.
+///
+/// `default_profile` may be an empty string when no default is set yet.
+pub fn generate_config(default_profile: &str) -> Result<String> {
+    Ok(CONFIG_TEMPLATE.replace(
+        "defaultProfile = \"\";",
+        &format!("defaultProfile = \"{}\";", default_profile),
+    ))
 }

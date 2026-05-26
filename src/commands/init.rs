@@ -15,7 +15,8 @@ use flk::flake::generator;
 ///
 /// * `template` - Optional project type (rust, python, node, go, generic)
 /// * `force` - If true, overwrite existing flake.nix
-pub fn run(template: Option<String>, force: bool) -> Result<()> {
+/// * `legacy` - If true, materialize the legacy in-repo driver instead of the slim layout
+pub fn run(template: Option<String>, force: bool, legacy: bool) -> Result<()> {
     let flake_path = Path::new("flake.nix");
 
     // Check if flake.nix already exists
@@ -35,29 +36,37 @@ pub fn run(template: Option<String>, force: bool) -> Result<()> {
         project_type.green()
     );
 
-    // Generate flake.nix content
-    let root_flake_content = generator::generate_root_flake()?;
-    let helper_content = generator::generate_helper_module()?;
-    let importer_content = generator::generate_importer_module()?;
     let profile_content = generator::generate_flake(&project_type)?;
-    let overlays_content = generator::generate_overlays()?;
     let pins_content = generator::generate_pins()?;
 
     fs::create_dir_all(".flk/profiles")
         .context("Failed to create .flk and profiles directories")?;
 
-    // Write to file
-    fs::write(flake_path, root_flake_content).context("Failed to write flake.nix")?;
     fs::write(
         format!(".flk/profiles/{}.nix", project_type),
         profile_content,
     )
     .context("Failed to write profile file")?;
-    fs::write(".flk/default.nix", helper_content).context("Failed to write helper nix file")?;
-    fs::write(".flk/overlays.nix", overlays_content).context("Failed to write overlays.nix")?;
     fs::write(".flk/pins.nix", pins_content).context("Failed to write pins.nix")?;
-    fs::write(".flk/profiles/default.nix", importer_content)
-        .context("Failed to write importer nix file")?;
+
+    if legacy {
+        let root_flake_content = generator::generate_root_flake()?;
+        let helper_content = generator::generate_helper_module()?;
+        let importer_content = generator::generate_importer_module()?;
+        let overlays_content = generator::generate_overlays()?;
+
+        fs::write(flake_path, root_flake_content).context("Failed to write flake.nix")?;
+        fs::write(".flk/default.nix", helper_content).context("Failed to write helper nix file")?;
+        fs::write(".flk/overlays.nix", overlays_content).context("Failed to write overlays.nix")?;
+        fs::write(".flk/profiles/default.nix", importer_content)
+            .context("Failed to write importer nix file")?;
+    } else {
+        let slim_flake_content = generator::generate_slim_flake()?;
+        let config_content = generator::generate_config(&project_type)?;
+
+        fs::write(flake_path, slim_flake_content).context("Failed to write flake.nix")?;
+        fs::write(".flk/config.nix", config_content).context("Failed to write .flk/config.nix")?;
+    }
 
     println!(
         "{} Created flk environment successfully!",

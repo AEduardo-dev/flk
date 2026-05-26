@@ -1,0 +1,4 @@
+{
+  defaultProfile = "";
+  maxCombinations = 3;
+}

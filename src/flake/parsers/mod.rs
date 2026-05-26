@@ -24,6 +24,7 @@
 //! - [`utils`] - Shared parsing utilities and combinators
 
 pub mod commands;
+pub mod config;
 pub mod env;
 pub mod flake;
 pub mod overlays;

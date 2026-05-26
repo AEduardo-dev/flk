@@ -10,6 +10,7 @@ use std::fs;
 use std::path::Path;
 
 use flk::flake::generator;
+use flk::flake::parsers::config as flk_config;
 use flk::flake::parsers::utils::{get_default_shell_profile, is_valid_profile_name};
 
 /// Create a new profile from a template.
@@ -135,7 +136,8 @@ pub fn run_list() -> Result<()> {
 
 /// Set the default profile used when no `--profile` flag is provided.
 ///
-/// Updates the `defaultShell` attribute in `.flk/default.nix`.
+/// On slim layouts (`.flk/config.nix` present), updates `defaultProfile` there.
+/// On legacy layouts, updates the `defaultShell` attribute in `.flk/default.nix`.
 ///
 /// # Arguments
 ///
@@ -149,7 +151,6 @@ pub fn run_set_default(profile: String) -> Result<()> {
         );
     }
 
-    let importer_path = Path::new(".flk/default.nix");
     let profiles_path = Path::new(".flk/profiles");
     let profile_path = profiles_path.join(format!("{}.nix", profile));
 
@@ -158,6 +159,23 @@ pub fn run_set_default(profile: String) -> Result<()> {
         bail!("Profile {} does not exist!", profile.cyan());
     }
 
+    if flk_config::exists() {
+        flk_config::write_default_profile(&profile).context("Failed to update .flk/config.nix")?;
+    } else {
+        set_default_legacy(&profile)?;
+    }
+
+    println!(
+        "{} Set {} as the default profile successfully!",
+        "✓".green().bold(),
+        profile.cyan()
+    );
+
+    Ok(())
+}
+
+fn set_default_legacy(profile: &str) -> Result<()> {
+    let importer_path = Path::new(".flk/default.nix");
     let importer_content =
         fs::read_to_string(importer_path).context("Failed to read default.nix file")?;
 
@@ -191,12 +209,5 @@ pub fn run_set_default(profile: String) -> Result<()> {
     };
 
     fs::write(importer_path, &new_importer_content).context("Failed to write default.nix file")?;
-
-    println!(
-        "{} Set {} as the default profile successfully!",
-        "✓".green().bold(),
-        profile.cyan()
-    );
-
     Ok(())
 }

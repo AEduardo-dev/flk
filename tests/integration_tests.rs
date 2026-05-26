@@ -260,7 +260,7 @@ fn test_show_flake() {
         .assert()
         .success()
         .stdout(predicate::str::contains("Flake Configuration"))
-        .stdout(predicate::str::contains("nixpkgs"));
+        .stdout(predicate::str::contains("flk"));
 }
 
 #[test]
@@ -641,6 +641,7 @@ fn test_activate_reuses_fresh_profile_cache() {
     for input in [
         "flake.nix",
         "flake.lock",
+        ".flk/config.nix",
         ".flk/default.nix",
         ".flk/pins.nix",
         ".flk/overlays.nix",
@@ -711,6 +712,7 @@ fn test_activate_treats_cache_fresh_when_stamp_equals_input_mtime() {
     for input in [
         "flake.nix",
         "flake.lock",
+        ".flk/config.nix",
         ".flk/default.nix",
         ".flk/pins.nix",
         ".flk/overlays.nix",
@@ -961,8 +963,8 @@ fn test_profile_add_list_set_default_remove() {
         .assert()
         .success();
 
-    let default_content = fs::read_to_string(temp_dir.path().join(".flk/default.nix")).unwrap();
-    assert!(default_content.contains("defaultShell = \"rust\";"));
+    let config_content = fs::read_to_string(temp_dir.path().join(".flk/config.nix")).unwrap();
+    assert!(config_content.contains("defaultProfile = \"rust\";"));
 
     // Cannot remove rust while it's the default
     flk_cmd()
@@ -1746,4 +1748,172 @@ fn test_update_show_requires_existing_lock_file() {
         .assert()
         .failure()
         .stderr(contains("flake.lock not found"));
+}
+
+// ========================================================================
+// SLIM LAYOUT TESTS (default `flk init`) + `flk migrate`
+// ========================================================================
+
+#[test]
+fn test_init_slim_layout_default() {
+    let temp_dir = TempDir::new().unwrap();
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("init")
+        .assert()
+        .success();
+
+    // Slim layout: flake.nix + .flk/config.nix + .flk/pins.nix + profile file.
+    assert!(temp_dir.path().join("flake.nix").exists());
+    assert!(temp_dir.path().join(".flk/config.nix").exists());
+    assert!(temp_dir.path().join(".flk/pins.nix").exists());
+    assert!(temp_dir.path().join(".flk/profiles/generic.nix").exists());
+
+    // Legacy driver files must NOT exist.
+    assert!(!temp_dir.path().join(".flk/default.nix").exists());
+    assert!(!temp_dir.path().join(".flk/overlays.nix").exists());
+    assert!(!temp_dir.path().join(".flk/profiles/default.nix").exists());
+
+    // flake.nix must reference flk.lib.mkProject.
+    let flake = fs::read_to_string(temp_dir.path().join("flake.nix")).unwrap();
+    assert!(flake.contains("flk.lib.mkProject"));
+    assert!(flake.contains("github:AEduardo-dev/flk"));
+
+    // config.nix must carry the detected project type as defaultProfile.
+    let config = fs::read_to_string(temp_dir.path().join(".flk/config.nix")).unwrap();
+    assert!(config.contains("defaultProfile = \"generic\";"));
+}
+
+#[test]
+fn test_init_legacy_layout_opt_in() {
+    let temp_dir = TempDir::new().unwrap();
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["init", "--legacy"])
+        .assert()
+        .success();
+
+    // Legacy layout: includes the driver files, no config.nix.
+    assert!(temp_dir.path().join("flake.nix").exists());
+    assert!(temp_dir.path().join(".flk/default.nix").exists());
+    assert!(temp_dir.path().join(".flk/overlays.nix").exists());
+    assert!(temp_dir.path().join(".flk/pins.nix").exists());
+    assert!(temp_dir.path().join(".flk/profiles/default.nix").exists());
+    assert!(temp_dir.path().join(".flk/profiles/generic.nix").exists());
+    assert!(!temp_dir.path().join(".flk/config.nix").exists());
+
+    // Legacy flake.nix should NOT reference flk.lib.mkProject.
+    let flake = fs::read_to_string(temp_dir.path().join("flake.nix")).unwrap();
+    assert!(!flake.contains("flk.lib.mkProject"));
+    assert!(flake.contains("import ./.flk/default.nix"));
+}
+
+#[test]
+fn test_slim_workflow_add_env_cmd_setdefault() {
+    let temp_dir = TempDir::new().unwrap();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["init", "--template", "rust"])
+        .assert()
+        .success();
+
+    // Add a second profile and set it as default; verify it lands in config.nix.
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["profile", "add", "extra", "--template", "rust"])
+        .assert()
+        .success();
+
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["profile", "set-default", "extra"])
+        .assert()
+        .success();
+
+    let cfg = fs::read_to_string(temp_dir.path().join(".flk/config.nix")).unwrap();
+    assert!(cfg.contains("defaultProfile = \"extra\";"));
+    // Sanity: not written to the (absent) legacy file.
+    assert!(!temp_dir.path().join(".flk/default.nix").exists());
+
+    // Add a package on the rust profile via -p.
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["add", "ripgrep", "-p", "rust"])
+        .assert()
+        .success();
+
+    let rust_profile = fs::read_to_string(temp_dir.path().join(".flk/profiles/rust.nix")).unwrap();
+    assert!(rust_profile.contains("ripgrep"));
+
+    // env add (uses the default profile = extra)
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["env", "add", "FOO", "bar"])
+        .assert()
+        .success();
+
+    let extra_profile =
+        fs::read_to_string(temp_dir.path().join(".flk/profiles/extra.nix")).unwrap();
+    assert!(extra_profile.contains("FOO = \"bar\""));
+}
+
+#[test]
+fn test_migrate_converts_legacy_to_slim() {
+    let temp_dir = TempDir::new().unwrap();
+
+    // Initialize as legacy.
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["init", "--legacy", "--template", "rust"])
+        .assert()
+        .success();
+
+    // Set a default in the legacy driver so migrate has something to preserve.
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .args(["profile", "set-default", "rust"])
+        .assert()
+        .success();
+
+    // Snapshot a piece of user data we expect to survive migration unchanged.
+    let pins_before = fs::read_to_string(temp_dir.path().join(".flk/pins.nix")).unwrap();
+    let rust_before = fs::read_to_string(temp_dir.path().join(".flk/profiles/rust.nix")).unwrap();
+
+    // Migrate.
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("migrate")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Migrated to the slim layout"))
+        .stdout(predicate::str::contains("Preserved default profile"));
+
+    // Slim files present; legacy driver files gone.
+    assert!(temp_dir.path().join(".flk/config.nix").exists());
+    assert!(!temp_dir.path().join(".flk/default.nix").exists());
+    assert!(!temp_dir.path().join(".flk/overlays.nix").exists());
+    assert!(!temp_dir.path().join(".flk/profiles/default.nix").exists());
+
+    // flake.nix is now slim.
+    let flake = fs::read_to_string(temp_dir.path().join("flake.nix")).unwrap();
+    assert!(flake.contains("flk.lib.mkProject"));
+
+    // defaultProfile preserved.
+    let cfg = fs::read_to_string(temp_dir.path().join(".flk/config.nix")).unwrap();
+    assert!(cfg.contains("defaultProfile = \"rust\";"));
+
+    // User data preserved byte-for-byte.
+    let pins_after = fs::read_to_string(temp_dir.path().join(".flk/pins.nix")).unwrap();
+    let rust_after = fs::read_to_string(temp_dir.path().join(".flk/profiles/rust.nix")).unwrap();
+    assert_eq!(pins_before, pins_after);
+    assert_eq!(rust_before, rust_after);
+
+    // Re-running migrate on a slim project is a no-op.
+    flk_cmd()
+        .current_dir(temp_dir.path())
+        .arg("migrate")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("already on the slim layout"));
 }

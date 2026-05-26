@@ -34,7 +34,7 @@ use crate::commands::{
     activate, add, command, completions, direnv, env,
     export::{self, ExportType},
     hook::{self, HookShell},
-    init, list, lock, profiles, remove, search, show, update,
+    init, list, lock, migrate, profiles, remove, search, show, update,
 };
 
 #[derive(Parser)]
@@ -58,6 +58,11 @@ enum Commands {
         /// Force overwrite if flake.nix already exists
         #[arg(short, long)]
         force: bool,
+
+        /// Materialize the legacy in-repo driver (`.flk/{default,overlays}.nix`,
+        /// `.flk/profiles/default.nix`) instead of the slim `flk.lib.mkProject` layout
+        #[arg(long)]
+        legacy: bool,
     },
 
     /// Search for packages in nixpkgs
@@ -185,6 +190,9 @@ enum Commands {
         #[command(subcommand)]
         action: ProfileAction,
     },
+
+    /// Convert a legacy flk project to the slim `flk.lib.mkProject` layout
+    Migrate,
 }
 
 #[derive(Subcommand)]
@@ -282,8 +290,12 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Init { template, force } => {
-            init::run(template, force)?;
+        Commands::Init {
+            template,
+            force,
+            legacy,
+        } => {
+            init::run(template, force, legacy)?;
         }
         Commands::Search { query, limit } => {
             search::run_search(&query, limit)?;
@@ -389,6 +401,9 @@ fn main() -> Result<()> {
                 profiles::run_set_default(profile)?;
             }
         },
+        Commands::Migrate => {
+            migrate::run()?;
+        }
     }
 
     Ok(())

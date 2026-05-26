@@ -233,31 +233,61 @@ mod tests {
     }
 }
 
-/// Get the default shell profile name from `.flk/default.nix`.
+/// Get the default profile name.
 ///
-/// Looks for the `defaultShell` attribute. Falls back to the first
-/// profile found if no default is set.
+/// Resolution:
+/// 1. **Slim layout** — read `defaultProfile` from `.flk/config.nix` if it exists.
+/// 2. **Legacy layout** — read `defaultShell` from `.flk/default.nix`.
+/// 3. Fallback — first profile in `.flk/profiles/`.
 pub fn get_default_shell_profile() -> Result<String> {
-    let content = fs::read_to_string(".flk/default.nix")
-        .context("Failed to read .flk/default.nix. Have you run 'flk init'?")?;
-    if let Some(default_start) = content.find("defaultShell = \"") {
-        let search_start = default_start + "defaultShell = \"".len();
-        if let Some(end) = content[search_start..].find('"') {
-            let value = content[search_start..search_start + end].to_string();
-            if !value.trim().is_empty() {
-                // Validate profile name to prevent path traversal
-                if !is_valid_profile_name(&value) {
-                    anyhow::bail!(
-                        "Invalid profile name '{}' in default.nix. Profile names must be alphanumeric (with - or _) and cannot contain path separators.",
-                        value
-                    );
+    let slim_path = std::path::Path::new(".flk/config.nix");
+    let legacy_path = std::path::Path::new(".flk/default.nix");
+
+    if slim_path.exists() {
+        let content = fs::read_to_string(slim_path).context("Failed to read .flk/config.nix")?;
+        if let Some(default_start) = content.find("defaultProfile = \"") {
+            let search_start = default_start + "defaultProfile = \"".len();
+            if let Some(end) = content[search_start..].find('"') {
+                let value = content[search_start..search_start + end].to_string();
+                if !value.trim().is_empty() {
+                    if !is_valid_profile_name(&value) {
+                        anyhow::bail!(
+                            "Invalid profile name '{}' in .flk/config.nix. Profile names must be alphanumeric (with - or _) and cannot contain path separators.",
+                            value
+                        );
+                    }
+                    return Ok(value);
                 }
-                return Ok(value);
             }
         }
+        // Empty defaultProfile in config.nix → fall through to first-profile fallback.
+        return get_first_profile_name();
     }
-    // Fallback to first profile if no defaultShell set
-    get_first_profile_name()
+
+    if legacy_path.exists() {
+        let content = fs::read_to_string(legacy_path)
+            .context("Failed to read .flk/default.nix. Have you run 'flk init'?")?;
+        if let Some(default_start) = content.find("defaultShell = \"") {
+            let search_start = default_start + "defaultShell = \"".len();
+            if let Some(end) = content[search_start..].find('"') {
+                let value = content[search_start..search_start + end].to_string();
+                if !value.trim().is_empty() {
+                    if !is_valid_profile_name(&value) {
+                        anyhow::bail!(
+                            "Invalid profile name '{}' in default.nix. Profile names must be alphanumeric (with - or _) and cannot contain path separators.",
+                            value
+                        );
+                    }
+                    return Ok(value);
+                }
+            }
+        }
+        return get_first_profile_name();
+    }
+
+    Err(anyhow::anyhow!(
+        "Failed to read .flk/config.nix or .flk/default.nix. Have you run 'flk init'?"
+    ))
 }
 
 /// Resolve which profile to use based on priority order.
@@ -265,8 +295,9 @@ pub fn get_default_shell_profile() -> Result<String> {
 /// Resolution order:
 /// 1. Explicit `--profile` argument (if provided)
 /// 2. `FLK_FLAKE_REF` environment variable
-/// 3. `defaultShell` attribute in `.flk/default.nix`
-/// 4. First available profile in `.flk/profiles/`
+/// 3. `defaultProfile` from `.flk/config.nix` (slim layout)
+/// 4. `defaultShell` from `.flk/default.nix` (legacy layout)
+/// 5. First available profile in `.flk/profiles/`
 ///
 /// # Arguments
 ///
