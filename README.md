@@ -1,3 +1,11 @@
+> [!WARNING]
+> This project has been migrated to [GitLab](https://gitlab.com/pixel-racks/flk).
+> The version available here is read-only and will not receive more updates.
+> Make sure you are using the latest released version and ensure your flake inputs are updated if using flk.
+> 
+
+
+
 # flk 🚀
 
 > A modern CLI tool for managing Nix flake development environments with the simplicity of Devbox
